@@ -40,6 +40,45 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setLoading(false);
     });
 
+    // Seed do usuário administrador (apenas em ambiente de desenvolvimento)
+    // Usa variáveis de ambiente VITE_ADMIN_EMAIL e VITE_ADMIN_PASS quando disponíveis.
+    const seedAdmin = async () => {
+      try {
+        const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL as string) || 'viniciussiuva1@gmail.com';
+        const adminPass = (import.meta.env.VITE_ADMIN_PASS as string) || 'Padariaribamarcvs123';
+
+        // Tenta logar com o admin; se não existir, registra automaticamente.
+        try {
+          await signInWithEmailAndPassword(auth, adminEmail, adminPass);
+          // já existe e está logado — desloga para não interferir no fluxo atual
+          await signOut(auth);
+        } catch (err) {
+          // se não conseguir logar, tenta criar
+          try {
+            const res = await createUserWithEmailAndPassword(auth, adminEmail, adminPass);
+            const newUser: User = {
+              id: res.user.uid,
+              name: 'Administrador',
+              email: adminEmail,
+              role: UserRole.ADMIN
+            };
+            await setDoc(doc(db, 'users', res.user.uid), newUser);
+            await signOut(auth);
+            console.log('Admin seeded:', adminEmail);
+          } catch (createErr) {
+            // Pode falhar se o usuário já existir no Auth mas não puder logar (senha diferente),
+            // ou por regras do Firebase — tratar com log apenas.
+            console.warn('Não foi possível seedar admin automaticamente:', createErr);
+          }
+        }
+      } catch (e) {
+        console.error('Erro no seed de admin:', e);
+      }
+    };
+
+    // Executa o seed apenas em desenvolvimento
+    if (import.meta.env.DEV) seedAdmin();
+
     return () => unsubscribe();
   }, []);
 
