@@ -1,0 +1,7 @@
+{
+  "name": "Copy of Pão de Ribamar - Gestão",
+  "description": "Sistema de gestão de padaria com controle de produção, entregadores e clientes.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
