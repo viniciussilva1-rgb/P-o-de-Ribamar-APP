@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, UserRole } from '../types';
 import { auth, db } from '../firebaseConfig'; // Importa a auth do Firebase
@@ -28,11 +29,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const userDoc = await getDoc(userDocRef);
         
         if (userDoc.exists()) {
+          console.log('Firestore: usuário encontrado', firebaseUser.uid);
           setCurrentUser(userDoc.data() as User);
         } else {
-          // Fallback: Tenta buscar por email na coleção de users (caso tenha sido criado pelo Admin sem ID do Auth)
-          // Em um app real, sincronizaríamos isso melhor. Aqui, vamos assumir que o registro cria o doc.
-          console.log("Usuário logado no Auth, mas sem documento no Firestore correspondente ao UID.");
+          // Se o documento não existe, cria um novo com dados básicos
+          console.log('Firestore: documento não existe, criando para', firebaseUser.uid);
+          const newUser: User = {
+            id: firebaseUser.uid,
+            name: firebaseUser.displayName || 'Usuário',
+            email: firebaseUser.email || '',
+            role: firebaseUser.email === 'viniciussiuva1@gmail.com' ? UserRole.ADMIN : UserRole.DRIVER
+          };
+          try {
+            await setDoc(userDocRef, newUser);
+            console.log('Firestore: documento criado com sucesso', firebaseUser.uid);
+            setCurrentUser(newUser);
+          } catch (docCreationError) {
+            console.error('Erro ao criar documento do usuário:', docCreationError);
+            // Mesmo com erro, mantém o usuário logado com dados mínimos
+            setCurrentUser({
+              id: firebaseUser.uid,
+              name: firebaseUser.displayName || 'Usuário',
+              email: firebaseUser.email || '',
+              role: UserRole.DRIVER
+            });
+          }
         }
       } else {
         setCurrentUser(null);
