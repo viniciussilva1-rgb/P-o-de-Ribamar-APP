@@ -283,28 +283,50 @@ export const ProductCatalog: React.FC = () => {
 
 export const DriversOverview: React.FC = () => {
   const { getDrivers, getClientsByDriver, addUser } = useData();
+  const { register } = useAuth();
   const drivers = getDrivers();
   const [expandedDriverId, setExpandedDriverId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newDriverName, setNewDriverName] = useState('');
   const [newDriverEmail, setNewDriverEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const toggleDriver = (id: string) => {
     setExpandedDriverId(prev => prev === id ? null : id);
   };
 
-  const handleAddDriver = (e: React.FormEvent) => {
+  const handleAddDriver = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newUser: User = {
-      id: `driver-${Date.now()}`,
-      name: newDriverName,
-      email: newDriverEmail,
-      role: UserRole.DRIVER
-    };
-    addUser(newUser);
-    setIsModalOpen(false);
-    setNewDriverName('');
-    setNewDriverEmail('');
+    setLoading(true);
+    setError('');
+
+    try {
+      // Gera uma senha padrão segura para o entregador
+      const defaultPassword = `${newDriverName.replace(/\s+/g, '')}@${Date.now().toString().slice(-4)}`;
+      
+      // 1. Cria a conta no Firebase Auth
+      const authSuccess = await register(newDriverEmail, defaultPassword, newDriverName);
+      if (!authSuccess) {
+        setError('Erro ao criar conta de autenticação. Email pode já estar em uso.');
+        setLoading(false);
+        return;
+      }
+
+      console.log(`✅ Entregador criado: ${newDriverName} (${newDriverEmail})`);
+      console.log(`Senha temporária: ${defaultPassword}`);
+      
+      // Fecha modal e limpa formulário
+      setIsModalOpen(false);
+      setNewDriverName('');
+      setNewDriverEmail('');
+      alert(`Entregador criado com sucesso!\n\nEmail: ${newDriverEmail}\nSenha temporária: ${defaultPassword}\n\nAvise o entregador para trocar a senha ao fazer login.`);
+    } catch (err) {
+      console.error('Erro ao criar entregador:', err);
+      setError('Erro ao criar entregador. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -389,18 +411,27 @@ export const DriversOverview: React.FC = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
             <h3 className="text-xl font-bold mb-4 text-gray-800">Adicionar Entregador</h3>
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-2">
+                <AlertCircle size={18} className="text-red-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            )}
             <form onSubmit={handleAddDriver} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
-                <input required type="text" className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900" value={newDriverName} onChange={e => setNewDriverName(e.target.value)} />
+                <input required type="text" className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900" value={newDriverName} onChange={e => setNewDriverName(e.target.value)} disabled={loading} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input required type="email" className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900" value={newDriverEmail} onChange={e => setNewDriverEmail(e.target.value)} />
+                <input required type="email" className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900" value={newDriverEmail} onChange={e => setNewDriverEmail(e.target.value)} disabled={loading} />
               </div>
               <div className="flex justify-end space-x-3 pt-4">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
-                <button type="submit" className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700">Criar Conta</button>
+                <button type="button" onClick={() => { setIsModalOpen(false); setError(''); }} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg" disabled={loading}>Cancelar</button>
+                <button type="submit" disabled={loading} className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2">
+                  {loading && <Loader2 size={16} className="animate-spin" />}
+                  <span>{loading ? 'Criando...' : 'Criar Conta'}</span>
+                </button>
               </div>
             </form>
           </div>
