@@ -84,7 +84,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const login = async (email: string, pass: string): Promise<boolean> => {
     try {
-      await signInWithEmailAndPassword(auth, email, pass);
+      const res = await signInWithEmailAndPassword(auth, email, pass);
+      console.log('Auth: signInWithEmailAndPassword success for', email, res.user.uid);
       return true;
     } catch (error) {
       console.error("Erro no login:", error);
@@ -95,6 +96,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const register = async (email: string, pass: string, name: string): Promise<boolean> => {
     try {
       const result = await createUserWithEmailAndPassword(auth, email, pass);
+      console.log('Auth: createUserWithEmailAndPassword success for', email, result.user.uid);
       
       // Cria o documento do usuário no Firestore com o mesmo ID da Autenticação
       const newUser: User = {
@@ -106,6 +108,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       };
       
       await setDoc(doc(db, 'users', result.user.uid), newUser);
+      console.log('Auth: Firestore user doc created for', result.user.uid);
       return true;
     } catch (error) {
       console.error("Erro no registro:", error);
