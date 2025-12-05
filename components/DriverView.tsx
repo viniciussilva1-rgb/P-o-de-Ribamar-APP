@@ -159,13 +159,15 @@ export const DriverView: React.FC = () => {
       driverId: currentUser.id
     };
     try {
+      console.log('📍 Criando rota:', route);
       await addRoute(route);
-      console.log('✅ Rota criada:', route);
+      console.log('✅ Rota criada com sucesso');
       setNewRouteName('');
-      alert(`Rota "${newRouteName}" criada com sucesso!`);
-    } catch (err) {
+      alert(`Rota "${route.name}" criada com sucesso!\nVocê pode agora associar clientes a esta rota.`);
+    } catch (err: any) {
       console.error('❌ Erro ao criar rota:', err);
-      alert('Erro ao criar rota. Tente novamente.');
+      const errorMsg = err?.message || err?.code || 'Erro desconhecido';
+      alert(`Erro ao criar rota:\n${errorMsg}\n\nCertifique-se de que está logado e que tem permissão.`);
     }
   };
 
