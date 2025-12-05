@@ -1,0 +1,16 @@
+// Regras de teste para desenvolvimento
+// Permite que cada usuário autenticado leia/escreva seu próprio documento em /users/{userId}
+// IMPORTANTE: após testar, ajuste estas regras para a política de segurança da sua aplicação.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Usuário autenticado só pode ler/escrever seu próprio documento de perfil
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Permitir leituras autenticadas em todo o DB (descomente apenas para testes rápidos)
+    // match /{document=**} {
+    //   allow read: if request.auth != null;
+    // }
+  }
+}
