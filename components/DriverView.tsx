@@ -148,15 +148,25 @@ export const DriverView: React.FC = () => {
     setIsClientModalOpen(false);
   };
 
-  const handleAddRoute = () => {
-    if (!newRouteName.trim()) return;
+  const handleAddRoute = async () => {
+    if (!newRouteName.trim()) {
+      alert('Digite o nome da rota');
+      return;
+    }
     const route: Route = {
       id: Date.now().toString(),
       name: newRouteName,
       driverId: currentUser.id
     };
-    addRoute(route);
-    setNewRouteName('');
+    try {
+      await addRoute(route);
+      console.log('✅ Rota criada:', route);
+      setNewRouteName('');
+      alert(`Rota "${newRouteName}" criada com sucesso!`);
+    } catch (err) {
+      console.error('❌ Erro ao criar rota:', err);
+      alert('Erro ao criar rota. Tente novamente.');
+    }
   };
 
   const getGPS = () => {
