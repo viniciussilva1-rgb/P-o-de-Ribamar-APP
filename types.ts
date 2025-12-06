@@ -54,6 +54,9 @@ export interface Client {
   };
   status: 'ACTIVE' | 'INACTIVE';
   
+  // Escolha Dinâmica de Produtos
+  isDynamicChoice?: boolean; // Cliente com escolha dinâmica (sem lista fixa)
+  
   // Payment & Logistics
   paymentMethod?: string; // Legacy/Fallback
   paymentFrequency: 'Diário' | 'Semanal' | 'Mensal' | 'Personalizado';
@@ -71,7 +74,7 @@ export interface Client {
   // Exceptions
   skippedDates?: string[]; // Array of 'YYYY-MM-DD' where delivery was skipped
 
-  // Delivery Schedule
+  // Delivery Schedule (para clientes normais)
   deliverySchedule?: DeliverySchedule;
 
   notes?: string;
@@ -275,3 +278,110 @@ export interface AdminDeliveryReport {
     }[];
   };
 }
+
+// ========== ESCOLHA DINÂMICA DE PRODUTOS ==========
+
+// Registro de consumo histórico de um cliente (cada entrega)
+export interface DynamicConsumptionRecord {
+  id: string;
+  clientId: string;
+  driverId: string;
+  date: string; // YYYY-MM-DD
+  dayOfWeek: number; // 0-6 (dom-sab)
+  items: {
+    productId: string;
+    quantity: number;
+    price: number;
+  }[];
+  totalValue: number;
+  createdAt: string;
+}
+
+// Estatísticas de consumo por produto para um cliente
+export interface ProductConsumptionStats {
+  productId: string;
+  productName: string;
+  totalOrders: number; // Quantas vezes foi pedido
+  totalQuantity: number; // Quantidade total histórica
+  averageQuantity: number; // Média por pedido
+  minQuantity: number; // Mínimo registrado
+  maxQuantity: number; // Máximo registrado
+  stdDeviation: number; // Desvio padrão
+  lastOrderDate?: string; // Última vez que pediu
+  trend: 'increasing' | 'stable' | 'decreasing'; // Tendência
+  // Por dia da semana (0-6)
+  byDayOfWeek: {
+    dayOfWeek: number;
+    averageQuantity: number;
+    orderCount: number;
+  }[];
+}
+
+// Histórico completo de um cliente com escolha dinâmica
+export interface DynamicClientHistory {
+  clientId: string;
+  clientName: string;
+  totalDeliveries: number;
+  firstDeliveryDate?: string;
+  lastDeliveryDate?: string;
+  productStats: ProductConsumptionStats[];
+  averageTotalValue: number;
+  // Dias da semana que mais compra (ordenado)
+  preferredDays: number[];
+}
+
+// Previsão de carga para cliente dinâmico
+export interface DynamicClientPrediction {
+  clientId: string;
+  clientName: string;
+  routeId?: string;
+  routeName?: string;
+  date: string;
+  dayOfWeek: number;
+  hasHistory: boolean; // Se tem histórico ou usa padrão
+  confidence: 'high' | 'medium' | 'low'; // Confiança na previsão
+  predictedItems: {
+    productId: string;
+    productName: string;
+    minQuantity: number;
+    avgQuantity: number;
+    maxQuantity: number;
+    recommendedQuantity: number; // Quantidade recomendada para levar
+  }[];
+  predictedTotalValue: number;
+}
+
+// Resumo de carga extra para clientes dinâmicos
+export interface DynamicLoadSummary {
+  date: string;
+  driverId: string;
+  dynamicClientsCount: number;
+  predictions: DynamicClientPrediction[];
+  // Totais recomendados por produto
+  recommendedLoad: {
+    productId: string;
+    productName: string;
+    minTotal: number;
+    avgTotal: number;
+    maxTotal: number;
+    recommendedTotal: number;
+  }[];
+  totalRecommendedValue: number;
+}
+
+// Configurações padrão para clientes sem histórico
+export interface DynamicDefaultSettings {
+  id: string;
+  // Quantidade padrão inicial por produto
+  defaultQuantities: {
+    productId: string;
+    quantity: number;
+  }[];
+  // Margem de segurança (%) para previsões
+  safetyMarginPercent: number;
+  // Mínimo de entregas para considerar histórico confiável
+  minDeliveriesForReliableHistory: number;
+  updatedAt: string;
+  updatedBy: string;
+}
+

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { ClientDelivery, DeliveryStatus, Client } from '../types';
+import { ClientDelivery, DeliveryStatus, Client, DynamicClientPrediction } from '../types';
 import { 
   Package, Truck, CheckCircle, XCircle, Clock, MapPin, Phone, 
   User, AlertCircle, Loader2, Calendar, ChevronDown, ChevronRight,
-  DollarSign, ClipboardList, RefreshCw, Send, Filter, Users
+  DollarSign, ClipboardList, RefreshCw, Send, Filter, Users,
+  Sparkles, Edit3, Plus, Minus, Save
 } from 'lucide-react';
 
 // Helper: formatar dia da semana
@@ -30,7 +31,10 @@ const DriverDailyDeliveries: React.FC = () => {
     getDeliveriesByDriver,
     getDriverDailySummary,
     getScheduledClientsForDay,
-    clientDeliveries
+    clientDeliveries,
+    getDynamicClientsForDriver,
+    getDynamicClientPrediction,
+    recordDynamicDelivery
   } = useData();
   
   const today = new Date().toISOString().split('T')[0];
@@ -43,6 +47,13 @@ const DriverDailyDeliveries: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<DeliveryStatus | 'all'>('all');
   const [notDeliveredReason, setNotDeliveredReason] = useState('');
   const [processingId, setProcessingId] = useState<string | null>(null);
+
+  // Estado para edição de entrega dinâmica
+  const [editingDynamicDelivery, setEditingDynamicDelivery] = useState<string | null>(null);
+  const [dynamicDeliveryItems, setDynamicDeliveryItems] = useState<{ productId: string; quantity: number; price: number }[]>([]);
+
+  // Clientes dinâmicos
+  const dynamicClients = currentUser?.id ? getDynamicClientsForDriver(currentUser.id) : [];
 
   // Rotas do entregador
   const myRoutes = routes.filter(r => r.driverId === currentUser?.id);
@@ -104,6 +115,72 @@ const DriverDailyDeliveries: React.FC = () => {
     } finally {
       setProcessingId(null);
     }
+  };
+
+  // Iniciar edição de entrega dinâmica
+  const handleStartDynamicEdit = (delivery: ClientDelivery) => {
+    const client = clients.find(c => c.id === delivery.clientId);
+    if (!client?.isDynamicChoice) return;
+    
+    // Obter previsão para preencher valores iniciais
+    const prediction = getDynamicClientPrediction(delivery.clientId, selectedDate);
+    
+    // Inicializar com os itens da previsão ou com os itens já na entrega
+    const initialItems = prediction.predictedItems.map(item => ({
+      productId: item.productId,
+      quantity: item.recommendedQuantity,
+      price: client.customPrices?.[item.productId] ?? products.find(p => p.id === item.productId)?.price ?? 0
+    }));
+    
+    setDynamicDeliveryItems(initialItems);
+    setEditingDynamicDelivery(delivery.id);
+  };
+
+  // Atualizar quantidade de item dinâmico
+  const updateDynamicItemQuantity = (productId: string, delta: number) => {
+    setDynamicDeliveryItems(prev => 
+      prev.map(item => 
+        item.productId === productId 
+          ? { ...item, quantity: Math.max(0, item.quantity + delta) }
+          : item
+      )
+    );
+  };
+
+  // Confirmar entrega dinâmica
+  const handleConfirmDynamicDelivery = async (deliveryId: string) => {
+    const delivery = deliveries.find(d => d.id === deliveryId);
+    if (!delivery || !currentUser?.id) return;
+    
+    const itemsWithQuantity = dynamicDeliveryItems.filter(item => item.quantity > 0);
+    
+    if (itemsWithQuantity.length === 0) {
+      setError('Adicione pelo menos um produto à entrega.');
+      return;
+    }
+    
+    setProcessingId(deliveryId);
+    try {
+      // Registrar consumo dinâmico (histórico para IA)
+      await recordDynamicDelivery(delivery.clientId, currentUser.id, itemsWithQuantity);
+      
+      // Atualizar status da entrega como entregue
+      await updateDeliveryStatus(deliveryId, 'delivered');
+      
+      setEditingDynamicDelivery(null);
+      setDynamicDeliveryItems([]);
+    } catch (err) {
+      console.error('Erro ao confirmar entrega dinâmica:', err);
+      setError('Erro ao registrar entrega dinâmica.');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // Verificar se cliente é dinâmico
+  const isClientDynamic = (clientId: string): boolean => {
+    const client = clients.find(c => c.id === clientId);
+    return client?.isDynamicChoice === true;
   };
 
   const getProductName = (productId: string) => {
@@ -541,12 +618,18 @@ const DriverDailyDeliveries: React.FC = () => {
                   const isProcessing = processingId === delivery.id;
                   
                   return (
-                    <div key={delivery.id} className="p-4">
+                    <div key={delivery.id} className={`p-4 ${isClientDynamic(delivery.clientId) ? 'border-l-4 border-purple-400' : ''}`}>
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <User size={16} className="text-gray-400" />
                             <span className="font-medium text-gray-800">{delivery.clientName}</span>
+                            {isClientDynamic(delivery.clientId) && (
+                              <span className="flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                                <Sparkles size={10} />
+                                DINÂMICO
+                              </span>
+                            )}
                             {getStatusBadge(delivery.status)}
                           </div>
                           <div className="flex items-center gap-4 text-sm text-gray-500">
@@ -560,14 +643,81 @@ const DriverDailyDeliveries: React.FC = () => {
                             </span>
                           </div>
                           
-                          {/* Produtos */}
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {delivery.items.map(item => (
-                              <span key={item.productId} className="px-2 py-1 bg-gray-100 rounded text-sm">
-                                {getProductName(item.productId)}: {item.quantity}
-                              </span>
-                            ))}
-                          </div>
+                          {/* Produtos - diferente para dinâmicos */}
+                          {editingDynamicDelivery !== delivery.id ? (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {delivery.items.map(item => (
+                                <span key={item.productId} className={`px-2 py-1 rounded text-sm ${
+                                  isClientDynamic(delivery.clientId) ? 'bg-purple-100 text-purple-700' : 'bg-gray-100'
+                                }`}>
+                                  {getProductName(item.productId)}: {item.quantity}
+                                </span>
+                              ))}
+                              {isClientDynamic(delivery.clientId) && delivery.items.length === 0 && (
+                                <span className="text-sm text-purple-600 italic">
+                                  Selecione os produtos na entrega →
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            /* Editor de produtos para cliente dinâmico */
+                            <div className="mt-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
+                              <div className="flex items-center gap-2 mb-3">
+                                <Sparkles size={16} className="text-purple-600" />
+                                <span className="text-sm font-medium text-purple-800">Selecione os produtos para esta entrega:</span>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                {dynamicDeliveryItems.map(item => {
+                                  const product = products.find(p => p.id === item.productId);
+                                  if (!product) return null;
+                                  return (
+                                    <div key={item.productId} className="flex items-center justify-between bg-white p-2 rounded border border-purple-100">
+                                      <div className="flex-1">
+                                        <span className="text-sm font-medium text-gray-800">{product.name}</span>
+                                        <span className="text-xs text-gray-500 ml-2">€{item.price.toFixed(2)}</span>
+                                      </div>
+                                      <div className="flex items-center gap-1">
+                                        <button
+                                          onClick={() => updateDynamicItemQuantity(item.productId, -1)}
+                                          className="p-1 rounded bg-purple-100 hover:bg-purple-200 text-purple-700"
+                                        >
+                                          <Minus size={14} />
+                                        </button>
+                                        <span className="w-8 text-center font-bold text-purple-700">{item.quantity}</span>
+                                        <button
+                                          onClick={() => updateDynamicItemQuantity(item.productId, 1)}
+                                          className="p-1 rounded bg-purple-100 hover:bg-purple-200 text-purple-700"
+                                        >
+                                          <Plus size={14} />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              <div className="flex items-center justify-between mt-3 pt-3 border-t border-purple-200">
+                                <span className="text-sm text-purple-700">
+                                  Total: <strong>€{dynamicDeliveryItems.reduce((sum, i) => sum + (i.price * i.quantity), 0).toFixed(2)}</strong>
+                                </span>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => { setEditingDynamicDelivery(null); setDynamicDeliveryItems([]); }}
+                                    className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded text-sm"
+                                  >
+                                    Cancelar
+                                  </button>
+                                  <button
+                                    onClick={() => handleConfirmDynamicDelivery(delivery.id)}
+                                    disabled={isProcessing}
+                                    className="flex items-center gap-1 px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 text-sm"
+                                  >
+                                    {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                                    Confirmar Entrega
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                           
                           <div className="mt-2 flex items-center gap-4">
                             <span className="text-sm font-medium text-green-600">
@@ -582,16 +732,28 @@ const DriverDailyDeliveries: React.FC = () => {
                         </div>
                         
                         {/* Ações */}
-                        {delivery.status === 'pending' && (
+                        {delivery.status === 'pending' && editingDynamicDelivery !== delivery.id && (
                           <div className="flex flex-col gap-2 ml-4">
-                            <button
-                              onClick={() => handleMarkDelivered(delivery.id)}
-                              disabled={isProcessing}
-                              className="flex items-center gap-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm"
-                            >
-                              {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
-                              Entregue
-                            </button>
+                            {isClientDynamic(delivery.clientId) ? (
+                              /* Botão especial para cliente dinâmico */
+                              <button
+                                onClick={() => handleStartDynamicEdit(delivery)}
+                                className="flex items-center gap-1 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
+                              >
+                                <Edit3 size={14} />
+                                Registrar Entrega
+                              </button>
+                            ) : (
+                              /* Botão normal para cliente fixo */
+                              <button
+                                onClick={() => handleMarkDelivered(delivery.id)}
+                                disabled={isProcessing}
+                                className="flex items-center gap-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm"
+                              >
+                                {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                                Entregue
+                              </button>
+                            )}
                             <button
                               onClick={() => setExpandedDelivery(isExpanded ? null : delivery.id)}
                               className="flex items-center gap-1 px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 text-sm"

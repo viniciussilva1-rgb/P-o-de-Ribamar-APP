@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, Client, UserRole, Product, ProductionData, DailyProductionRecord, Route, PaymentTransaction, DeliverySchedule, DailyLoad, LoadItem, ReturnItem, DailyLoadReport, ProductionSuggestion, ClientDelivery, DeliveryStatus, DriverDailySummary, AdminDeliveryReport, DeliveryItem } from '../types';
+import { User, Client, UserRole, Product, ProductionData, DailyProductionRecord, Route, PaymentTransaction, DeliverySchedule, DailyLoad, LoadItem, ReturnItem, DailyLoadReport, ProductionSuggestion, ClientDelivery, DeliveryStatus, DriverDailySummary, AdminDeliveryReport, DeliveryItem, DynamicConsumptionRecord, ProductConsumptionStats, DynamicClientHistory, DynamicClientPrediction, DynamicLoadSummary } from '../types';
 import { INITIAL_PRODUCTS, MOCK_ADMIN_EMAIL } from '../constants';
 import { db } from '../firebaseConfig'; // Import database
 import { collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot, query, where, getDocs } from 'firebase/firestore';
@@ -48,6 +48,14 @@ interface DataContextType {
   getDriverDailySummary: (driverId: string, date: string) => DriverDailySummary;
   getAdminDeliveryReport: (date: string) => AdminDeliveryReport;
   getScheduledClientsForDay: (driverId: string, date: string) => Client[];
+  
+  // Funções de Escolha Dinâmica (IA)
+  dynamicConsumptionRecords: DynamicConsumptionRecord[];
+  recordDynamicDelivery: (clientId: string, driverId: string, items: { productId: string; quantity: number; price: number }[]) => Promise<void>;
+  getDynamicClientHistory: (clientId: string) => DynamicClientHistory | null;
+  getDynamicClientPrediction: (clientId: string, date: string) => DynamicClientPrediction;
+  getDynamicLoadSummary: (driverId: string, date: string) => DynamicLoadSummary;
+  getDynamicClientsForDriver: (driverId: string) => Client[];
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -60,6 +68,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [productionData, setProductionData] = useState<ProductionData>({});
   const [dailyLoads, setDailyLoads] = useState<DailyLoad[]>([]);
   const [clientDeliveries, setClientDeliveries] = useState<ClientDelivery[]>([]);
+  const [dynamicConsumptionRecords, setDynamicConsumptionRecords] = useState<DynamicConsumptionRecord[]>([]);
 
   // --- FIREBASE LISTENERS (Realtime Sync) ---
 
@@ -164,6 +173,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         id: docSnap.id
       } as ClientDelivery));
       setClientDeliveries(deliveriesList);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // 8. Dynamic Consumption Records (Histórico de Escolha Dinâmica)
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'dynamic_consumption'), (snapshot) => {
+      const recordsList = snapshot.docs.map(docSnap => ({
+        ...docSnap.data(),
+        id: docSnap.id
+      } as DynamicConsumptionRecord));
+      setDynamicConsumptionRecords(recordsList);
     });
     return () => unsubscribe();
   }, []);
@@ -844,15 +865,287 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   };
 
+  // ========== FUNÇÕES DE ESCOLHA DINÂMICA (IA) ==========
+
+  // Obter clientes dinâmicos de um entregador
+  const getDynamicClientsForDriver = (driverId: string): Client[] => {
+    return clients.filter(c => c.driverId === driverId && c.isDynamicChoice && c.status === 'ACTIVE');
+  };
+
+  // Registrar entrega dinâmica (atualiza histórico)
+  const recordDynamicDelivery = async (
+    clientId: string, 
+    driverId: string, 
+    items: { productId: string; quantity: number; price: number }[]
+  ): Promise<void> => {
+    const now = new Date();
+    const date = now.toISOString().split('T')[0];
+    const dayOfWeek = now.getDay();
+    
+    const totalValue = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    
+    const record: DynamicConsumptionRecord = {
+      id: `dyn-${clientId}-${date}-${Date.now()}`,
+      clientId,
+      driverId,
+      date,
+      dayOfWeek,
+      items,
+      totalValue,
+      createdAt: now.toISOString()
+    };
+    
+    await setDoc(doc(db, 'dynamic_consumption', record.id), record);
+  };
+
+  // Calcular estatísticas de um produto para um cliente
+  const calculateProductStats = (clientId: string, productId: string): ProductConsumptionStats | null => {
+    const records = dynamicConsumptionRecords.filter(r => r.clientId === clientId);
+    const productRecords = records
+      .map(r => ({
+        record: r,
+        item: r.items.find(i => i.productId === productId)
+      }))
+      .filter(x => x.item !== undefined);
+    
+    if (productRecords.length === 0) return null;
+    
+    const quantities = productRecords.map(x => x.item!.quantity);
+    const total = quantities.reduce((a, b) => a + b, 0);
+    const avg = total / quantities.length;
+    const min = Math.min(...quantities);
+    const max = Math.max(...quantities);
+    
+    // Calcular desvio padrão
+    const squaredDiffs = quantities.map(q => Math.pow(q - avg, 2));
+    const avgSquaredDiff = squaredDiffs.reduce((a, b) => a + b, 0) / squaredDiffs.length;
+    const stdDev = Math.sqrt(avgSquaredDiff);
+    
+    // Calcular tendência (últimas 5 entregas vs anteriores)
+    let trend: 'increasing' | 'stable' | 'decreasing' = 'stable';
+    if (quantities.length >= 5) {
+      const recent = quantities.slice(-5).reduce((a, b) => a + b, 0) / 5;
+      const older = quantities.slice(0, -5);
+      if (older.length > 0) {
+        const olderAvg = older.reduce((a, b) => a + b, 0) / older.length;
+        if (recent > olderAvg * 1.1) trend = 'increasing';
+        else if (recent < olderAvg * 0.9) trend = 'decreasing';
+      }
+    }
+    
+    // Por dia da semana
+    const byDayMap = new Map<number, { total: number; count: number }>();
+    productRecords.forEach(x => {
+      const day = x.record.dayOfWeek;
+      const existing = byDayMap.get(day) || { total: 0, count: 0 };
+      byDayMap.set(day, { 
+        total: existing.total + x.item!.quantity, 
+        count: existing.count + 1 
+      });
+    });
+    
+    const product = products.find(p => p.id === productId);
+    
+    return {
+      productId,
+      productName: product?.name || 'Produto',
+      totalOrders: productRecords.length,
+      totalQuantity: total,
+      averageQuantity: parseFloat(avg.toFixed(1)),
+      minQuantity: min,
+      maxQuantity: max,
+      stdDeviation: parseFloat(stdDev.toFixed(2)),
+      lastOrderDate: productRecords[productRecords.length - 1]?.record.date,
+      trend,
+      byDayOfWeek: Array.from(byDayMap.entries()).map(([day, data]) => ({
+        dayOfWeek: day,
+        averageQuantity: parseFloat((data.total / data.count).toFixed(1)),
+        orderCount: data.count
+      }))
+    };
+  };
+
+  // Obter histórico completo de um cliente dinâmico
+  const getDynamicClientHistory = (clientId: string): DynamicClientHistory | null => {
+    const client = clients.find(c => c.id === clientId);
+    if (!client) return null;
+    
+    const records = dynamicConsumptionRecords.filter(r => r.clientId === clientId);
+    if (records.length === 0) {
+      return {
+        clientId,
+        clientName: client.name,
+        totalDeliveries: 0,
+        productStats: [],
+        averageTotalValue: 0,
+        preferredDays: []
+      };
+    }
+    
+    // Produtos únicos pedidos
+    const productIds = new Set<string>();
+    records.forEach(r => r.items.forEach(i => productIds.add(i.productId)));
+    
+    // Estatísticas por produto
+    const productStats: ProductConsumptionStats[] = [];
+    productIds.forEach(pid => {
+      const stats = calculateProductStats(clientId, pid);
+      if (stats) productStats.push(stats);
+    });
+    
+    // Dias preferidos (ordenar por frequência)
+    const dayCount = new Map<number, number>();
+    records.forEach(r => {
+      dayCount.set(r.dayOfWeek, (dayCount.get(r.dayOfWeek) || 0) + 1);
+    });
+    const preferredDays = Array.from(dayCount.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([day]) => day);
+    
+    // Datas
+    const dates = records.map(r => r.date).sort();
+    
+    return {
+      clientId,
+      clientName: client.name,
+      totalDeliveries: records.length,
+      firstDeliveryDate: dates[0],
+      lastDeliveryDate: dates[dates.length - 1],
+      productStats,
+      averageTotalValue: parseFloat((records.reduce((sum, r) => sum + r.totalValue, 0) / records.length).toFixed(2)),
+      preferredDays
+    };
+  };
+
+  // Gerar previsão para um cliente dinâmico
+  const getDynamicClientPrediction = (clientId: string, date: string): DynamicClientPrediction => {
+    const client = clients.find(c => c.id === clientId);
+    const dayOfWeek = new Date(date).getDay();
+    const route = client?.routeId ? routes.find(r => r.id === client.routeId) : null;
+    
+    const history = getDynamicClientHistory(clientId);
+    const hasHistory = history !== null && history.totalDeliveries >= 3;
+    
+    // Configurações padrão se não tiver histórico
+    const defaultQuantity = 5; // Quantidade padrão inicial
+    const safetyMargin = 1.2; // 20% extra de segurança
+    
+    const predictedItems: DynamicClientPrediction['predictedItems'] = [];
+    
+    if (hasHistory && history) {
+      history.productStats.forEach(stats => {
+        // Verificar se tem dados específicos para este dia da semana
+        const dayStats = stats.byDayOfWeek.find(d => d.dayOfWeek === dayOfWeek);
+        const avgForDay = dayStats?.averageQuantity || stats.averageQuantity;
+        
+        // Calcular faixa
+        const min = Math.max(1, Math.floor(avgForDay - stats.stdDeviation));
+        const max = Math.ceil(avgForDay + stats.stdDeviation);
+        const recommended = Math.ceil(avgForDay * safetyMargin);
+        
+        predictedItems.push({
+          productId: stats.productId,
+          productName: stats.productName,
+          minQuantity: min,
+          avgQuantity: parseFloat(avgForDay.toFixed(1)),
+          maxQuantity: max,
+          recommendedQuantity: recommended
+        });
+      });
+    } else {
+      // Sem histórico - usar todos os produtos com quantidade padrão
+      products.forEach(product => {
+        predictedItems.push({
+          productId: product.id,
+          productName: product.name,
+          minQuantity: 1,
+          avgQuantity: defaultQuantity,
+          maxQuantity: defaultQuantity * 2,
+          recommendedQuantity: defaultQuantity
+        });
+      });
+    }
+    
+    // Calcular valor total previsto
+    const predictedTotalValue = predictedItems.reduce((sum, item) => {
+      const product = products.find(p => p.id === item.productId);
+      const price = client?.customPrices?.[item.productId] ?? product?.price ?? 0;
+      return sum + (price * item.recommendedQuantity);
+    }, 0);
+    
+    // Determinar confiança
+    let confidence: 'high' | 'medium' | 'low' = 'low';
+    if (hasHistory && history) {
+      if (history.totalDeliveries >= 10) confidence = 'high';
+      else if (history.totalDeliveries >= 5) confidence = 'medium';
+    }
+    
+    return {
+      clientId,
+      clientName: client?.name || 'Cliente',
+      routeId: client?.routeId,
+      routeName: route?.name,
+      date,
+      dayOfWeek,
+      hasHistory,
+      confidence,
+      predictedItems,
+      predictedTotalValue: parseFloat(predictedTotalValue.toFixed(2))
+    };
+  };
+
+  // Gerar resumo de carga extra para clientes dinâmicos
+  const getDynamicLoadSummary = (driverId: string, date: string): DynamicLoadSummary => {
+    const dynamicClients = getDynamicClientsForDriver(driverId);
+    
+    const predictions = dynamicClients.map(client => 
+      getDynamicClientPrediction(client.id, date)
+    );
+    
+    // Consolidar totais por produto
+    const productTotals = new Map<string, { min: number; avg: number; max: number; recommended: number }>();
+    
+    predictions.forEach(prediction => {
+      prediction.predictedItems.forEach(item => {
+        const existing = productTotals.get(item.productId) || { min: 0, avg: 0, max: 0, recommended: 0 };
+        productTotals.set(item.productId, {
+          min: existing.min + item.minQuantity,
+          avg: existing.avg + item.avgQuantity,
+          max: existing.max + item.maxQuantity,
+          recommended: existing.recommended + item.recommendedQuantity
+        });
+      });
+    });
+    
+    const recommendedLoad = Array.from(productTotals.entries()).map(([productId, totals]) => ({
+      productId,
+      productName: products.find(p => p.id === productId)?.name || 'Produto',
+      minTotal: totals.min,
+      avgTotal: parseFloat(totals.avg.toFixed(1)),
+      maxTotal: totals.max,
+      recommendedTotal: totals.recommended
+    }));
+    
+    return {
+      date,
+      driverId,
+      dynamicClientsCount: dynamicClients.length,
+      predictions,
+      recommendedLoad,
+      totalRecommendedValue: predictions.reduce((sum, p) => sum + p.predictedTotalValue, 0)
+    };
+  };
+
   return (
     <DataContext.Provider value={{ 
-      users, clients, products, productionData, routes, dailyLoads, clientDeliveries,
+      users, clients, products, productionData, routes, dailyLoads, clientDeliveries, dynamicConsumptionRecords,
       addUser, addClient, updateClient, updateProduct, addProduct, deleteProduct, addRoute, deleteRoute,
       getRoutesByDriver, getClientsByDriver, getAllClients, getDrivers,
       updateDailyProduction, getDailyRecord,
       calculateClientDebt, registerPayment, toggleSkippedDate, updateClientPrice,
       createDailyLoad, updateDailyLoad, completeDailyLoad, getDailyLoadByDriver, getDailyLoadsByDate, getDailyLoadReport, getProductionSuggestions,
-      generateDailyDeliveries, updateDeliveryStatus, getDeliveriesByDriver, getDriverDailySummary, getAdminDeliveryReport, getScheduledClientsForDay
+      generateDailyDeliveries, updateDeliveryStatus, getDeliveriesByDriver, getDriverDailySummary, getAdminDeliveryReport, getScheduledClientsForDay,
+      recordDynamicDelivery, getDynamicClientHistory, getDynamicClientPrediction, getDynamicLoadSummary, getDynamicClientsForDriver
     }}>
       {children}
     </DataContext.Provider>

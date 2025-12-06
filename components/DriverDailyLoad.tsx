@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { LoadItem, ReturnItem, DailyLoad } from '../types';
+import { LoadItem, ReturnItem, DailyLoad, DynamicLoadSummary } from '../types';
 import { 
   Package, Truck, CheckCircle, AlertCircle, Plus, Minus, 
   Save, ArrowRight, RotateCcw, Loader2, Calendar,
-  TrendingUp, TrendingDown, AlertTriangle, ClipboardList
+  TrendingUp, TrendingDown, AlertTriangle, ClipboardList,
+  Sparkles, Info, Zap, Brain
 } from 'lucide-react';
 
 const DriverDailyLoad: React.FC = () => {
@@ -15,7 +16,9 @@ const DriverDailyLoad: React.FC = () => {
     createDailyLoad, 
     completeDailyLoad, 
     getDailyLoadByDriver,
-    dailyLoads 
+    dailyLoads,
+    getDynamicLoadSummary,
+    getDynamicClientsForDriver
   } = useData();
   
   const today = new Date().toISOString().split('T')[0];
@@ -151,6 +154,54 @@ const DriverDailyLoad: React.FC = () => {
   const totalReturned = returnItems.reduce((sum, item) => sum + item.returned, 0);
   const totalSold = returnItems.reduce((sum, item) => sum + item.sold, 0);
 
+  // Estado e dados para clientes dinâmicos
+  const [showDynamicInfo, setShowDynamicInfo] = useState(true);
+  const dynamicClients = currentUser?.id ? getDynamicClientsForDriver(currentUser.id) : [];
+  const dynamicSummary: DynamicLoadSummary | null = currentUser?.id && dynamicClients.length > 0 
+    ? getDynamicLoadSummary(currentUser.id, selectedDate) 
+    : null;
+
+  // Função para aplicar carga recomendada dos clientes dinâmicos
+  const applyDynamicRecommendation = () => {
+    if (!dynamicSummary) return;
+    
+    setLoadItems(prev => {
+      const newItems = [...prev];
+      dynamicSummary.recommendedLoad.forEach(rec => {
+        const idx = newItems.findIndex(item => item.productId === rec.productId);
+        if (idx !== -1) {
+          newItems[idx] = { ...newItems[idx], quantity: newItems[idx].quantity + rec.recommendedTotal };
+        }
+      });
+      return newItems;
+    });
+    setShowDynamicInfo(false);
+    setSuccess('Carga recomendada para clientes dinâmicos adicionada!');
+  };
+
+  // Função para obter a cor do badge de confiança
+  const getConfidenceBadge = (confidence: 'high' | 'medium' | 'low') => {
+    switch (confidence) {
+      case 'high':
+        return 'bg-green-100 text-green-700';
+      case 'medium':
+        return 'bg-yellow-100 text-yellow-700';
+      case 'low':
+        return 'bg-orange-100 text-orange-700';
+    }
+  };
+
+  const getConfidenceLabel = (confidence: 'high' | 'medium' | 'low') => {
+    switch (confidence) {
+      case 'high':
+        return 'Alta';
+      case 'medium':
+        return 'Média';
+      case 'low':
+        return 'Baixa';
+    }
+  };
+
   // Renderizar baseado no estado atual
   if (!currentLoad) {
     // Formulário para criar nova carga
@@ -189,6 +240,119 @@ const DriverDailyLoad: React.FC = () => {
             <CheckCircle className="text-green-500" size={20} />
             <span className="text-green-700">{success}</span>
           </div>
+        )}
+
+        {/* Seção de Clientes Dinâmicos */}
+        {dynamicClients.length > 0 && dynamicSummary && showDynamicInfo && (
+          <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200 overflow-hidden">
+            <div className="px-4 py-3 border-b border-purple-200 flex items-center justify-between">
+              <h3 className="font-semibold text-purple-800 flex items-center gap-2">
+                <Sparkles size={18} className="text-purple-600" />
+                Carga Adicional Recomendada – Clientes Dinâmicos
+              </h3>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-purple-600 bg-purple-100 px-2 py-1 rounded-full">
+                  {dynamicSummary.dynamicClientsCount} cliente{dynamicSummary.dynamicClientsCount !== 1 ? 's' : ''}
+                </span>
+                <button
+                  onClick={() => setShowDynamicInfo(false)}
+                  className="text-purple-400 hover:text-purple-600 text-sm"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            
+            {/* Info sobre IA */}
+            <div className="px-4 py-2 bg-purple-100/50 border-b border-purple-200">
+              <p className="text-xs text-purple-700 flex items-center gap-1">
+                <Brain size={14} />
+                Previsão baseada em IA analisando histórico de consumo dos clientes
+              </p>
+            </div>
+
+            {/* Produtos recomendados */}
+            <div className="p-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
+                {dynamicSummary.recommendedLoad.map(rec => (
+                  <div key={rec.productId} className="bg-white rounded-lg p-3 border border-purple-100">
+                    <span className="text-sm text-gray-600 block truncate">{rec.productName}</span>
+                    <div className="flex items-end justify-between mt-1">
+                      <span className="text-xl font-bold text-purple-700">{rec.recommendedTotal}</span>
+                      <span className="text-xs text-gray-400">
+                        ({rec.minTotal}-{rec.maxTotal})
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Previsões por cliente */}
+              <details className="mb-4">
+                <summary className="cursor-pointer text-sm text-purple-600 hover:text-purple-800 flex items-center gap-1">
+                  <Info size={14} />
+                  Ver detalhes por cliente
+                </summary>
+                <div className="mt-3 space-y-2">
+                  {dynamicSummary.predictions.map(pred => (
+                    <div key={pred.clientId} className="bg-white rounded-lg p-3 border border-gray-100">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium text-gray-800">{pred.clientName}</span>
+                        <div className="flex items-center gap-2">
+                          {pred.routeName && (
+                            <span className="text-xs text-gray-500">{pred.routeName}</span>
+                          )}
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${getConfidenceBadge(pred.confidence)}`}>
+                            {pred.hasHistory ? `Confiança: ${getConfidenceLabel(pred.confidence)}` : 'Sem histórico'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {pred.predictedItems.slice(0, 5).map(item => (
+                          <span key={item.productId} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                            {item.productName}: {item.recommendedQuantity}
+                          </span>
+                        ))}
+                        {pred.predictedItems.length > 5 && (
+                          <span className="text-xs text-gray-400">+{pred.predictedItems.length - 5} mais</span>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        Valor estimado: €{pred.predictedTotalValue.toFixed(2)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </details>
+
+              {/* Botão para aplicar */}
+              <div className="flex items-center justify-between pt-3 border-t border-purple-200">
+                <div className="text-sm text-purple-700">
+                  Total recomendado: <strong>€{dynamicSummary.totalRecommendedValue?.toFixed(2) || '0.00'}</strong>
+                </div>
+                <button
+                  onClick={applyDynamicRecommendation}
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium text-sm"
+                >
+                  <Zap size={16} />
+                  Adicionar à Carga
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Indicador de clientes dinâmicos (colapsado) */}
+        {dynamicClients.length > 0 && !showDynamicInfo && (
+          <button
+            onClick={() => setShowDynamicInfo(true)}
+            className="w-full flex items-center justify-center gap-2 py-3 bg-purple-50 rounded-lg border border-purple-200 text-purple-700 hover:bg-purple-100"
+          >
+            <Sparkles size={16} />
+            <span className="text-sm font-medium">
+              Ver recomendação para {dynamicClients.length} cliente{dynamicClients.length !== 1 ? 's' : ''} dinâmico{dynamicClients.length !== 1 ? 's' : ''}
+            </span>
+          </button>
         )}
 
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">

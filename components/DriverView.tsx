@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { Plus, User, MapPin, Phone, Search, Map, Save, X, Navigation, CreditCard, Loader2, Calendar, AlertCircle, Tag, FileText, RotateCcw, Calculator, CheckCircle } from 'lucide-react';
+import { Plus, User, MapPin, Phone, Search, Map, Save, X, Navigation, CreditCard, Loader2, Calendar, AlertCircle, Tag, FileText, RotateCcw, Calculator, CheckCircle, Sparkles } from 'lucide-react';
 import { Client, Route, DeliverySchedule, Product } from '../types';
 
 // Componente auxiliar para isolar o estado de adição por linha
@@ -97,6 +97,7 @@ export const DriverView: React.FC = () => {
     currentBalance: 0,
     leaveReceipt: false,
     acceptsReturns: false,
+    isDynamicChoice: false, // Escolha Dinâmica
     deliverySchedule: {},
     customPrices: {}
   };
@@ -158,6 +159,7 @@ export const DriverView: React.FC = () => {
         currentBalance: Number(clientForm.currentBalance) || 0,
         leaveReceipt: clientForm.leaveReceipt || false,
         acceptsReturns: clientForm.acceptsReturns || false,
+        isDynamicChoice: clientForm.isDynamicChoice || false,
         deliverySchedule: clientForm.deliverySchedule || {},
         customPrices: clientForm.customPrices || {},
         createdAt: new Date().toISOString()
@@ -379,15 +381,21 @@ export const DriverView: React.FC = () => {
               <div 
                 key={client.id} 
                 onClick={() => handleOpenClientModal(client)}
-                className={`bg-white p-5 rounded-xl shadow-sm border cursor-pointer hover:shadow-md transition-shadow relative overflow-hidden ${client.status === 'INACTIVE' ? 'opacity-70 border-gray-200' : 'border-amber-50'}`}
+                className={`bg-white p-5 rounded-xl shadow-sm border cursor-pointer hover:shadow-md transition-shadow relative overflow-hidden ${client.status === 'INACTIVE' ? 'opacity-70 border-gray-200' : client.isDynamicChoice ? 'border-purple-200 ring-2 ring-purple-100' : 'border-amber-50'}`}
               >
                 {client.status === 'INACTIVE' && (
                    <div className="absolute top-0 right-0 bg-red-100 text-red-600 text-xs px-2 py-1 rounded-bl-lg font-bold">INATIVO</div>
                 )}
+                {client.isDynamicChoice && client.status !== 'INACTIVE' && (
+                   <div className="absolute top-0 right-0 bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded-bl-lg font-bold flex items-center gap-1">
+                     <Sparkles size={12} />
+                     DINÂMICO
+                   </div>
+                )}
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-3 mb-3">
-                    <div className={`p-2 rounded-full ${client.status === 'INACTIVE' ? 'bg-gray-200' : 'bg-amber-100'}`}>
-                      <User className={client.status === 'INACTIVE' ? 'text-gray-500' : 'text-amber-600'} size={20} />
+                    <div className={`p-2 rounded-full ${client.status === 'INACTIVE' ? 'bg-gray-200' : client.isDynamicChoice ? 'bg-purple-100' : 'bg-amber-100'}`}>
+                      <User className={client.status === 'INACTIVE' ? 'text-gray-500' : client.isDynamicChoice ? 'text-purple-600' : 'text-amber-600'} size={20} />
                     </div>
                     <div>
                       <h3 className="font-semibold text-lg text-gray-800 leading-tight">{client.name}</h3>
@@ -648,6 +656,39 @@ export const DriverView: React.FC = () => {
                         Alterar
                       </button>
                     </div>
+
+                    {/* Escolha Dinâmica - DESTAQUE na aba Geral */}
+                    <label className={`flex items-center space-x-3 p-4 border-2 rounded-xl transition-all cursor-pointer ${clientForm.isDynamicChoice ? 'bg-purple-50 border-purple-400 shadow-md' : 'border-gray-200 hover:bg-gray-50'}`}>
+                      <input 
+                        type="checkbox" 
+                        className="w-5 h-5 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                        checked={clientForm.isDynamicChoice || false}
+                        onChange={e => setClientForm({...clientForm, isDynamicChoice: e.target.checked})}
+                      />
+                      <div className="flex flex-col flex-1">
+                         <div className="flex items-center space-x-2">
+                            <Sparkles size={20} className={clientForm.isDynamicChoice ? "text-purple-600" : "text-gray-500"}/>
+                            <span className={`font-bold ${clientForm.isDynamicChoice ? "text-purple-800" : "text-gray-700"}`}>
+                              Cliente com Escolha Dinâmica
+                            </span>
+                            {clientForm.isDynamicChoice && (
+                              <span className="px-2 py-0.5 bg-purple-200 text-purple-700 text-xs font-bold rounded-full">
+                                IA
+                              </span>
+                            )}
+                         </div>
+                         <p className="text-xs text-gray-500 mt-1 pl-7">
+                           O cliente escolhe os produtos no momento da entrega. A IA calcula previsões baseadas no histórico.
+                         </p>
+                         {clientForm.isDynamicChoice && (
+                           <div className="mt-2 pl-7 p-2 bg-purple-100 rounded-lg">
+                             <p className="text-xs text-purple-700">
+                               ✨ <strong>Não precisa configurar dias/produtos fixos.</strong> O sistema aprende automaticamente com cada entrega.
+                             </p>
+                           </div>
+                         )}
+                      </div>
+                    </label>
                   </div>
                 )}
 
