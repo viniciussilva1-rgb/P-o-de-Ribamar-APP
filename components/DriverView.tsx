@@ -602,21 +602,35 @@ export const DriverView: React.FC = () => {
                         />
                       </div>
                       <div className="md:col-span-2">
-                         <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Coordenadas</label>
+                         <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Coordenadas (opcional)</label>
                          <div className="flex gap-2">
                            <input 
                               type="text" 
-                              placeholder="Lat"
-                              className="w-1/2 p-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 text-sm"
+                              placeholder="Latitude"
+                              className="w-1/2 p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white text-gray-900 text-sm"
                               value={clientForm.coordinates?.lat || ''}
-                              readOnly
+                              onChange={e => setClientForm({
+                                ...clientForm, 
+                                coordinates: { 
+                                  ...clientForm.coordinates, 
+                                  lat: e.target.value,
+                                  lng: clientForm.coordinates?.lng || ''
+                                }
+                              })}
                             />
                             <input 
                               type="text" 
-                              placeholder="Lng"
-                              className="w-1/2 p-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 text-sm"
+                              placeholder="Longitude"
+                              className="w-1/2 p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white text-gray-900 text-sm"
                               value={clientForm.coordinates?.lng || ''}
-                              readOnly
+                              onChange={e => setClientForm({
+                                ...clientForm, 
+                                coordinates: { 
+                                  ...clientForm.coordinates, 
+                                  lat: clientForm.coordinates?.lat || '',
+                                  lng: e.target.value
+                                }
+                              })}
                             />
                          </div>
                       </div>
