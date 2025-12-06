@@ -64,7 +64,6 @@ export const DriverView: React.FC = () => {
     registerPayment,
     toggleSkippedDate
   } = useData();
-  const [diagInfo, setDiagInfo] = useState<string>('');
   
   // Modals
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
@@ -110,13 +109,6 @@ export const DriverView: React.FC = () => {
   // Leitura dos dados do contexto (já vindos do Firestore via onSnapshot)
   const myClients = getClientsByDriver(currentUser.id);
   const myRoutes = getRoutesByDriver(currentUser.id);
-
-  React.useEffect(() => {
-    try {
-      const allCount = typeof (useData as any) === 'function' ? 0 : 0; // placeholder
-      setDiagInfo(`driverId=${currentUser.id} | myClients=${myClients.length} | myRoutes=${myRoutes.length}`);
-    } catch {}
-  }, [currentUser.id, myClients.length, myRoutes.length]);
 
   const filteredClients = myClients.filter(c => {
     const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -320,9 +312,6 @@ export const DriverView: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold text-gray-800">Meus Clientes</h2>
           <p className="text-gray-500">Gerencie sua carteira e rotas de entrega</p>
-          {diagInfo && (
-            <div className="mt-1 text-xs text-gray-500">Diag: {diagInfo}</div>
-          )}
         </div>
         <div className="flex space-x-2">
           <button 
