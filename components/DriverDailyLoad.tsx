@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 const DriverDailyLoad: React.FC = () => {
-  const { user } = useAuth();
+  const { currentUser } = useAuth();
   const { 
     products, 
     createDailyLoad, 
@@ -36,8 +36,8 @@ const DriverDailyLoad: React.FC = () => {
 
   // Carregar carga existente do dia
   useEffect(() => {
-    if (user?.id) {
-      const existingLoad = getDailyLoadByDriver(user.id, selectedDate);
+    if (currentUser?.id) {
+      const existingLoad = getDailyLoadByDriver(currentUser.id, selectedDate);
       setCurrentLoad(existingLoad);
       
       if (existingLoad) {
@@ -62,7 +62,7 @@ const DriverDailyLoad: React.FC = () => {
         setReturnItems([]);
       }
     }
-  }, [user?.id, selectedDate, dailyLoads, products]);
+  }, [currentUser?.id, selectedDate, dailyLoads, products]);
 
   const updateLoadQuantity = (productId: string, delta: number) => {
     setLoadItems(prev => prev.map(item => {
@@ -102,7 +102,7 @@ const DriverDailyLoad: React.FC = () => {
   };
 
   const handleStartRoute = async () => {
-    if (!user?.id) return;
+    if (!currentUser?.id) return;
     
     const itemsWithQuantity = loadItems.filter(item => item.quantity > 0);
     if (itemsWithQuantity.length === 0) {
@@ -115,7 +115,7 @@ const DriverDailyLoad: React.FC = () => {
     setSuccess('');
 
     try {
-      await createDailyLoad(user.id, selectedDate, itemsWithQuantity, loadObservations || undefined);
+      await createDailyLoad(currentUser.id, selectedDate, itemsWithQuantity, loadObservations || undefined);
       setSuccess('Carga registrada com sucesso! Boa rota!');
     } catch (err) {
       console.error('Erro ao criar carga:', err);
