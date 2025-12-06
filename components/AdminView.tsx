@@ -1,3 +1,6 @@
+import { getAuth } from "firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { db, createDriverFunction, deleteDriverFunction } from "../firebaseConfig";
 
 import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
@@ -50,247 +53,204 @@ const AddScheduleItemRow: React.FC<{ products: Product[], onAdd: (productId: str
   );
 };
 
-export const ProductCatalog: React.FC = () => {
-  const { products, addProduct, updateProduct, deleteProduct } = useData();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-
-  // Form State
-  const [formData, setFormData] = useState<Partial<Product>>({
-    name: '',
-    category: 'Panificação',
-    price: 0,
-    unit: 'unid',
-    targetQuantity: 100,
-    supportsEmpelo: true
-  });
-
-  const handleOpenModal = (product?: Product) => {
-    if (product) {
-      setEditingProduct(product);
-      setFormData({ ...product });
-    } else {
-      setEditingProduct(null);
-      setFormData({
-        name: '',
-        category: 'Panificação',
-        price: 0,
-        unit: 'unid',
-        targetQuantity: 100,
-        quantity: 0,
-        supportsEmpelo: true
-      });
-    }
-    setIsModalOpen(true);
-  };
-
-  const handleDelete = (id: string) => {
-    if (window.confirm('Tem certeza que deseja remover este produto?')) {
-      deleteProduct(id);
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (editingProduct) {
-      updateProduct(editingProduct.id, formData);
-    } else {
-      const newProduct: Product = {
-        id: Date.now().toString(),
-        name: formData.name || 'Novo Produto',
-        category: formData.category || 'Geral',
-        price: Number(formData.price) || 0,
-        unit: formData.unit || 'unid',
-        targetQuantity: Number(formData.targetQuantity) || 0,
-        quantity: 0,
-        supportsEmpelo: formData.supportsEmpelo
-      };
-      addProduct(newProduct);
-    }
-    setIsModalOpen(false);
-  };
-
-  return (
-    <div className="space-y-6 animate-in fade-in duration-300">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">Gerenciar Produtos</h2>
-          <p className="text-gray-500">Adicione ou altere os preços dos produtos da padaria.</p>
-        </div>
-        <button 
-          onClick={() => handleOpenModal()}
-          className="bg-amber-700 hover:bg-amber-800 text-white px-4 py-2 rounded-lg flex items-center space-x-2 shadow transition-colors"
-        >
-          <Plus size={20} />
-          <span>Novo Produto</span>
-        </button>
-      </div>
-
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-gray-50 text-gray-600 text-sm uppercase tracking-wider">
-              <tr>
-                <th className="p-4 font-bold border-b">Produto</th>
-                <th className="p-4 font-bold border-b">Categoria</th>
-                <th className="p-4 font-bold border-b">Preço Unitário</th>
-                <th className="p-4 font-bold border-b text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {products.map(product => (
-                <tr key={product.id} className="hover:bg-amber-50/50 transition-colors">
-                  <td className="p-4 font-medium text-gray-800">{product.name}</td>
-                  <td className="p-4 text-gray-600">{product.category}</td>
-                  <td className="p-4 font-semibold text-gray-900">€ {product.price.toFixed(2)}</td>
-                  <td className="p-4 text-right">
-                    <div className="flex items-center justify-end space-x-2">
-                      <button 
-                        onClick={() => handleOpenModal(product)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Editar"
-                      >
-                        <Pencil size={18} />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(product.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Excluir"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {products.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="p-8 text-center text-gray-500">
-                    Nenhum produto cadastrado.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Modal Add/Edit */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
-            <h3 className="text-xl font-bold mb-4 text-gray-800">
-              {editingProduct ? 'Editar Produto' : 'Novo Produto'}
-            </h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Produto</label>
-                <input 
-                  required
-                  type="text" 
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white text-gray-900"
-                  value={formData.name}
-                  onChange={e => setFormData({...formData, name: e.target.value})}
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-                  <input 
-                    type="text" 
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white text-gray-900"
-                    value={formData.category}
-                    onChange={e => setFormData({...formData, category: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Unidade</label>
-                  <select 
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white text-gray-900"
-                    value={formData.unit}
-                    onChange={e => setFormData({...formData, unit: e.target.value})}
-                  >
-                    <option value="unid">Unidade</option>
-                    <option value="kg">Kg</option>
-                    <option value="pct">Pacote</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Preço (€)</label>
-                  <input 
-                    required
-                    type="number" 
-                    step="0.01"
-                    min="0"
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white text-gray-900"
-                    value={formData.price}
-                    onChange={e => setFormData({...formData, price: parseFloat(e.target.value)})}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Meta Diária</label>
-                  <input 
-                    required
-                    type="number" 
-                    min="0"
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white text-gray-900"
-                    value={formData.targetQuantity}
-                    onChange={e => setFormData({...formData, targetQuantity: parseInt(e.target.value)})}
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2 mt-2">
-                <input 
-                  type="checkbox" 
-                  id="supportsEmpelo"
-                  checked={formData.supportsEmpelo}
-                  onChange={e => setFormData({...formData, supportsEmpelo: e.target.checked})}
-                  className="rounded border-gray-300 text-amber-600 focus:ring-amber-500"
-                />
-                <label htmlFor="supportsEmpelo" className="text-sm text-gray-700">
-                  Aceita contagem por Empelo (30un)?
-                </label>
-              </div>
-
-              <div className="flex justify-end space-x-3 mt-6 pt-4 border-t">
-                <button 
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium"
-                >
-                  Salvar
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
 export const DriversOverview: React.FC = () => {
   const { getDrivers, getClientsByDriver, addUser } = useData();
-  const { register } = useAuth();
+  const { register } = useAuth(); // Fallback para quando Cloud Function não está disponível
+
+  // Função para garantir que entregador registrado no Auth também tenha documento correto no Firestore
+  const syncDriverToFirestore = async () => {
+    try {
+      const email = prompt("Digite o email do entregador já registrado no Auth:");
+      if (!email) return;
+      const uid = prompt("Digite o UID do entregador (veja no Firebase Console > Authentication):");
+      if (!uid) return;
+      const userDocRef = doc(db, "users", uid);
+      // Sempre cria/atualiza documento com role DRIVER
+      await setDoc(userDocRef, {
+        id: uid,
+        name: email.split("@")[0],
+        email,
+        role: UserRole.DRIVER
+      });
+      alert("Entregador sincronizado com sucesso!");
+    } catch (err) {
+      alert("Erro ao sincronizar entregador. Verifique email/UID.");
+    }
+  };
   const drivers = getDrivers();
+  // Debug helpers: count and invalid roles
+  const totalDrivers = drivers.length;
+  const [invalidUsersCount, setInvalidUsersCount] = useState<number>(0);
+  const [connectionStatus, setConnectionStatus] = useState<string>('');
+  const [manualCheckResult, setManualCheckResult] = useState<string>('');
+  const [usersDebugInfo, setUsersDebugInfo] = useState<string>('');
+  const TEST_UID = 'NB3hLfp3gtfnXNjW9alglW5FK4D2';
   const [expandedDriverId, setExpandedDriverId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newDriverName, setNewDriverName] = useState('');
   const [newDriverEmail, setNewDriverEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [deletingDriverId, setDeletingDriverId] = useState<string | null>(null);
+
+  // Função para deletar entregador (com clientes e rotas)
+  const handleDeleteDriver = async (driver: User) => {
+    const clients = getClientsByDriver(driver.id);
+    const confirmMsg = clients.length > 0
+      ? `⚠️ ATENÇÃO!\n\nVocê está prestes a excluir o entregador "${driver.name}".\n\nIsso também vai EXCLUIR:\n• ${clients.length} cliente(s)\n• Todas as rotas associadas\n\nEssa ação NÃO pode ser desfeita!\n\nDigite "CONFIRMAR" para prosseguir:`
+      : `Deseja excluir o entregador "${driver.name}"?\n\nEssa ação não pode ser desfeita.\n\nDigite "CONFIRMAR" para prosseguir:`;
+    
+    const confirmation = prompt(confirmMsg);
+    if (confirmation !== 'CONFIRMAR') {
+      alert('Exclusão cancelada.');
+      return;
+    }
+
+    setDeletingDriverId(driver.id);
+    try {
+      const result = await deleteDriverFunction({ uid: driver.id });
+      console.log('[handleDeleteDriver] Resultado:', result.data);
+      alert(result.data.message);
+    } catch (err: unknown) {
+      console.error('Erro ao deletar entregador:', err);
+      if (err && typeof err === 'object' && 'message' in err) {
+        alert(`Erro: ${(err as { message: string }).message}`);
+      } else {
+        alert('Erro ao deletar entregador. Tente novamente.');
+      }
+    } finally {
+      setDeletingDriverId(null);
+    }
+  };
+
+  // Compute invalid users count from full users list via a quick fetch in DataContext scope
+  // As we only have drivers here, invalid roles won't be present; provide a manual check utility.
+  const checkInvalidRoles = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      // Manual scan: read all users and count invalid roles
+      // Import Firestore helpers locally to avoid changing DataContext
+      const { collection, getDocs } = await import('firebase/firestore');
+      const { db } = await import('../firebaseConfig');
+      const snap = await getDocs(collection(db, 'users'));
+      let invalid = 0;
+      snap.forEach(docSnap => {
+        const data = docSnap.data() as any;
+        const roleStr = String(data.role || '').toUpperCase();
+        if (roleStr !== 'DRIVER' && roleStr !== 'ADMIN') invalid++;
+      });
+      setInvalidUsersCount(invalid);
+    } catch (e) {
+      setError('Falha ao verificar roles dos usuários.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const validateFirebaseConnection = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      setConnectionStatus('');
+      const { auth, db } = await import('../firebaseConfig');
+      const config = (auth.app.options || {}) as any;
+      setConnectionStatus(`projectId=${config.projectId} | apiKey=${config.apiKey?.slice(0,6)}... | authDomain=${config.authDomain} | appId=${config.appId?.slice(0,8)}... | storageBucket=${config.storageBucket}`);
+      // Manual read from users: known UID if provided
+      const { doc, getDoc } = await import('firebase/firestore');
+      const ref = doc(db, 'users', TEST_UID);
+      const userDoc = await getDoc(ref);
+      if (userDoc.exists()) {
+        const u = userDoc.data() as any;
+        setManualCheckResult(`Encontrado: name=${u.name} | email=${u.email} | role=${u.role}`);
+      } else {
+        setManualCheckResult('Documento não encontrado neste projeto.');
+      }
+    } catch (e) {
+      setError('Erro ao validar conexão/ler documento.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const debugListUsers = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      setUsersDebugInfo('');
+      const { collection, getDocs } = await import('firebase/firestore');
+      const { db } = await import('../firebaseConfig');
+      const snap = await getDocs(collection(db, 'users'));
+      const count = snap.size;
+      let example = '';
+      snap.forEach(docSnap => {
+        if (!example) {
+          const d = docSnap.data() as any;
+          example = `exemplo -> id=${docSnap.id} | name=${d.name} | email=${d.email} | role=${d.role}`;
+        }
+      });
+      setUsersDebugInfo(`users=${count} ${example ? '| ' + example : ''}`);
+    } catch (e) {
+      setError('Falha ao listar usuários.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Execução automática: valida conexão e tenta ler o documento do Natan
+  React.useEffect(() => {
+    validateFirebaseConnection();
+    checkInvalidRoles();
+  }, []);
+
+  // Sincronizar entregadores do Auth para Firestore
+  const handleSyncDrivers = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const auth = getAuth();
+      // Firebase Admin SDK não está disponível no client, então simula para 1 usuário
+      // Se quiser todos, precisa rodar no backend ou Cloud Function
+      // Aqui, sincroniza apenas o entregador informado manualmente
+      const email = prompt("Digite o email do entregador já registrado no Auth:");
+      if (!email) {
+        setLoading(false);
+        return;
+      }
+      // Tenta buscar usuário pelo email
+      // No client, só é possível buscar o usuário logado
+      // Então, pede para o entregador logar uma vez e pega o UID
+      // Alternativamente, pode pedir UID manualmente
+      // Aqui, assume que o entregador já logou pelo menos uma vez
+      // Busca pelo UID do Auth
+      // Se o admin souber o UID, pode pedir também
+      // Para simplificar, pede UID
+      const uid = prompt("Digite o UID do entregador (pode ser encontrado no Firebase Console > Authentication):");
+      if (!uid) {
+        setLoading(false);
+        return;
+      }
+      // Verifica se já existe documento no Firestore
+      const userDocRef = doc(db, "users", uid);
+      const userDoc = await getDoc(userDocRef);
+      if (userDoc.exists()) {
+        alert("Entregador já está sincronizado no Firestore!");
+      } else {
+        // Cria documento básico
+        await setDoc(userDocRef, {
+          id: uid,
+          name: email.split("@")[0],
+          email,
+          role: UserRole.DRIVER
+        });
+        alert("Entregador sincronizado com sucesso!");
+      }
+    } catch (err) {
+      setError("Erro ao sincronizar entregador. Verifique email/UID.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const toggleDriver = (id: string) => {
     setExpandedDriverId(prev => prev === id ? null : id);
@@ -300,30 +260,106 @@ export const DriversOverview: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
-
+    
+    // Cloud Functions está deployed - usando backend para não deslogar o admin
+    const useCloudFunction = true;
+    
     try {
       // Gera uma senha padrão segura para o entregador
       const defaultPassword = `${newDriverName.replace(/\s+/g, '')}@${Date.now().toString().slice(-4)}`;
       
-      // 1. Cria a conta no Firebase Auth
+      if (useCloudFunction) {
+        // Usa a Cloud Function para criar o entregador no backend
+        // Isso NÃO desloga o admin, pois a criação acontece no servidor
+        try {
+          const result = await createDriverFunction({
+            email: newDriverEmail,
+            password: defaultPassword,
+            name: newDriverName,
+          });
+          
+          console.log('[handleAddDriver] Resultado da Cloud Function:', result.data);
+          
+          if (!result.data.success) {
+            setError('Erro ao criar entregador.');
+            setLoading(false);
+            return;
+          }
+          
+          // Fecha modal e limpa formulário
+          setIsModalOpen(false);
+          setNewDriverName('');
+          setNewDriverEmail('');
+          
+          // Alerta com instruções - admin permanece logado!
+          alert(`Entregador criado com sucesso!\n\nEmail: ${newDriverEmail}\nSenha temporária: ${defaultPassword}\n\nAvise o entregador para usar esta senha no primeiro acesso.`);
+          return;
+        } catch (fnError: unknown) {
+          // Mostra o erro real da Cloud Function
+          console.error('[handleAddDriver] Cloud Function falhou:', fnError);
+          
+          // Extrai a mensagem de erro
+          let errorMsg = 'Erro desconhecido';
+          if (fnError && typeof fnError === 'object') {
+            if ('message' in fnError) {
+              errorMsg = (fnError as { message: string }).message;
+            }
+            if ('code' in fnError) {
+              const code = (fnError as { code: string }).code;
+              console.error('[handleAddDriver] Código do erro:', code);
+              
+              if (code === 'functions/permission-denied') {
+                errorMsg = 'Permissão negada. Verifique se você está logado como administrador.';
+              } else if (code === 'functions/unauthenticated') {
+                errorMsg = 'Você precisa estar logado para criar entregadores.';
+              } else if (code === 'functions/already-exists') {
+                errorMsg = 'Este email já está em uso.';
+              }
+            }
+          }
+          
+          setError(`Cloud Function erro: ${errorMsg}`);
+          setLoading(false);
+          return; // NÃO usar fallback - mostrar o erro
+        }
+      }
+      
+      // FALLBACK: Usa register() local (desloga o admin) - só se useCloudFunction = false
       const authSuccess = await register(newDriverEmail, defaultPassword, newDriverName);
       if (!authSuccess) {
         setError('Erro ao criar conta de autenticação. Email pode já estar em uso.');
         setLoading(false);
         return;
       }
-
-      console.log(`✅ Entregador criado: ${newDriverName} (${newDriverEmail})`);
-      console.log(`Senha temporária: ${defaultPassword}`);
+      
+      console.log('[handleAddDriver] Entregador criado via register() local.');
       
       // Fecha modal e limpa formulário
       setIsModalOpen(false);
       setNewDriverName('');
       setNewDriverEmail('');
-      alert(`Entregador criado com sucesso!\n\nEmail: ${newDriverEmail}\nSenha temporária: ${defaultPassword}\n\nAvise o entregador para trocar a senha ao fazer login.`);
-    } catch (err) {
+      
+      // Alerta com instruções - o admin foi deslogado
+      alert(`Entregador criado com sucesso!\n\nEmail: ${newDriverEmail}\nSenha temporária: ${defaultPassword}\n\nATENÇÃO: Você foi deslogado por segurança.\nFaça login novamente como administrador para continuar.\n\nAvise o entregador para usar a senha temporária.`);
+      
+    } catch (err: unknown) {
       console.error('Erro ao criar entregador:', err);
-      setError('Erro ao criar entregador. Tente novamente.');
+      
+      // Trata erros específicos
+      if (err && typeof err === 'object' && 'code' in err) {
+        const functionError = err as { code: string; message: string };
+        if (functionError.code === 'functions/already-exists') {
+          setError('Este email já está em uso por outro usuário.');
+        } else if (functionError.code === 'functions/permission-denied') {
+          setError('Você não tem permissão para criar entregadores.');
+        } else if (functionError.code === 'functions/invalid-argument') {
+          setError(functionError.message || 'Dados inválidos.');
+        } else {
+          setError(functionError.message || 'Erro ao criar entregador. Tente novamente.');
+        }
+      } else {
+        setError('Erro ao criar entregador. Tente novamente.');
+      }
     } finally {
       setLoading(false);
     }
@@ -331,6 +367,36 @@ export const DriversOverview: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
+      <div className="flex justify-between items-center mb-2">
+        <div className="text-sm text-gray-600">
+          <span className="font-semibold">{totalDrivers}</span> entregadores carregados
+          {invalidUsersCount > 0 && (
+            <span className="ml-2 inline-flex items-center gap-1 text-red-700 bg-red-100 px-2 py-0.5 rounded text-xs">
+              <AlertCircle size={14} /> {invalidUsersCount} usuário(s) com role inválido
+            </span>
+          )}
+          {connectionStatus && (
+            <div className="mt-1 text-xs text-gray-500">Conexão: {connectionStatus}</div>
+          )}
+          {manualCheckResult && (
+            <div className="mt-1 text-xs text-gray-700">Checagem: {manualCheckResult}</div>
+          )}
+        </div>
+        <button
+          onClick={syncDriverToFirestore}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-blue-700 transition-colors shadow"
+        >
+          <span>Sincronizar entregador do Auth</span>
+        </button>
+      </div>
+      <div className="flex gap-2">
+        <button onClick={validateFirebaseConnection} className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded border">Validar Conexão</button>
+        <button onClick={checkInvalidRoles} className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded border">Verificar Roles</button>
+        <button onClick={debugListUsers} className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded border">Listar Users</button>
+      </div>
+      {usersDebugInfo && (
+        <div className="mt-2 text-xs text-gray-700">Diag users: {usersDebugInfo}</div>
+      )}
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">Entregadores</h2>
@@ -349,14 +415,15 @@ export const DriversOverview: React.FC = () => {
         {drivers.length > 0 ? drivers.map(driver => {
           const clients = getClientsByDriver(driver.id);
           const isExpanded = expandedDriverId === driver.id;
+          const isDeleting = deletingDriverId === driver.id;
 
           return (
             <div key={driver.id} className="bg-white rounded-xl border border-amber-100 shadow-sm overflow-hidden">
-              <button 
-                onClick={() => toggleDriver(driver.id)}
-                className="w-full flex items-center justify-between p-4 bg-white hover:bg-orange-50/50 transition-colors text-left"
-              >
-                <div className="flex items-center space-x-4">
+              <div className="flex items-center justify-between p-4 bg-white">
+                <button 
+                  onClick={() => toggleDriver(driver.id)}
+                  className="flex-1 flex items-center space-x-4 hover:bg-orange-50/50 transition-colors text-left rounded-lg p-1 -m-1"
+                >
                   <div className="bg-amber-100 p-3 rounded-full">
                     <Truck className="text-amber-700" size={24} />
                   </div>
@@ -364,14 +431,24 @@ export const DriversOverview: React.FC = () => {
                     <h3 className="font-semibold text-gray-900">{driver.name}</h3>
                     <p className="text-sm text-gray-500">{driver.email}</p>
                   </div>
-                </div>
-                <div className="flex items-center space-x-4">
+                </button>
+                <div className="flex items-center space-x-3">
                   <span className="text-sm font-medium bg-gray-100 px-3 py-1 rounded-full text-gray-600">
                     {clients.length} Clientes
                   </span>
-                  {isExpanded ? <ChevronDown className="text-gray-400" /> : <ChevronRight className="text-gray-400" />}
+                  <button
+                    onClick={() => handleDeleteDriver(driver)}
+                    disabled={isDeleting}
+                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                    title="Excluir entregador"
+                  >
+                    {isDeleting ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
+                  </button>
+                  <button onClick={() => toggleDriver(driver.id)} className="p-1">
+                    {isExpanded ? <ChevronDown className="text-gray-400" /> : <ChevronRight className="text-gray-400" />}
+                  </button>
                 </div>
-              </button>
+              </div>
 
               {isExpanded && (
                 <div className="bg-orange-50/30 p-4 border-t border-amber-100 animate-in slide-in-from-top-2 duration-200">
@@ -433,6 +510,150 @@ export const DriversOverview: React.FC = () => {
                   <span>{loading ? 'Criando...' : 'Criar Conta'}</span>
                 </button>
               </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Catálogo de Produtos - Gerenciamento de produtos
+export const ProductCatalog: React.FC = () => {
+  const { products, addProduct, updateProduct, deleteProduct } = useData();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [newProductName, setNewProductName] = useState('');
+  const [newProductPrice, setNewProductPrice] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+      const productData = {
+        id: editingProduct?.id || `prod-${Date.now()}`,
+        name: newProductName,
+        price: parseFloat(newProductPrice) || 0,
+      };
+
+      if (editingProduct) {
+        await updateProduct(editingProduct.id, productData);
+      } else {
+        await addProduct(productData);
+      }
+
+      setIsModalOpen(false);
+      setEditingProduct(null);
+      setNewProductName('');
+      setNewProductPrice('');
+    } catch (err) {
+      console.error('Erro ao salvar produto:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = (product: Product) => {
+    setEditingProduct(product);
+    setNewProductName(product.name);
+    setNewProductPrice(product.price.toString());
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (productId: string) => {
+    if (window.confirm('Tem certeza que deseja excluir este produto?')) {
+      await deleteProduct(productId);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-800">Catálogo de Produtos</h2>
+        <button
+          onClick={() => {
+            setEditingProduct(null);
+            setNewProductName('');
+            setNewProductPrice('');
+            setIsModalOpen(true);
+          }}
+          className="bg-amber-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-amber-700 transition-colors shadow"
+        >
+          <Plus size={20} />
+          <span>Novo Produto</span>
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {products.map(product => (
+          <div key={product.id} className="bg-white rounded-xl border border-amber-100 shadow-sm p-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="font-semibold text-gray-900">{product.name}</h3>
+                <p className="text-amber-600 font-bold text-lg mt-1">€ {product.price.toFixed(2)}</p>
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => handleEdit(product)}
+                  className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
+                >
+                  <Pencil size={16} />
+                </button>
+                <button
+                  onClick={() => handleDelete(product.id)}
+                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Modal de Adicionar/Editar Produto */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-gray-800">
+                {editingProduct ? 'Editar Produto' : 'Novo Produto'}
+              </h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={24} />
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Produto</label>
+                <input
+                  type="text"
+                  value={newProductName}
+                  onChange={(e) => setNewProductName(e.target.value)}
+                  className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Preço (€)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={newProductPrice}
+                  onChange={(e) => setNewProductPrice(e.target.value)}
+                  className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-amber-600 text-white py-3 rounded-xl font-semibold hover:bg-amber-700 transition-colors disabled:opacity-50"
+              >
+                {loading ? 'Salvando...' : (editingProduct ? 'Salvar Alterações' : 'Criar Produto')}
+              </button>
             </form>
           </div>
         </div>
@@ -503,17 +724,14 @@ export const ProductionManager: React.FC = () => {
           {products.map(product => {
             const record = getDailyRecord(currentDate, product.id);
             const isEmpelo = empeloMode[product.id];
-            
             // Display value: If empelo, show units / 30. If units, show units.
             const displayValue = isEmpelo ? Math.floor(record.produced / 30) : record.produced;
-
             return (
               <div key={product.id} className="bg-white rounded-lg border border-amber-100 shadow-sm overflow-hidden flex flex-col">
                 <div className="bg-orange-50 px-4 py-2 flex justify-between items-center border-b border-orange-100">
                   <span className="font-bold text-amber-900 text-sm uppercase truncate pr-2">{product.name}</span>
                   {product.supportsEmpelo && (
                     <button 
-                      onClick={() => toggleEmpelo(product.id)}
                       className={`text-xs px-2 py-1 rounded border transition-colors flex items-center gap-1 ${isEmpelo ? 'bg-amber-200 border-amber-300 text-amber-900' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}
                       title="Alternar entre Unidade e Empelo (30un)"
                     >
@@ -529,7 +747,6 @@ export const ProductionManager: React.FC = () => {
                     min="0"
                     className="w-full text-3xl font-bold text-gray-700 border-b-2 border-amber-200 focus:border-amber-500 focus:outline-none bg-transparent placeholder-gray-200"
                     placeholder="0"
-                    value={displayValue === 0 ? '' : displayValue}
                     onChange={(e) => handleProductionInput(product.id, e.target.value)}
                   />
                   <div className="mt-2 text-xs text-gray-400 flex justify-between">
@@ -649,8 +866,14 @@ export const ProductionManager: React.FC = () => {
 };
 
 export const ClientManager: React.FC = () => {
-  const { currentUser } = useAuth();
-  const { getAllClients, getDrivers, getRoutesByDriver, updateClient, addClient, addRoute, deleteRoute, updateDailyProduction, products, calculateClientDebt, registerPayment, toggleSkippedDate, updateClientPrice } = useData();
+    // Função para excluir rota
+    const handleDeleteRoute = (routeId: string) => {
+      if (window.confirm('Tem certeza que deseja remover esta rota?')) {
+        deleteRoute(routeId);
+      }
+    };
+  const { currentUser, isAdmin } = useAuth();
+  const { getAllClients, getDrivers, getRoutesByDriver, updateClient, addClient, addRoute, deleteRoute, updateDailyProduction, products, calculateClientDebt, registerPayment, toggleSkippedDate, updateClientPrice, routes } = useData();
   const drivers = getDrivers();
   const clients = getAllClients();
 
@@ -693,7 +916,13 @@ export const ClientManager: React.FC = () => {
     return matchesDriver && matchesSearch;
   });
 
-  const availableRoutes = selectedDriverId !== 'all' ? getRoutesByDriver(selectedDriverId) : [];
+  // Entregador vê só suas rotas, admin vê todas
+  // Removido duplicidade de isAdmin e routes
+  const availableRoutes = isAdmin
+    ? routes
+    : currentUser?.id
+      ? getRoutesByDriver(currentUser.id)
+      : [];
 
   const handleOpenClientModal = (client?: Client) => {
     setCalculatedTotal(null); // Reset
@@ -951,8 +1180,10 @@ export const ClientManager: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {filteredClients.map(client => {
-              const driverName = drivers.find(d => d.id === client.driverId)?.name || 'Desconhecido';
+              {filteredClients.map(client => {
+              const driver = drivers.find(d => d.id === client.driverId);
+              const driverName = driver?.name || 'Desconhecido';
+              const driverIdHint = !driver && client.driverId ? ` (${client.driverId.slice(0,6)}…${client.driverId.slice(-4)})` : '';
               return (
                 <tr key={client.id} className="hover:bg-amber-50/30 transition-colors">
                   <td className="p-4">
@@ -960,7 +1191,7 @@ export const ClientManager: React.FC = () => {
                     <div className="text-xs text-gray-500">{client.phone}</div>
                   </td>
                   <td className="p-4">
-                    <div className="text-sm text-gray-800">{driverName}</div>
+                    <div className="text-sm text-gray-800">{driverName}{driverIdHint}</div>
                     {client.routeId && <span className="text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">Rota ID: {client.routeId.slice(-4)}</span>}
                   </td>
                   <td className="p-4 text-sm text-gray-600 max-w-xs truncate">{client.address}</td>
@@ -1032,14 +1263,13 @@ export const ClientManager: React.FC = () => {
                           <input required type="text" className="w-full p-2.5 border border-gray-300 rounded-lg bg-white text-gray-900" 
                             value={clientForm.name} onChange={e => setClientForm({...clientForm, name: e.target.value})} />
                        </div>
-                       
                        <div className="grid grid-cols-2 gap-4">
                           <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Entregador Responsável</label>
                             <select 
                               className="w-full p-2.5 border border-gray-300 rounded-lg bg-white text-gray-900"
                               value={clientForm.driverId}
-                              onChange={e => setClientForm({...clientForm, driverId: e.target.value, routeId: ''})} // Reset route if driver changes
+                              onChange={e => setClientForm({...clientForm, driverId: e.target.value, routeId: ''})}
                             >
                               <option value="">Selecione...</option>
                               {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
@@ -1051,16 +1281,37 @@ export const ClientManager: React.FC = () => {
                               className="w-full p-2.5 border border-gray-300 rounded-lg bg-white text-gray-900"
                               value={clientForm.routeId}
                               onChange={e => setClientForm({...clientForm, routeId: e.target.value})}
-                              disabled={!clientForm.driverId}
+                              disabled={availableRoutes.length === 0}
                             >
                               <option value="">Padrão (Sem Zona)</option>
-                              {clientForm.driverId && getRoutesByDriver(clientForm.driverId).map(r => (
+                              {availableRoutes.map(r => (
                                 <option key={r.id} value={r.id}>{r.name}</option>
                               ))}
                             </select>
                           </div>
                        </div>
-
+                       {/* Listagem de rotas com botão de exclusão */}
+                       {availableRoutes.length > 0 && (
+                         <div className="mt-4">
+                           <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Minhas Rotas</h4>
+                           <ul className="space-y-2">
+                             {availableRoutes.map(r => (
+                               <li key={r.id} className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded px-3 py-2">
+                                 <span className="font-medium text-gray-800">{r.name}</span>
+                                 <button
+                                   type="button"
+                                   className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors"
+                                   title="Excluir rota"
+                                   onClick={() => handleDeleteRoute(r.id)}
+                                 >
+                                   <Trash2 size={16} />
+                                 </button>
+                               </li>
+                             ))}
+                           </ul>
+                         </div>
+                       )}
+                       {/* Fim do bloco geral */}
                        <div>
                           <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">NIF (Opcional)</label>
                           <input 
@@ -1071,7 +1322,6 @@ export const ClientManager: React.FC = () => {
                             onChange={e => setClientForm({...clientForm, nif: e.target.value})} 
                           />
                        </div>
-
                        <div className="grid grid-cols-3 gap-4">
                           <div className="col-span-1">
                              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Telefone</label>
@@ -1086,13 +1336,11 @@ export const ClientManager: React.FC = () => {
                              </div>
                           </div>
                        </div>
-
                        <div>
                           <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Endereço</label>
                           <textarea rows={2} className="w-full p-2.5 border border-gray-300 rounded-lg bg-white text-gray-900" 
                             value={clientForm.address} onChange={e => setClientForm({...clientForm, address: e.target.value})} />
                        </div>
-
                        <div className="flex justify-between items-center">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-gray-700">Status:</span>
@@ -1275,7 +1523,7 @@ export const ClientManager: React.FC = () => {
                           </div>
                         </label>
 
-                        <label className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+                        <label className={`flex items-center space-x-3 p-3 border rounded-lg transition-colors cursor-pointer ${clientForm.acceptsReturns ? 'bg-amber-50 border-amber-200' : 'border-gray-200 hover:bg-gray-50'}`}>
                           <input 
                             type="checkbox" 
                             className="w-5 h-5 text-amber-600 rounded border-gray-300 focus:ring-amber-500"
@@ -1321,16 +1569,16 @@ export const ClientManager: React.FC = () => {
                             {clientForm.skippedDates && clientForm.skippedDates.length > 0 ? (
                                 <div className="flex flex-wrap gap-2">
                                     {clientForm.skippedDates.map(date => (
-                                        <span key={date} className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full flex items-center gap-1 border border-red-200">
-                                            {new Date(date).toLocaleDateString()}
-                                            <button 
-                                                type="button" 
-                                                onClick={() => handleToggleSkippedDate(date)} 
-                                                className="hover:text-red-950"
-                                            >
-                                                <X size={12} />
-                                            </button>
-                                        </span>
+                                      <span key={date} className="inline-flex items-center gap-1 bg-red-100 text-red-700 px-2 py-1 rounded text-xs">
+                                        {new Date(date).toLocaleDateString()}
+                                        <button 
+                                            type="button" 
+                                            onClick={() => handleToggleSkippedDate(date)} 
+                                            className="hover:text-red-950"
+                                        >
+                                            <X size={12} />
+                                        </button>
+                                      </span>
                                     ))}
                                 </div>
                             ) : (
@@ -1396,16 +1644,16 @@ export const ClientManager: React.FC = () => {
                          value={clientForm.notes} onChange={e => setClientForm({...clientForm, notes: e.target.value})} />
                      </div>
                    )}
-               </form>
+                 </form>
+                 {/* Footer do modal */}
+                 <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3 rounded-b-xl">
+                   <button type="button" onClick={() => setIsClientModalOpen(false)} className="px-5 py-2.5 text-gray-600 hover:bg-white rounded-lg border border-transparent hover:border-gray-300">Cancelar</button>
+                   <button type="submit" form="admin-client-form" className="px-5 py-2.5 bg-amber-700 text-white rounded-lg hover:bg-amber-800 shadow">Salvar</button>
+                 </div>
+               </div>
              </div>
-
-             <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3 rounded-b-xl">
-               <button type="button" onClick={() => setIsClientModalOpen(false)} className="px-5 py-2.5 text-gray-600 hover:bg-white rounded-lg border border-transparent hover:border-gray-300">Cancelar</button>
-               <button type="submit" form="admin-client-form" className="px-5 py-2.5 bg-amber-700 text-white rounded-lg hover:bg-amber-800 shadow">Salvar</button>
-             </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+           </div>
+         )}
+       </div>
+     );
 };

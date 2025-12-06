@@ -9,11 +9,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^19.2.1",
-    "react-dom": "^19.2.1",
     "@google/genai": "^1.31.0",
+    "firebase": "^12.6.0",
+    "firebase-admin": "^13.6.0",
     "lucide-react": "^0.555.0",
-    "firebase": "^12.6.0"
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

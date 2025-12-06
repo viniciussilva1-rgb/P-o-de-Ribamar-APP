@@ -116,20 +116,40 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const register = async (email: string, pass: string, name: string): Promise<boolean> => {
     try {
-      const result = await createUserWithEmailAndPassword(auth, email, pass);
-      console.log('Auth: createUserWithEmailAndPassword success for', email, result.user.uid);
+      // Guarda o usuário atual (admin) antes de criar o novo
+      const previousUser = auth.currentUser;
+      const wasAdmin = previousUser && currentUser?.role === UserRole.ADMIN;
       
-      // Cria o documento do usuário no Firestore com o mesmo ID da Autenticação
+      let userCredential;
+      try {
+        userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+      } catch (err: any) {
+        // Se já existe no Auth, faz login para pegar UID
+        if (err.code === 'auth/email-already-in-use') {
+          userCredential = await signInWithEmailAndPassword(auth, email, pass);
+        } else {
+          throw err;
+        }
+      }
+      const uid = userCredential.user.uid;
+      // Cria ou atualiza o documento do entregador no Firestore
       const newUser: User = {
-        id: result.user.uid,
+        id: uid,
         name: name,
         email: email,
-        // Se for o email do admin mestre, dá admin, senão DRIVER (padrão)
         role: email === 'viniciussiuva1@gmail.com' ? UserRole.ADMIN : UserRole.DRIVER
       };
+      await setDoc(doc(db, 'users', uid), newUser, { merge: true });
+      console.log('Auth: Firestore user doc created/updated for', uid);
       
-      await setDoc(doc(db, 'users', result.user.uid), newUser);
-      console.log('Auth: Firestore user doc created for', result.user.uid);
+      // Se era admin criando entregador, faz signOut do entregador recém-criado
+      // O admin precisará re-logar manualmente ou podemos manter a sessão
+      // Por segurança, fazemos signOut para não ficar logado como entregador
+      await signOut(auth);
+      
+      // Nota: O admin será deslogado aqui. Para UX melhor, o admin deve re-logar.
+      // Uma alternativa seria usar Firebase Admin SDK no backend, mas não temos.
+      
       return true;
     } catch (error) {
       console.error("Erro no registro:", error);

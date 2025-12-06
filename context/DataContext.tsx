@@ -45,15 +45,32 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // 1. Users
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
-      const usersList = snapshot.docs.map(doc => doc.data() as User);
+      const usersList = snapshot.docs.map(snap => {
+        const data = snap.data() as Partial<User>;
+        // Garante que o id sempre exista e seja o id do documento caso não esteja salvo no campo
+        const id = (data.id as string) || snap.id;
+        // Normaliza role para string maiúscula
+        const roleStr = String(data.role ?? '').trim().toUpperCase();
+        // Aceita variações: 'DRIVER', 'ENTREGADOR' como motorista
+        const normalizedRole = (roleStr === 'ADMIN')
+          ? UserRole.ADMIN
+          : (roleStr === 'DRIVER' || roleStr === 'ENTREGADOR')
+            ? UserRole.DRIVER
+            : (data.role as UserRole);
+        return {
+          id,
+          name: String(data.name ?? ''),
+          email: String(data.email ?? ''),
+          role: normalizedRole,
+        } as User;
+      });
       
       // Se não houver usuários, cria o Admin inicial
       if (usersList.length === 0) {
          const admin: User = { id: 'admin-1', name: 'Administrador', email: MOCK_ADMIN_EMAIL, role: UserRole.ADMIN };
          setDoc(doc(db, 'users', 'admin-1'), admin);
-      } else {
-         setUsers(usersList);
       }
+      setUsers(usersList);
     });
     return () => unsubscribe();
   }, []);
@@ -152,7 +169,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const getAllClients = () => clients;
 
-  const getDrivers = () => users.filter(u => u.role === UserRole.DRIVER);
+  const getDrivers = () => {
+    // Normaliza o campo role para evitar problemas de capitalização ou tipo string
+    const isDriver = (r: any) => {
+      const s = String(r ?? '').trim().toUpperCase();
+      return s === 'DRIVER' || s === 'ENTREGADOR';
+    };
+    return users.filter(u => isDriver(u.role));
+  };
 
   const updateDailyProduction = async (date: string, productId: string, data: Partial<DailyProductionRecord>) => {
     // Pega o registro atual do estado local ou cria um novo

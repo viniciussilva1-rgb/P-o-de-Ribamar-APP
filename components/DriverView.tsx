@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { Plus, User, MapPin, Phone, Search, Map, Save, X, Navigation, FileText, RotateCcw, CreditCard, Loader2, Calendar, Trash2, Calculator, CheckCircle, AlertCircle, Tag } from 'lucide-react';
-import { Client, Route, DeliveryItem, DeliverySchedule, Product } from '../types';
+import { Plus, User, MapPin, Phone, Search, Map, Save, X, Navigation, CreditCard, Loader2, Calendar, AlertCircle, Tag, FileText, RotateCcw, Calculator, CheckCircle } from 'lucide-react';
+import { Client, Route, DeliverySchedule, Product } from '../types';
 
 // Componente auxiliar para isolar o estado de adição por linha
 const AddScheduleItemRow: React.FC<{ products: Product[], onAdd: (productId: string, quantity: number) => void }> = ({ products, onAdd }) => {
@@ -52,7 +52,19 @@ const AddScheduleItemRow: React.FC<{ products: Product[], onAdd: (productId: str
 
 export const DriverView: React.FC = () => {
   const { currentUser } = useAuth();
-  const { getClientsByDriver, addClient, updateClient, getRoutesByDriver, addRoute, deleteRoute, products, calculateClientDebt, registerPayment, toggleSkippedDate } = useData();
+  const { 
+    getClientsByDriver,
+    addClient,
+    updateClient,
+    getRoutesByDriver,
+    addRoute,
+    deleteRoute,
+    products,
+    calculateClientDebt,
+    registerPayment,
+    toggleSkippedDate
+  } = useData();
+  const [diagInfo, setDiagInfo] = useState<string>('');
   
   // Modals
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
@@ -92,10 +104,19 @@ export const DriverView: React.FC = () => {
   const [clientForm, setClientForm] = useState<Partial<Client>>(initialClientState);
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
 
+  // Sem usuário logado, não renderiza nada (App cuida de mostrar Login)
   if (!currentUser) return null;
 
+  // Leitura dos dados do contexto (já vindos do Firestore via onSnapshot)
   const myClients = getClientsByDriver(currentUser.id);
   const myRoutes = getRoutesByDriver(currentUser.id);
+
+  React.useEffect(() => {
+    try {
+      const allCount = typeof (useData as any) === 'function' ? 0 : 0; // placeholder
+      setDiagInfo(`driverId=${currentUser.id} | myClients=${myClients.length} | myRoutes=${myRoutes.length}`);
+    } catch {}
+  }, [currentUser.id, myClients.length, myRoutes.length]);
 
   const filteredClients = myClients.filter(c => {
     const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -252,7 +273,7 @@ export const DriverView: React.FC = () => {
     });
   };
 
-  const handleCalculateDebt = () => {
+    const handleCalculateDebt = () => {
       // Create a temporary client object with form data to calculate
       // We need to merge with existing client data (like skippedDates) if editing
       const baseClient = editingClientId ? myClients.find(c => c.id === editingClientId) : undefined;
@@ -299,6 +320,9 @@ export const DriverView: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold text-gray-800">Meus Clientes</h2>
           <p className="text-gray-500">Gerencie sua carteira e rotas de entrega</p>
+          {diagInfo && (
+            <div className="mt-1 text-xs text-gray-500">Diag: {diagInfo}</div>
+          )}
         </div>
         <div className="flex space-x-2">
           <button 

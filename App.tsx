@@ -7,11 +7,15 @@ import { Layout } from './components/Layout';
 import { DriversOverview, ProductCatalog, ProductionManager, ClientManager } from './components/AdminView';
 import { DriverView } from './components/DriverView';
 import { UserRole } from './types';
+import useSyncEntregadorFirestore from './hooks/useSyncEntregadorFirestore';
 
 const AppContent: React.FC = () => {
   const { currentUser } = useAuth();
   // Changed default to 'drivers' for Admin, 'my-clients' for Driver
   const [activeTab, setActiveTab] = useState('drivers'); 
+
+  // Sincroniza automaticamente o entregador autenticado com Firestore (coleção 'entregadores')
+  useSyncEntregadorFirestore(true);
 
   // Determine initial tab based on role if needed
   React.useEffect(() => {
@@ -54,6 +58,13 @@ const AppContent: React.FC = () => {
 };
 
 function App() {
+  // Força logout ao carregar o App para evitar login automático
+  React.useEffect(() => {
+    const { logout } = require('./context/AuthContext');
+    if (typeof logout === 'function') {
+      logout();
+    }
+  }, []);
   return (
     <DataProvider>
       <AuthProvider>
