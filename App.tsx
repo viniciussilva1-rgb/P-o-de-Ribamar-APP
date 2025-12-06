@@ -15,7 +15,8 @@ const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState('drivers'); 
 
   // Sincroniza automaticamente o entregador autenticado com Firestore (coleção 'entregadores')
-  useSyncEntregadorFirestore(true);
+  // Desativado temporariamente - coleção não está sendo usada
+  // useSyncEntregadorFirestore(true);
 
   // Determine initial tab based on role if needed
   React.useEffect(() => {

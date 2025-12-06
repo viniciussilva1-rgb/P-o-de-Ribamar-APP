@@ -34,5 +34,15 @@ service cloud.firestore {
     match /payments/{paymentId} {
       allow read, write: if request.auth != null;
     }
+
+    // Entregadores: sincronização automática
+    match /entregadores/{entregadorId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Produção diária (coleção raiz)
+    match /daily_production/{date} {
+      allow read, write: if request.auth != null;
+    }
   }
 }
