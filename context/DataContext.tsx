@@ -644,7 +644,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Verificar se está nos dias pulados
       if (client.skippedDates?.includes(date)) return false;
       
-      // Verificar se tem entrega programada para este dia
+      // Clientes dinâmicos sempre aparecem (eles escolhem na hora)
+      if (client.isDynamicChoice) return true;
+      
+      // Para clientes normais, verificar se tem entrega programada para este dia
       const scheduledItems = client.deliverySchedule?.[dayKey];
       return scheduledItems && scheduledItems.length > 0;
     });
@@ -668,16 +671,24 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Não criar se já existe
       if (existingClientIds.has(client.id)) continue;
       
-      const scheduledItems = client.deliverySchedule?.[dayKey] || [];
-      
-      // Calcular valor total
+      let items: DeliveryItem[] = [];
       let totalValue = 0;
-      const items: DeliveryItem[] = scheduledItems.map(item => {
-        const product = products.find(p => p.id === item.productId);
-        const price = client.customPrices?.[item.productId] ?? product?.price ?? 0;
-        totalValue += price * item.quantity;
-        return { productId: item.productId, quantity: item.quantity };
-      });
+      
+      if (client.isDynamicChoice) {
+        // Cliente dinâmico: itens vazios, serão preenchidos na entrega
+        // Usar previsão da IA para estimar valor
+        const prediction = getDynamicClientPrediction(client.id, date);
+        totalValue = prediction.predictedTotalValue;
+      } else {
+        // Cliente normal: usar schedule fixo
+        const scheduledItems = client.deliverySchedule?.[dayKey] || [];
+        items = scheduledItems.map(item => {
+          const product = products.find(p => p.id === item.productId);
+          const price = client.customPrices?.[item.productId] ?? product?.price ?? 0;
+          totalValue += price * item.quantity;
+          return { productId: item.productId, quantity: item.quantity };
+        });
+      }
       
       const deliveryId = `delivery-${driverId}-${client.id}-${date}`;
       
