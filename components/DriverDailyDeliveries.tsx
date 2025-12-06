@@ -153,22 +153,30 @@ const DriverDailyDeliveries: React.FC = () => {
   const myClients = clients.filter(c => c.driverId === currentUser?.id);
   const dayKey = getDayKey(selectedDate);
   
-  // Debug log
+  // Debug log mais detalhado
   console.log('=== DEBUG ENTREGAS ===');
   console.log('currentUser.id:', currentUser?.id);
   console.log('selectedDate:', selectedDate);
   console.log('dayKey:', dayKey);
   console.log('Total clientes:', clients.length);
   console.log('Meus clientes:', myClients.length);
-  console.log('Meus clientes detalhes:', myClients.map(c => ({
-    id: c.id,
-    name: c.name,
-    driverId: c.driverId,
-    status: c.status,
-    deliverySchedule: c.deliverySchedule,
-    scheduledForDay: c.deliverySchedule?.[dayKey]
-  })));
+  myClients.forEach((c, i) => {
+    console.log(`Cliente ${i + 1}: ${c.name}`);
+    console.log('  - status:', c.status);
+    console.log('  - deliverySchedule:', JSON.stringify(c.deliverySchedule));
+    console.log(`  - ${dayKey}:`, c.deliverySchedule?.[dayKey]);
+  });
   console.log('scheduledClients:', scheduledClients.length);
+
+  // Clientes ativos do entregador (para mostrar info útil)
+  const activeClients = myClients.filter(c => c.status === 'ACTIVE');
+  const clientsWithSchedule = activeClients.filter(c => 
+    c.deliverySchedule && Object.keys(c.deliverySchedule).length > 0
+  );
+  const clientsWithDaySchedule = activeClients.filter(c => {
+    const items = c.deliverySchedule?.[dayKey];
+    return items && items.length > 0;
+  });
 
   return (
     <div className="space-y-6">
@@ -407,14 +415,42 @@ const DriverDailyDeliveries: React.FC = () => {
               </div>
             </>
           ) : (
-            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-              <Truck size={48} className="mx-auto mb-3 text-gray-300" />
-              <p className="text-gray-500 mb-2">
-                Nenhum cliente com entrega programada para <strong>{getDayName(selectedDate)}</strong>.
-              </p>
-              <p className="text-sm text-gray-400">
-                Verifique se seus clientes têm o agendamento de entrega configurado para este dia da semana.
-              </p>
+            <div className="bg-white rounded-xl border border-gray-200 p-8">
+              <div className="text-center mb-6">
+                <Truck size={48} className="mx-auto mb-3 text-gray-300" />
+                <p className="text-gray-500 mb-2">
+                  Nenhum cliente com entrega programada para <strong>{getDayName(selectedDate)}</strong>.
+                </p>
+              </div>
+              
+              {/* Diagnóstico */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+                <h4 className="font-medium text-yellow-800 mb-2 flex items-center gap-2">
+                  <AlertCircle size={18} />
+                  Diagnóstico
+                </h4>
+                <ul className="text-sm text-yellow-700 space-y-1">
+                  <li>• Você tem <strong>{activeClients.length}</strong> cliente(s) ativo(s)</li>
+                  <li>• <strong>{clientsWithSchedule.length}</strong> cliente(s) têm algum dia de entrega configurado</li>
+                  <li>• <strong>{clientsWithDaySchedule.length}</strong> cliente(s) têm entrega configurada para <strong>{getDayName(selectedDate)}</strong></li>
+                </ul>
+                
+                {clientsWithSchedule.length === 0 && (
+                  <div className="mt-3 pt-3 border-t border-yellow-200">
+                    <p className="text-yellow-800 text-sm">
+                      <strong>💡 Dica:</strong> Para configurar entregas, edite um cliente, vá na aba "Entrega" e adicione os produtos para cada dia da semana.
+                    </p>
+                  </div>
+                )}
+                
+                {clientsWithSchedule.length > 0 && clientsWithDaySchedule.length === 0 && (
+                  <div className="mt-3 pt-3 border-t border-yellow-200">
+                    <p className="text-yellow-800 text-sm">
+                      <strong>💡 Dica:</strong> Seus clientes têm entregas configuradas, mas não para {getDayName(selectedDate)}. Tente selecionar outro dia ou configure entregas para este dia.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
