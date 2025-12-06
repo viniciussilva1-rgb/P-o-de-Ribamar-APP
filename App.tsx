@@ -59,13 +59,6 @@ const AppContent: React.FC = () => {
 };
 
 function App() {
-  // Força logout ao carregar o App para evitar login automático
-  React.useEffect(() => {
-    const { logout } = require('./context/AuthContext');
-    if (typeof logout === 'function') {
-      logout();
-    }
-  }, []);
   return (
     <DataProvider>
       <AuthProvider>
