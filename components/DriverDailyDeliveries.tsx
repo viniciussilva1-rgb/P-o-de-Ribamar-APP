@@ -1,12 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { ClientDelivery, DeliveryStatus } from '../types';
+import { ClientDelivery, DeliveryStatus, Client } from '../types';
 import { 
   Package, Truck, CheckCircle, XCircle, Clock, MapPin, Phone, 
   User, AlertCircle, Loader2, Calendar, ChevronDown, ChevronRight,
-  DollarSign, ClipboardList, RefreshCw, Send, Filter
+  DollarSign, ClipboardList, RefreshCw, Send, Filter, Users
 } from 'lucide-react';
+
+// Helper: formatar dia da semana
+const getDayName = (date: string): string => {
+  const days = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+  return days[new Date(date).getDay()];
+};
+
+const getDayKey = (date: string): 'dom' | 'seg' | 'ter' | 'qua' | 'qui' | 'sex' | 'sab' => {
+  const mapKeys: ('dom' | 'seg' | 'ter' | 'qua' | 'qui' | 'sex' | 'sab')[] = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
+  return mapKeys[new Date(date).getDay()];
+};
 
 const DriverDailyDeliveries: React.FC = () => {
   const { currentUser } = useAuth();
@@ -283,26 +294,111 @@ const DriverDailyDeliveries: React.FC = () => {
 
       {/* Lista de Entregas por Rota */}
       {deliveries.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-          <Truck size={48} className="mx-auto mb-3 text-gray-300" />
-          <p className="text-gray-500 mb-4">
-            {scheduledClients.length > 0 
-              ? `Você tem ${scheduledClients.length} cliente(s) com entrega programada para hoje.`
-              : 'Nenhuma entrega programada para este dia.'}
-          </p>
-          {scheduledClients.length > 0 && (
-            <button
-              onClick={handleGenerateDeliveries}
-              disabled={loading}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
-              {loading ? 'Gerando...' : 'Gerar Lista de Entregas'}
-            </button>
+        <div className="space-y-4">
+          {/* Info do dia selecionado */}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <div className="flex items-center gap-2 text-blue-700">
+              <Calendar size={20} />
+              <span className="font-medium">
+                {getDayName(selectedDate)} - {new Date(selectedDate).toLocaleDateString('pt-BR')}
+              </span>
+            </div>
+          </div>
+
+          {scheduledClients.length > 0 ? (
+            <>
+              {/* Lista de clientes agendados para o dia */}
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 px-4 py-3 border-b border-gray-200">
+                  <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                    <Users size={18} className="text-green-600" />
+                    {scheduledClients.length} Cliente(s) com Entrega para {getDayName(selectedDate)}
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Clique em "Gerar Lista de Entregas" para começar
+                  </p>
+                </div>
+                
+                <div className="divide-y divide-gray-100">
+                  {scheduledClients.map((client: Client) => {
+                    const dayKey = getDayKey(selectedDate);
+                    const scheduleItems = client.deliverySchedule?.[dayKey] || [];
+                    
+                    return (
+                      <div key={client.id} className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <User size={16} className="text-gray-400" />
+                              <span className="font-medium text-gray-800">{client.name}</span>
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-gray-500">
+                              <span className="flex items-center gap-1">
+                                <MapPin size={14} />
+                                {client.address}
+                              </span>
+                              {client.phone && (
+                                <span className="flex items-center gap-1">
+                                  <Phone size={14} />
+                                  {client.phone}
+                                </span>
+                              )}
+                            </div>
+                            {/* Produtos agendados */}
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {scheduleItems.map((item) => (
+                                <span key={item.productId} className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-sm">
+                                  {getProductName(item.productId)}: {item.quantity}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="text-sm text-gray-400">
+                            {getRouteName(client.routeId)}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              
+              {/* Botão para gerar entregas */}
+              <div className="flex justify-center">
+                <button
+                  onClick={handleGenerateDeliveries}
+                  disabled={loading}
+                  className="flex items-center gap-2 px-8 py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 shadow-lg hover:shadow-xl transition-all"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 size={20} className="animate-spin" />
+                      Gerando...
+                    </>
+                  ) : (
+                    <>
+                      <Send size={20} />
+                      Gerar Lista de Entregas
+                    </>
+                  )}
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+              <Truck size={48} className="mx-auto mb-3 text-gray-300" />
+              <p className="text-gray-500 mb-2">
+                Nenhum cliente com entrega programada para <strong>{getDayName(selectedDate)}</strong>.
+              </p>
+              <p className="text-sm text-gray-400">
+                Verifique se seus clientes têm o agendamento de entrega configurado para este dia da semana.
+              </p>
+            </div>
           )}
         </div>
       ) : (
         <div className="space-y-4">
-          {Object.entries(deliveriesByRoute).map(([routeId, routeDeliveries]) => (
+          {Object.entries(deliveriesByRoute).map(([routeId, routeDeliveries]: [string, ClientDelivery[]]) => (
             <div key={routeId} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 border-b border-gray-200">
                 <div className="flex items-center justify-between">
