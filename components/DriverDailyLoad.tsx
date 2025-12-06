@@ -248,7 +248,7 @@ const DriverDailyLoad: React.FC = () => {
             <div className="px-4 py-3 border-b border-purple-200 flex items-center justify-between">
               <h3 className="font-semibold text-purple-800 flex items-center gap-2">
                 <Sparkles size={18} className="text-purple-600" />
-                Carga Adicional Recomendada – Clientes Dinâmicos
+                Clientes com Escolha Dinâmica
               </h3>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-purple-600 bg-purple-100 px-2 py-1 rounded-full">
@@ -263,81 +263,112 @@ const DriverDailyLoad: React.FC = () => {
               </div>
             </div>
             
-            {/* Info sobre IA */}
-            <div className="px-4 py-2 bg-purple-100/50 border-b border-purple-200">
-              <p className="text-xs text-purple-700 flex items-center gap-1">
-                <Brain size={14} />
-                Previsão baseada em IA analisando histórico de consumo dos clientes
-              </p>
-            </div>
-
-            {/* Produtos recomendados */}
             <div className="p-4">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
-                {dynamicSummary.recommendedLoad.map(rec => (
-                  <div key={rec.productId} className="bg-white rounded-lg p-3 border border-purple-100">
-                    <span className="text-sm text-gray-600 block truncate">{rec.productName}</span>
-                    <div className="flex items-end justify-between mt-1">
-                      <span className="text-xl font-bold text-purple-700">{rec.recommendedTotal}</span>
-                      <span className="text-xs text-gray-400">
-                        ({rec.minTotal}-{rec.maxTotal})
-                      </span>
-                    </div>
+              {/* Verificar se há dados de histórico */}
+              {dynamicSummary.recommendedLoad.length > 0 ? (
+                <>
+                  {/* Info sobre IA */}
+                  <div className="mb-3 p-2 bg-purple-100/50 rounded-lg">
+                    <p className="text-xs text-purple-700 flex items-center gap-1">
+                      <Brain size={14} />
+                      Previsão baseada em IA analisando histórico de consumo dos clientes
+                    </p>
                   </div>
-                ))}
-              </div>
 
-              {/* Previsões por cliente */}
-              <details className="mb-4">
-                <summary className="cursor-pointer text-sm text-purple-600 hover:text-purple-800 flex items-center gap-1">
-                  <Info size={14} />
-                  Ver detalhes por cliente
-                </summary>
-                <div className="mt-3 space-y-2">
-                  {dynamicSummary.predictions.map(pred => (
-                    <div key={pred.clientId} className="bg-white rounded-lg p-3 border border-gray-100">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium text-gray-800">{pred.clientName}</span>
-                        <div className="flex items-center gap-2">
-                          {pred.routeName && (
-                            <span className="text-xs text-gray-500">{pred.routeName}</span>
-                          )}
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${getConfidenceBadge(pred.confidence)}`}>
-                            {pred.hasHistory ? `Confiança: ${getConfidenceLabel(pred.confidence)}` : 'Sem histórico'}
+                  {/* Produtos recomendados */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
+                    {dynamicSummary.recommendedLoad.map(rec => (
+                      <div key={rec.productId} className="bg-white rounded-lg p-3 border border-purple-100">
+                        <span className="text-sm text-gray-600 block truncate">{rec.productName}</span>
+                        <div className="flex items-end justify-between mt-1">
+                          <span className="text-xl font-bold text-purple-700">{rec.recommendedTotal}</span>
+                          <span className="text-xs text-gray-400">
+                            ({rec.minTotal}-{rec.maxTotal})
                           </span>
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        {pred.predictedItems.slice(0, 5).map(item => (
-                          <span key={item.productId} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-                            {item.productName}: {item.recommendedQuantity}
-                          </span>
-                        ))}
-                        {pred.predictedItems.length > 5 && (
-                          <span className="text-xs text-gray-400">+{pred.predictedItems.length - 5} mais</span>
-                        )}
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        Valor estimado: €{pred.predictedTotalValue.toFixed(2)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </details>
+                    ))}
+                  </div>
 
-              {/* Botão para aplicar */}
-              <div className="flex items-center justify-between pt-3 border-t border-purple-200">
-                <div className="text-sm text-purple-700">
-                  Total recomendado: <strong>€{dynamicSummary.totalRecommendedValue?.toFixed(2) || '0.00'}</strong>
+                  {/* Previsões por cliente */}
+                  <details className="mb-4">
+                    <summary className="cursor-pointer text-sm text-purple-600 hover:text-purple-800 flex items-center gap-1">
+                      <Info size={14} />
+                      Ver detalhes por cliente
+                    </summary>
+                    <div className="mt-3 space-y-2">
+                      {dynamicSummary.predictions.map(pred => (
+                        <div key={pred.clientId} className="bg-white rounded-lg p-3 border border-gray-100">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-medium text-gray-800">{pred.clientName}</span>
+                            <div className="flex items-center gap-2">
+                              {pred.routeName && (
+                                <span className="text-xs text-gray-500">{pred.routeName}</span>
+                              )}
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${getConfidenceBadge(pred.confidence)}`}>
+                                {pred.hasHistory ? `Confiança: ${getConfidenceLabel(pred.confidence)}` : 'Sem histórico'}
+                              </span>
+                            </div>
+                          </div>
+                          {pred.predictedItems.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              {pred.predictedItems.slice(0, 5).map(item => (
+                                <span key={item.productId} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                                  {item.productName}: {item.recommendedQuantity}
+                                </span>
+                              ))}
+                              {pred.predictedItems.length > 5 && (
+                                <span className="text-xs text-gray-400">+{pred.predictedItems.length - 5} mais</span>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-gray-400 italic">Aguardando primeiras entregas para aprender padrão</p>
+                          )}
+                          {pred.predictedTotalValue > 0 && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              Valor estimado: €{pred.predictedTotalValue.toFixed(2)}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+
+                  {/* Botão para aplicar */}
+                  <div className="flex items-center justify-between pt-3 border-t border-purple-200">
+                    <div className="text-sm text-purple-700">
+                      Total recomendado: <strong>€{dynamicSummary.totalRecommendedValue?.toFixed(2) || '0.00'}</strong>
+                    </div>
+                    <button
+                      onClick={applyDynamicRecommendation}
+                      className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium text-sm"
+                    >
+                      <Zap size={16} />
+                      Adicionar à Carga
+                    </button>
+                  </div>
+                </>
+              ) : (
+                /* Sem histórico - mostrar mensagem informativa */
+                <div className="text-center py-6">
+                  <div className="inline-flex items-center justify-center w-12 h-12 bg-purple-100 rounded-full mb-3">
+                    <Brain size={24} className="text-purple-500" />
+                  </div>
+                  <h4 className="font-medium text-gray-800 mb-2">Aprendendo padrões de consumo</h4>
+                  <p className="text-sm text-gray-500 max-w-md mx-auto">
+                    Os clientes dinâmicos ainda não têm histórico suficiente. 
+                    Após algumas entregas, a IA vai sugerir automaticamente a carga extra recomendada 
+                    baseada nos produtos que eles costumam pedir.
+                  </p>
+                  <div className="mt-4 flex flex-wrap justify-center gap-2">
+                    {dynamicSummary.predictions.map(pred => (
+                      <span key={pred.clientId} className="text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full">
+                        {pred.clientName}: {pred.hasHistory ? 'Com histórico' : 'Aguardando dados'}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <button
-                  onClick={applyDynamicRecommendation}
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium text-sm"
-                >
-                  <Zap size={16} />
-                  Adicionar à Carga
-                </button>
-              </div>
+              )}
             </div>
           </div>
         )}

@@ -1037,13 +1037,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const history = getDynamicClientHistory(clientId);
     const hasHistory = history !== null && history.totalDeliveries >= 3;
     
-    // Configurações padrão se não tiver histórico
-    const defaultQuantity = 5; // Quantidade padrão inicial
     const safetyMargin = 1.2; // 20% extra de segurança
     
     const predictedItems: DynamicClientPrediction['predictedItems'] = [];
     
     if (hasHistory && history) {
+      // SÓ mostra produtos que o cliente realmente pede
       history.productStats.forEach(stats => {
         // Verificar se tem dados específicos para este dia da semana
         const dayStats = stats.byDayOfWeek.find(d => d.dayOfWeek === dayOfWeek);
@@ -1063,19 +1062,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           recommendedQuantity: recommended
         });
       });
-    } else {
-      // Sem histórico - usar todos os produtos com quantidade padrão
-      products.forEach(product => {
-        predictedItems.push({
-          productId: product.id,
-          productName: product.name,
-          minQuantity: 1,
-          avgQuantity: defaultQuantity,
-          maxQuantity: defaultQuantity * 2,
-          recommendedQuantity: defaultQuantity
-        });
-      });
     }
+    // Sem histórico = lista vazia (não mostrar nada pré-selecionado)
     
     // Calcular valor total previsto
     const predictedTotalValue = predictedItems.reduce((sum, item) => {
