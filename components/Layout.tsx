@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, Truck, Wheat, Users, Package, ClipboardList } from 'lucide-react';
+import { LogOut, Truck, Wheat, Users, Package, ClipboardList, PackageCheck, BarChart3 } from 'lucide-react';
 import { APP_NAME } from '../constants';
 
 interface LayoutProps {
@@ -74,12 +74,24 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
                 active={activeTab === 'production'} 
                 onClick={() => setActiveTab('production')} 
               />
+              <NavItem 
+                icon={<BarChart3 />} 
+                label="Relatório Cargas" 
+                active={activeTab === 'daily-loads'} 
+                onClick={() => setActiveTab('daily-loads')} 
+              />
             </>
           ) : (
             <>
                <div className="px-3 pb-2 pt-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
                 Minha Área
               </div>
+              <NavItem 
+                icon={<PackageCheck />} 
+                label="Carga do Dia" 
+                active={activeTab === 'daily-load'} 
+                onClick={() => setActiveTab('daily-load')} 
+              />
               <NavItem 
                 icon={<Users />} 
                 label="Meus Clientes" 
@@ -142,14 +154,28 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
                 active={activeTab === 'production'} 
                 onClick={() => setActiveTab('production')} 
               />
+              <MobileNavItem 
+                icon={<BarChart3 size={20} />} 
+                label="Cargas" 
+                active={activeTab === 'daily-loads'} 
+                onClick={() => setActiveTab('daily-loads')} 
+              />
             </>
           ) : (
-            <MobileNavItem 
-              icon={<Users size={20} />} 
-              label="Clientes" 
-              active={activeTab === 'my-clients'} 
-              onClick={() => setActiveTab('my-clients')} 
-            />
+            <>
+              <MobileNavItem 
+                icon={<PackageCheck size={20} />} 
+                label="Carga" 
+                active={activeTab === 'daily-load'} 
+                onClick={() => setActiveTab('daily-load')} 
+              />
+              <MobileNavItem 
+                icon={<Users size={20} />} 
+                label="Clientes" 
+                active={activeTab === 'my-clients'} 
+                onClick={() => setActiveTab('my-clients')} 
+              />
+            </>
           )}
         </div>
 

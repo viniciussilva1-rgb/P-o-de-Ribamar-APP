@@ -102,3 +102,84 @@ export interface ProductionData {
     [productId: string]: DailyProductionRecord;
   }
 }
+
+// ========== SISTEMA DE CARGA DO DIA ==========
+
+export interface LoadItem {
+  productId: string;
+  quantity: number; // Quantidade carregada
+}
+
+export interface ReturnItem {
+  productId: string;
+  returned: number; // Quantidade devolvida
+  sold: number; // Calculado: carregado - devolvido
+}
+
+export type DailyLoadStatus = 'loading' | 'in_route' | 'completed';
+
+export interface DailyLoad {
+  id: string;
+  driverId: string;
+  date: string; // YYYY-MM-DD
+  status: DailyLoadStatus;
+  
+  // Carga inicial
+  loadItems: LoadItem[];
+  loadObservations?: string;
+  loadStartTime?: string; // ISO timestamp
+  
+  // Sobras/Retorno
+  returnItems?: ReturnItem[];
+  returnObservations?: string;
+  returnTime?: string; // ISO timestamp
+  
+  // Métricas calculadas
+  totalLoaded?: number;
+  totalSold?: number;
+  totalReturned?: number;
+  utilizationRate?: number; // Percentual de aproveitamento
+  
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Relatório agregado por dia
+export interface DailyLoadReport {
+  date: string;
+  drivers: {
+    driverId: string;
+    driverName: string;
+    loads: DailyLoad[];
+    totalLoaded: number;
+    totalSold: number;
+    totalReturned: number;
+    utilizationRate: number;
+  }[];
+  totals: {
+    totalLoaded: number;
+    totalSold: number;
+    totalReturned: number;
+    utilizationRate: number;
+    productBreakdown: {
+      productId: string;
+      productName: string;
+      loaded: number;
+      sold: number;
+      returned: number;
+      utilizationRate: number;
+      alertHighReturn: boolean; // Alerta para sobra acima do normal
+    }[];
+  };
+}
+
+// Sugestão de produção baseada em histórico
+export interface ProductionSuggestion {
+  productId: string;
+  productName: string;
+  avgDaily: number; // Média diária vendida
+  avgReturned: number; // Média de devolução
+  suggestedQuantity: number; // Quantidade sugerida
+  confidence: 'low' | 'medium' | 'high'; // Baseado na quantidade de dados
+  trend: 'up' | 'down' | 'stable'; // Tendência recente
+}

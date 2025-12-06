@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, Client, UserRole, Product, ProductionData, DailyProductionRecord, Route, PaymentTransaction, DeliverySchedule } from '../types';
+import { User, Client, UserRole, Product, ProductionData, DailyProductionRecord, Route, PaymentTransaction, DeliverySchedule, DailyLoad, LoadItem, ReturnItem, DailyLoadReport, ProductionSuggestion } from '../types';
 import { INITIAL_PRODUCTS, MOCK_ADMIN_EMAIL } from '../constants';
 import { db } from '../firebaseConfig'; // Import database
-import { collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot, query, where, getDocs } from 'firebase/firestore';
 
 interface DataContextType {
   users: User[];
@@ -10,6 +10,7 @@ interface DataContextType {
   products: Product[];
   routes: Route[];
   productionData: ProductionData;
+  dailyLoads: DailyLoad[];
   addUser: (user: User) => void;
   addClient: (client: Client) => void;
   updateClient: (id: string, updates: Partial<Client>) => void;
@@ -29,6 +30,15 @@ interface DataContextType {
   registerPayment: (clientId: string, amount: number, method: string) => void;
   toggleSkippedDate: (clientId: string, date: string) => void;
   updateClientPrice: (clientId: string, productId: string, newPrice: number, userRole: UserRole) => void;
+  
+  // Funções de Carga do Dia
+  createDailyLoad: (driverId: string, date: string, loadItems: LoadItem[], observations?: string) => Promise<DailyLoad>;
+  updateDailyLoad: (loadId: string, updates: Partial<DailyLoad>) => Promise<void>;
+  completeDailyLoad: (loadId: string, returnItems: ReturnItem[], observations?: string) => Promise<void>;
+  getDailyLoadByDriver: (driverId: string, date: string) => DailyLoad | undefined;
+  getDailyLoadsByDate: (date: string) => DailyLoad[];
+  getDailyLoadReport: (date: string) => DailyLoadReport;
+  getProductionSuggestions: (daysToAnalyze?: number) => ProductionSuggestion[];
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -39,6 +49,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [products, setProducts] = useState<Product[]>([]);
   const [routes, setRoutes] = useState<Route[]>([]);
   const [productionData, setProductionData] = useState<ProductionData>({});
+  const [dailyLoads, setDailyLoads] = useState<DailyLoad[]>([]);
 
   // --- FIREBASE LISTENERS (Realtime Sync) ---
 
@@ -119,6 +130,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
          prodMap[docSnap.id] = docSnap.data() as { [productId: string]: DailyProductionRecord };
       });
       setProductionData(prodMap);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // 6. Daily Loads (Carga do Dia)
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'daily_loads'), (snapshot) => {
+      const loadsList = snapshot.docs.map(docSnap => ({
+        ...docSnap.data(),
+        id: docSnap.id
+      } as DailyLoad));
+      setDailyLoads(loadsList);
     });
     return () => unsubscribe();
   }, []);
@@ -318,13 +341,251 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
   };
 
+  // ========== FUNÇÕES DE CARGA DO DIA ==========
+
+  const createDailyLoad = async (driverId: string, date: string, loadItems: LoadItem[], observations?: string): Promise<DailyLoad> => {
+    const loadId = `load-${driverId}-${date}`;
+    const now = new Date().toISOString();
+    
+    const totalLoaded = loadItems.reduce((sum, item) => sum + item.quantity, 0);
+    
+    const newLoad: DailyLoad = {
+      id: loadId,
+      driverId,
+      date,
+      status: 'in_route',
+      loadItems,
+      loadObservations: observations,
+      loadStartTime: now,
+      totalLoaded,
+      createdAt: now,
+      updatedAt: now
+    };
+    
+    await setDoc(doc(db, 'daily_loads', loadId), newLoad);
+    return newLoad;
+  };
+
+  const updateDailyLoad = async (loadId: string, updates: Partial<DailyLoad>): Promise<void> => {
+    await updateDoc(doc(db, 'daily_loads', loadId), {
+      ...updates,
+      updatedAt: new Date().toISOString()
+    });
+  };
+
+  const completeDailyLoad = async (loadId: string, returnItems: ReturnItem[], observations?: string): Promise<void> => {
+    const load = dailyLoads.find(l => l.id === loadId);
+    if (!load) return;
+
+    const now = new Date().toISOString();
+    
+    // Calcular métricas
+    const totalReturned = returnItems.reduce((sum, item) => sum + item.returned, 0);
+    const totalSold = returnItems.reduce((sum, item) => sum + item.sold, 0);
+    const utilizationRate = load.totalLoaded && load.totalLoaded > 0 
+      ? Math.round((totalSold / load.totalLoaded) * 100) 
+      : 0;
+
+    await updateDoc(doc(db, 'daily_loads', loadId), {
+      status: 'completed',
+      returnItems,
+      returnObservations: observations,
+      returnTime: now,
+      totalSold,
+      totalReturned,
+      utilizationRate,
+      updatedAt: now
+    });
+
+    // Atualizar produção diária com os dados de venda e sobra
+    for (const item of returnItems) {
+      const currentRecord = getDailyRecord(load.date, item.productId);
+      await updateDailyProduction(load.date, item.productId, {
+        sold: currentRecord.sold + item.sold,
+        leftovers: currentRecord.leftovers + item.returned
+      });
+    }
+  };
+
+  const getDailyLoadByDriver = (driverId: string, date: string): DailyLoad | undefined => {
+    return dailyLoads.find(l => l.driverId === driverId && l.date === date);
+  };
+
+  const getDailyLoadsByDate = (date: string): DailyLoad[] => {
+    return dailyLoads.filter(l => l.date === date);
+  };
+
+  const getDailyLoadReport = (date: string): DailyLoadReport => {
+    const loadsForDate = getDailyLoadsByDate(date);
+    
+    // Agrupar por entregador
+    const driverMap = new Map<string, DailyLoad[]>();
+    loadsForDate.forEach(load => {
+      const existing = driverMap.get(load.driverId) || [];
+      driverMap.set(load.driverId, [...existing, load]);
+    });
+
+    // Construir dados por entregador
+    const driversData = Array.from(driverMap.entries()).map(([driverId, loads]) => {
+      const driver = users.find(u => u.id === driverId);
+      const totalLoaded = loads.reduce((sum, l) => sum + (l.totalLoaded || 0), 0);
+      const totalSold = loads.reduce((sum, l) => sum + (l.totalSold || 0), 0);
+      const totalReturned = loads.reduce((sum, l) => sum + (l.totalReturned || 0), 0);
+      const utilizationRate = totalLoaded > 0 ? Math.round((totalSold / totalLoaded) * 100) : 0;
+
+      return {
+        driverId,
+        driverName: driver?.name || 'Desconhecido',
+        loads,
+        totalLoaded,
+        totalSold,
+        totalReturned,
+        utilizationRate
+      };
+    });
+
+    // Calcular totais gerais e breakdown por produto
+    const productTotals = new Map<string, { loaded: number; sold: number; returned: number }>();
+    
+    loadsForDate.forEach(load => {
+      // Somar cargas
+      load.loadItems.forEach(item => {
+        const existing = productTotals.get(item.productId) || { loaded: 0, sold: 0, returned: 0 };
+        productTotals.set(item.productId, {
+          ...existing,
+          loaded: existing.loaded + item.quantity
+        });
+      });
+      
+      // Somar retornos
+      load.returnItems?.forEach(item => {
+        const existing = productTotals.get(item.productId) || { loaded: 0, sold: 0, returned: 0 };
+        productTotals.set(item.productId, {
+          ...existing,
+          sold: existing.sold + item.sold,
+          returned: existing.returned + item.returned
+        });
+      });
+    });
+
+    const productBreakdown = Array.from(productTotals.entries()).map(([productId, totals]) => {
+      const product = products.find(p => p.id === productId);
+      const utilizationRate = totals.loaded > 0 ? Math.round((totals.sold / totals.loaded) * 100) : 0;
+      // Alerta se sobra > 20%
+      const alertHighReturn = totals.loaded > 0 && (totals.returned / totals.loaded) > 0.2;
+
+      return {
+        productId,
+        productName: product?.name || 'Produto Desconhecido',
+        loaded: totals.loaded,
+        sold: totals.sold,
+        returned: totals.returned,
+        utilizationRate,
+        alertHighReturn
+      };
+    });
+
+    const totalLoaded = driversData.reduce((sum, d) => sum + d.totalLoaded, 0);
+    const totalSold = driversData.reduce((sum, d) => sum + d.totalSold, 0);
+    const totalReturned = driversData.reduce((sum, d) => sum + d.totalReturned, 0);
+    const overallUtilization = totalLoaded > 0 ? Math.round((totalSold / totalLoaded) * 100) : 0;
+
+    return {
+      date,
+      drivers: driversData,
+      totals: {
+        totalLoaded,
+        totalSold,
+        totalReturned,
+        utilizationRate: overallUtilization,
+        productBreakdown
+      }
+    };
+  };
+
+  const getProductionSuggestions = (daysToAnalyze: number = 7): ProductionSuggestion[] => {
+    const today = new Date();
+    const suggestions: ProductionSuggestion[] = [];
+    
+    // Coletar dados dos últimos N dias
+    const productStats = new Map<string, { sold: number[]; returned: number[] }>();
+    
+    for (let i = 1; i <= daysToAnalyze; i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      
+      const loadsForDate = getDailyLoadsByDate(dateStr);
+      loadsForDate.forEach(load => {
+        load.returnItems?.forEach(item => {
+          const existing = productStats.get(item.productId) || { sold: [], returned: [] };
+          existing.sold.push(item.sold);
+          existing.returned.push(item.returned);
+          productStats.set(item.productId, existing);
+        });
+      });
+    }
+
+    // Gerar sugestões
+    products.forEach(product => {
+      const stats = productStats.get(product.id);
+      
+      if (!stats || stats.sold.length === 0) {
+        // Sem dados suficientes
+        suggestions.push({
+          productId: product.id,
+          productName: product.name,
+          avgDaily: 0,
+          avgReturned: 0,
+          suggestedQuantity: product.targetQuantity || 0,
+          confidence: 'low',
+          trend: 'stable'
+        });
+        return;
+      }
+
+      const avgSold = stats.sold.reduce((a, b) => a + b, 0) / stats.sold.length;
+      const avgReturned = stats.returned.reduce((a, b) => a + b, 0) / stats.returned.length;
+      
+      // Calcular tendência (comparar últimos 3 dias com anteriores)
+      let trend: 'up' | 'down' | 'stable' = 'stable';
+      if (stats.sold.length >= 5) {
+        const recent = stats.sold.slice(0, 3).reduce((a, b) => a + b, 0) / 3;
+        const older = stats.sold.slice(3).reduce((a, b) => a + b, 0) / (stats.sold.length - 3);
+        if (recent > older * 1.1) trend = 'up';
+        else if (recent < older * 0.9) trend = 'down';
+      }
+
+      // Sugestão: média vendida + 10% de margem para sobras aceitáveis
+      const suggestedQuantity = Math.ceil(avgSold * 1.1);
+      
+      // Confiança baseada na quantidade de dados
+      const confidence: 'low' | 'medium' | 'high' = 
+        stats.sold.length >= 7 ? 'high' : 
+        stats.sold.length >= 3 ? 'medium' : 'low';
+
+      suggestions.push({
+        productId: product.id,
+        productName: product.name,
+        avgDaily: Math.round(avgSold),
+        avgReturned: Math.round(avgReturned),
+        suggestedQuantity,
+        confidence,
+        trend
+      });
+    });
+
+    return suggestions;
+  };
+
   return (
     <DataContext.Provider value={{ 
-      users, clients, products, productionData, routes,
+      users, clients, products, productionData, routes, dailyLoads,
       addUser, addClient, updateClient, updateProduct, addProduct, deleteProduct, addRoute, deleteRoute,
       getRoutesByDriver, getClientsByDriver, getAllClients, getDrivers,
       updateDailyProduction, getDailyRecord,
-      calculateClientDebt, registerPayment, toggleSkippedDate, updateClientPrice
+      calculateClientDebt, registerPayment, toggleSkippedDate, updateClientPrice,
+      createDailyLoad, updateDailyLoad, completeDailyLoad, getDailyLoadByDriver, getDailyLoadsByDate, getDailyLoadReport, getProductionSuggestions
     }}>
       {children}
     </DataContext.Provider>

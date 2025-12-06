@@ -1,0 +1,527 @@
+import React, { useState, useEffect } from 'react';
+import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
+import { LoadItem, ReturnItem, DailyLoad } from '../types';
+import { 
+  Package, Truck, CheckCircle, AlertCircle, Plus, Minus, 
+  Save, ArrowRight, RotateCcw, Loader2, Calendar,
+  TrendingUp, TrendingDown, AlertTriangle, ClipboardList
+} from 'lucide-react';
+
+const DriverDailyLoad: React.FC = () => {
+  const { user } = useAuth();
+  const { 
+    products, 
+    createDailyLoad, 
+    completeDailyLoad, 
+    getDailyLoadByDriver,
+    dailyLoads 
+  } = useData();
+  
+  const today = new Date().toISOString().split('T')[0];
+  const [selectedDate, setSelectedDate] = useState(today);
+  const [currentLoad, setCurrentLoad] = useState<DailyLoad | undefined>(undefined);
+  
+  // Estado para criar nova carga
+  const [loadItems, setLoadItems] = useState<LoadItem[]>([]);
+  const [loadObservations, setLoadObservations] = useState('');
+  
+  // Estado para registrar sobras
+  const [returnItems, setReturnItems] = useState<ReturnItem[]>([]);
+  const [returnObservations, setReturnObservations] = useState('');
+  
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  // Carregar carga existente do dia
+  useEffect(() => {
+    if (user?.id) {
+      const existingLoad = getDailyLoadByDriver(user.id, selectedDate);
+      setCurrentLoad(existingLoad);
+      
+      if (existingLoad) {
+        // Se há carga existente, preparar os itens de retorno
+        if (existingLoad.status === 'in_route' && !existingLoad.returnItems) {
+          const initialReturns: ReturnItem[] = existingLoad.loadItems.map(item => ({
+            productId: item.productId,
+            returned: 0,
+            sold: item.quantity
+          }));
+          setReturnItems(initialReturns);
+        } else if (existingLoad.returnItems) {
+          setReturnItems(existingLoad.returnItems);
+        }
+      } else {
+        // Inicializar com todos os produtos zerados
+        const initialItems: LoadItem[] = products.map(p => ({
+          productId: p.id,
+          quantity: 0
+        }));
+        setLoadItems(initialItems);
+        setReturnItems([]);
+      }
+    }
+  }, [user?.id, selectedDate, dailyLoads, products]);
+
+  const updateLoadQuantity = (productId: string, delta: number) => {
+    setLoadItems(prev => prev.map(item => {
+      if (item.productId === productId) {
+        return { ...item, quantity: Math.max(0, item.quantity + delta) };
+      }
+      return item;
+    }));
+  };
+
+  const setLoadQuantity = (productId: string, quantity: number) => {
+    setLoadItems(prev => prev.map(item => {
+      if (item.productId === productId) {
+        return { ...item, quantity: Math.max(0, quantity) };
+      }
+      return item;
+    }));
+  };
+
+  const updateReturnQuantity = (productId: string, returned: number) => {
+    if (!currentLoad) return;
+    
+    const loadItem = currentLoad.loadItems.find(i => i.productId === productId);
+    const maxReturn = loadItem?.quantity || 0;
+    const actualReturned = Math.min(Math.max(0, returned), maxReturn);
+    
+    setReturnItems(prev => prev.map(item => {
+      if (item.productId === productId) {
+        return { 
+          ...item, 
+          returned: actualReturned,
+          sold: maxReturn - actualReturned
+        };
+      }
+      return item;
+    }));
+  };
+
+  const handleStartRoute = async () => {
+    if (!user?.id) return;
+    
+    const itemsWithQuantity = loadItems.filter(item => item.quantity > 0);
+    if (itemsWithQuantity.length === 0) {
+      setError('Adicione pelo menos um produto à carga.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await createDailyLoad(user.id, selectedDate, itemsWithQuantity, loadObservations || undefined);
+      setSuccess('Carga registrada com sucesso! Boa rota!');
+    } catch (err) {
+      console.error('Erro ao criar carga:', err);
+      setError('Erro ao registrar carga. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCompleteRoute = async () => {
+    if (!currentLoad) return;
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await completeDailyLoad(currentLoad.id, returnItems, returnObservations || undefined);
+      setSuccess('Rota finalizada com sucesso! Sobras registradas.');
+    } catch (err) {
+      console.error('Erro ao finalizar rota:', err);
+      setError('Erro ao registrar sobras. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getProductName = (productId: string) => {
+    return products.find(p => p.id === productId)?.name || 'Produto';
+  };
+
+  const totalLoadItems = loadItems.reduce((sum, item) => sum + item.quantity, 0);
+  const totalReturned = returnItems.reduce((sum, item) => sum + item.returned, 0);
+  const totalSold = returnItems.reduce((sum, item) => sum + item.sold, 0);
+
+  // Renderizar baseado no estado atual
+  if (!currentLoad) {
+    // Formulário para criar nova carga
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-amber-100 p-3 rounded-full">
+              <Package className="text-amber-700" size={24} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-800">Carga do Dia</h2>
+              <p className="text-sm text-gray-500">Registre os produtos que está levando</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Calendar size={18} className="text-gray-400" />
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
+            />
+          </div>
+        </div>
+
+        {error && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+            <AlertCircle className="text-red-500" size={20} />
+            <span className="text-red-700">{error}</span>
+          </div>
+        )}
+
+        {success && (
+          <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+            <CheckCircle className="text-green-500" size={20} />
+            <span className="text-green-700">{success}</span>
+          </div>
+        )}
+
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-3 border-b border-gray-200">
+            <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+              <ClipboardList size={18} />
+              Produtos para Carregar
+            </h3>
+          </div>
+          
+          <div className="divide-y divide-gray-100">
+            {products.map(product => {
+              const loadItem = loadItems.find(i => i.productId === product.id);
+              const quantity = loadItem?.quantity || 0;
+              
+              return (
+                <div key={product.id} className="flex items-center justify-between p-4 hover:bg-gray-50">
+                  <div className="flex-1">
+                    <span className="font-medium text-gray-800">{product.name}</span>
+                    <span className="text-sm text-gray-500 ml-2">€{product.price.toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => updateLoadQuantity(product.id, -10)}
+                      className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600"
+                    >
+                      <Minus size={16} />
+                    </button>
+                    <input
+                      type="number"
+                      min="0"
+                      value={quantity}
+                      onChange={(e) => setLoadQuantity(product.id, parseInt(e.target.value) || 0)}
+                      className="w-20 text-center px-2 py-2 border border-gray-200 rounded-lg font-semibold"
+                    />
+                    <button
+                      onClick={() => updateLoadQuantity(product.id, 10)}
+                      className="p-2 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-700"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Observações (opcional)
+          </label>
+          <textarea
+            value={loadObservations}
+            onChange={(e) => setLoadObservations(e.target.value)}
+            placeholder="Ex: Pedido especial do cliente X, verificar endereço..."
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg resize-none"
+            rows={3}
+          />
+        </div>
+
+        <div className="flex items-center justify-between bg-amber-50 rounded-xl p-4 border border-amber-200">
+          <div>
+            <span className="text-sm text-amber-700">Total de produtos:</span>
+            <span className="text-2xl font-bold text-amber-800 ml-2">{totalLoadItems}</span>
+            <span className="text-sm text-amber-600 ml-1">unidades</span>
+          </div>
+          <button
+            onClick={handleStartRoute}
+            disabled={loading || totalLoadItems === 0}
+            className="flex items-center gap-2 px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+          >
+            {loading ? (
+              <Loader2 size={20} className="animate-spin" />
+            ) : (
+              <Truck size={20} />
+            )}
+            Iniciar Rota
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Carga em rota - Mostrar resumo e formulário de sobras
+  if (currentLoad.status === 'in_route') {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-100 p-3 rounded-full">
+              <Truck className="text-blue-700" size={24} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-800">Rota em Andamento</h2>
+              <p className="text-sm text-gray-500">
+                Iniciada às {currentLoad.loadStartTime ? new Date(currentLoad.loadStartTime).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+              </p>
+            </div>
+          </div>
+          <div className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+            Em Rota
+          </div>
+        </div>
+
+        {error && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+            <AlertCircle className="text-red-500" size={20} />
+            <span className="text-red-700">{error}</span>
+          </div>
+        )}
+
+        {success && (
+          <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+            <CheckCircle className="text-green-500" size={20} />
+            <span className="text-green-700">{success}</span>
+          </div>
+        )}
+
+        {/* Resumo da carga */}
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 border-b border-gray-200">
+            <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+              <Package size={18} />
+              Carga Carregada
+            </h3>
+          </div>
+          <div className="p-4 grid grid-cols-2 md:grid-cols-3 gap-3">
+            {currentLoad.loadItems.map(item => (
+              <div key={item.productId} className="bg-gray-50 rounded-lg p-3">
+                <span className="text-sm text-gray-600">{getProductName(item.productId)}</span>
+                <p className="text-lg font-bold text-gray-800">{item.quantity} un.</p>
+              </div>
+            ))}
+          </div>
+          {currentLoad.loadObservations && (
+            <div className="px-4 pb-4">
+              <p className="text-sm text-gray-500 italic">
+                📝 {currentLoad.loadObservations}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Formulário de sobras */}
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="bg-gradient-to-r from-orange-50 to-red-50 px-4 py-3 border-b border-gray-200">
+            <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+              <RotateCcw size={18} />
+              Registrar Sobras/Devoluções
+            </h3>
+          </div>
+          
+          <div className="divide-y divide-gray-100">
+            {currentLoad.loadItems.map(loadItem => {
+              const returnItem = returnItems.find(r => r.productId === loadItem.productId);
+              const returned = returnItem?.returned || 0;
+              const sold = loadItem.quantity - returned;
+              
+              return (
+                <div key={loadItem.productId} className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-medium text-gray-800">{getProductName(loadItem.productId)}</span>
+                    <span className="text-sm text-gray-500">Levou: {loadItem.quantity}</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1">
+                      <label className="text-xs text-gray-500 block mb-1">Devolveu:</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max={loadItem.quantity}
+                        value={returned}
+                        onChange={(e) => updateReturnQuantity(loadItem.productId, parseInt(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-center font-semibold"
+                      />
+                    </div>
+                    <ArrowRight className="text-gray-400" size={20} />
+                    <div className="flex-1 bg-green-50 rounded-lg p-2 text-center">
+                      <label className="text-xs text-green-600 block">Vendeu:</label>
+                      <span className="text-lg font-bold text-green-700">{sold}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Observações do Retorno (opcional)
+          </label>
+          <textarea
+            value={returnObservations}
+            onChange={(e) => setReturnObservations(e.target.value)}
+            placeholder="Ex: Cliente Y não estava, devolução por qualidade..."
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg resize-none"
+            rows={3}
+          />
+        </div>
+
+        {/* Resumo */}
+        <div className="grid grid-cols-3 gap-4">
+          <div className="bg-blue-50 rounded-xl p-4 text-center border border-blue-100">
+            <span className="text-sm text-blue-600 block">Carregado</span>
+            <span className="text-2xl font-bold text-blue-700">{currentLoad.totalLoaded}</span>
+          </div>
+          <div className="bg-green-50 rounded-xl p-4 text-center border border-green-100">
+            <span className="text-sm text-green-600 block">Vendido</span>
+            <span className="text-2xl font-bold text-green-700">{totalSold}</span>
+          </div>
+          <div className="bg-orange-50 rounded-xl p-4 text-center border border-orange-100">
+            <span className="text-sm text-orange-600 block">Devolvido</span>
+            <span className="text-2xl font-bold text-orange-700">{totalReturned}</span>
+          </div>
+        </div>
+
+        <button
+          onClick={handleCompleteRoute}
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-lg"
+        >
+          {loading ? (
+            <Loader2 size={24} className="animate-spin" />
+          ) : (
+            <CheckCircle size={24} />
+          )}
+          Finalizar Rota
+        </button>
+      </div>
+    );
+  }
+
+  // Rota finalizada - Mostrar resumo
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="bg-green-100 p-3 rounded-full">
+            <CheckCircle className="text-green-700" size={24} />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-800">Rota Finalizada</h2>
+            <p className="text-sm text-gray-500">
+              {selectedDate === today ? 'Hoje' : new Date(selectedDate).toLocaleDateString('pt-PT')}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Calendar size={18} className="text-gray-400" />
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
+          />
+        </div>
+      </div>
+
+      {/* Métricas */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-blue-50 rounded-xl p-4 text-center border border-blue-100">
+          <span className="text-sm text-blue-600 block">Carregado</span>
+          <span className="text-2xl font-bold text-blue-700">{currentLoad.totalLoaded}</span>
+        </div>
+        <div className="bg-green-50 rounded-xl p-4 text-center border border-green-100">
+          <span className="text-sm text-green-600 block">Vendido</span>
+          <span className="text-2xl font-bold text-green-700">{currentLoad.totalSold}</span>
+        </div>
+        <div className="bg-orange-50 rounded-xl p-4 text-center border border-orange-100">
+          <span className="text-sm text-orange-600 block">Devolvido</span>
+          <span className="text-2xl font-bold text-orange-700">{currentLoad.totalReturned}</span>
+        </div>
+        <div className="bg-purple-50 rounded-xl p-4 text-center border border-purple-100">
+          <span className="text-sm text-purple-600 block">Aproveitamento</span>
+          <span className="text-2xl font-bold text-purple-700">{currentLoad.utilizationRate}%</span>
+        </div>
+      </div>
+
+      {/* Detalhamento por produto */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-3 border-b border-gray-200">
+          <h3 className="font-semibold text-gray-800">Detalhamento por Produto</h3>
+        </div>
+        <div className="divide-y divide-gray-100">
+          {currentLoad.loadItems.map(loadItem => {
+            const returnItem = currentLoad.returnItems?.find(r => r.productId === loadItem.productId);
+            const utilizationRate = loadItem.quantity > 0 
+              ? Math.round(((returnItem?.sold || 0) / loadItem.quantity) * 100)
+              : 0;
+            const isLowUtilization = utilizationRate < 70;
+            
+            return (
+              <div key={loadItem.productId} className="p-4 flex items-center justify-between">
+                <div className="flex-1">
+                  <span className="font-medium text-gray-800">{getProductName(loadItem.productId)}</span>
+                  <div className="flex items-center gap-4 mt-1 text-sm">
+                    <span className="text-blue-600">Levou: {loadItem.quantity}</span>
+                    <span className="text-green-600">Vendeu: {returnItem?.sold || 0}</span>
+                    <span className="text-orange-600">Devolveu: {returnItem?.returned || 0}</span>
+                  </div>
+                </div>
+                <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${
+                  isLowUtilization ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                }`}>
+                  {isLowUtilization ? <TrendingDown size={14} /> : <TrendingUp size={14} />}
+                  {utilizationRate}%
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Observações */}
+      {(currentLoad.loadObservations || currentLoad.returnObservations) && (
+        <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+          <h4 className="font-medium text-gray-700 mb-2">Observações</h4>
+          {currentLoad.loadObservations && (
+            <p className="text-sm text-gray-600 mb-1">
+              <strong>Saída:</strong> {currentLoad.loadObservations}
+            </p>
+          )}
+          {currentLoad.returnObservations && (
+            <p className="text-sm text-gray-600">
+              <strong>Retorno:</strong> {currentLoad.returnObservations}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default DriverDailyLoad;
