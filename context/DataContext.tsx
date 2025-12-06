@@ -203,6 +203,44 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const updateClient = async (id: string, updates: Partial<Client>) => {
     await updateDoc(doc(db, 'clients', id), updates);
+    
+    // Se o deliverySchedule foi alterado, atualizar entregas pendentes de hoje
+    if (updates.deliverySchedule !== undefined) {
+      const today = new Date().toISOString().split('T')[0];
+      const dayKey = getDayKeyFromDate(today);
+      
+      // Buscar entregas pendentes deste cliente para hoje
+      const pendingDeliveries = clientDeliveries.filter(
+        d => d.clientId === id && d.date === today && d.status === 'pending'
+      );
+      
+      for (const delivery of pendingDeliveries) {
+        const client = clients.find(c => c.id === id);
+        const newScheduledItems = updates.deliverySchedule?.[dayKey] || [];
+        
+        // Recalcular itens e valor
+        let totalValue = 0;
+        const items: { productId: string; quantity: number }[] = newScheduledItems.map(item => {
+          const product = products.find(p => p.id === item.productId);
+          const price = client?.customPrices?.[item.productId] ?? product?.price ?? 0;
+          totalValue += price * item.quantity;
+          return { productId: item.productId, quantity: item.quantity };
+        });
+        
+        // Atualizar a entrega no Firestore
+        await updateDoc(doc(db, 'client_deliveries', delivery.id), {
+          items,
+          totalValue: parseFloat(totalValue.toFixed(2)),
+          updatedAt: new Date().toISOString()
+        });
+      }
+    }
+  };
+
+  // Helper para obter a chave do dia
+  const getDayKeyFromDate = (date: string): 'dom' | 'seg' | 'ter' | 'qua' | 'qui' | 'sex' | 'sab' => {
+    const mapKeys: ('dom' | 'seg' | 'ter' | 'qua' | 'qui' | 'sex' | 'sab')[] = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
+    return mapKeys[new Date(date).getDay()];
   };
 
   const updateProduct = async (id: string, updates: Partial<Product>) => {
