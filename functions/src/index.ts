@@ -207,3 +207,86 @@ export const deleteDriver = onCall<{ uid: string }>(
     }
   }
 );
+
+/**
+ * Cloud Function: updateDriver
+ * 
+ * Atualiza dados de um entregador (nome, telemóvel, e opcionalmente senha).
+ * Apenas admins podem executar.
+ */
+export const updateDriver = onCall<{ 
+  uid: string; 
+  name?: string; 
+  phone?: string; 
+  newPassword?: string;
+}>(
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError(
+        "unauthenticated",
+        "Você precisa estar logado."
+      );
+    }
+
+    const callerUid = request.auth.uid;
+    const callerDoc = await db.collection("users").doc(callerUid).get();
+    const callerRole = String(callerDoc.data()?.role ?? "").toUpperCase();
+
+    if (callerRole !== "ADMIN") {
+      throw new HttpsError(
+        "permission-denied",
+        "Apenas administradores podem editar entregadores."
+      );
+    }
+
+    const { uid, name, phone, newPassword } = request.data;
+
+    if (!uid) {
+      throw new HttpsError(
+        "invalid-argument",
+        "UID do entregador é obrigatório."
+      );
+    }
+
+    try {
+      // Atualizar dados no Firestore
+      const updateData: Record<string, string> = {};
+      if (name) updateData.name = name;
+      if (phone) updateData.phone = phone;
+
+      if (Object.keys(updateData).length > 0) {
+        await db.collection("users").doc(uid).update(updateData);
+      }
+
+      // Atualizar senha no Firebase Auth (se fornecida)
+      if (newPassword) {
+        if (newPassword.length < 6) {
+          throw new HttpsError(
+            "invalid-argument",
+            "A senha deve ter pelo menos 6 caracteres."
+          );
+        }
+        await auth.updateUser(uid, { password: newPassword });
+      }
+
+      // Também atualizar nome no Auth se fornecido
+      if (name) {
+        await auth.updateUser(uid, { displayName: name });
+      }
+
+      return { 
+        success: true, 
+        message: `Entregador atualizado com sucesso!${newPassword ? ' Senha alterada.' : ''}`
+      };
+    } catch (error) {
+      console.error("Erro ao atualizar entregador:", error);
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+      throw new HttpsError(
+        "internal",
+        "Erro ao atualizar entregador."
+      );
+    }
+  }
+);

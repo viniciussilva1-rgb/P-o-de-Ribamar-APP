@@ -9,6 +9,7 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  phone?: string;
 }
 
 export interface Route {

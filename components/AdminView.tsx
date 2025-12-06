@@ -1,6 +1,6 @@
 import { getAuth } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { db, createDriverFunction, deleteDriverFunction } from "../firebaseConfig";
+import { db, createDriverFunction, deleteDriverFunction, updateDriverFunction } from "../firebaseConfig";
 
 import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
@@ -98,6 +98,14 @@ export const DriversOverview: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [deletingDriverId, setDeletingDriverId] = useState<string | null>(null);
+  
+  // Estados para edição de entregador
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingDriver, setEditingDriver] = useState<User | null>(null);
+  const [editDriverName, setEditDriverName] = useState('');
+  const [editDriverPhone, setEditDriverPhone] = useState('');
+  const [editDriverPassword, setEditDriverPassword] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
 
   // Função para deletar entregador (com clientes e rotas)
   const handleDeleteDriver = async (driver: User) => {
@@ -126,6 +134,61 @@ export const DriversOverview: React.FC = () => {
       }
     } finally {
       setDeletingDriverId(null);
+    }
+  };
+
+  // Função para abrir modal de edição
+  const handleOpenEditModal = (driver: User) => {
+    setEditingDriver(driver);
+    setEditDriverName(driver.name);
+    setEditDriverPhone(driver.phone || '');
+    setEditDriverPassword('');
+    setIsEditModalOpen(true);
+  };
+
+  // Função para fechar modal de edição
+  const handleCloseEditModal = () => {
+    setIsEditModalOpen(false);
+    setEditingDriver(null);
+    setEditDriverName('');
+    setEditDriverPhone('');
+    setEditDriverPassword('');
+  };
+
+  // Função para salvar alterações do entregador
+  const handleSaveDriverEdit = async () => {
+    if (!editingDriver) return;
+    
+    if (!editDriverName.trim()) {
+      alert('O nome é obrigatório.');
+      return;
+    }
+    
+    if (editDriverPassword && editDriverPassword.length < 6) {
+      alert('A senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+
+    setEditLoading(true);
+    try {
+      const result = await updateDriverFunction({
+        uid: editingDriver.id,
+        name: editDriverName.trim(),
+        phone: editDriverPhone.trim() || undefined,
+        newPassword: editDriverPassword || undefined
+      });
+      console.log('[handleSaveDriverEdit] Resultado:', result.data);
+      alert(result.data.message);
+      handleCloseEditModal();
+    } catch (err: unknown) {
+      console.error('Erro ao atualizar entregador:', err);
+      if (err && typeof err === 'object' && 'message' in err) {
+        alert(`Erro: ${(err as { message: string }).message}`);
+      } else {
+        alert('Erro ao atualizar entregador. Tente novamente.');
+      }
+    } finally {
+      setEditLoading(false);
     }
   };
 
@@ -436,12 +499,20 @@ export const DriversOverview: React.FC = () => {
                   <div>
                     <h3 className="font-semibold text-gray-900">{driver.name}</h3>
                     <p className="text-sm text-gray-500">{driver.email}</p>
+                    {driver.phone && <p className="text-sm text-gray-500 flex items-center gap-1"><Phone size={12} /> {driver.phone}</p>}
                   </div>
                 </button>
                 <div className="flex items-center space-x-3">
                   <span className="text-sm font-medium bg-gray-100 px-3 py-1 rounded-full text-gray-600">
                     {clients.length} Clientes
                   </span>
+                  <button
+                    onClick={() => handleOpenEditModal(driver)}
+                    className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Editar entregador"
+                  >
+                    <Pencil size={18} />
+                  </button>
                   <button
                     onClick={() => handleDeleteDriver(driver)}
                     disabled={isDeleting}
@@ -686,6 +757,80 @@ export const DriversOverview: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Driver Modal */}
+      {isEditModalOpen && editingDriver && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
+            <h3 className="text-xl font-bold mb-4 text-gray-800">Editar Entregador</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
+                <input 
+                  type="text" 
+                  className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900" 
+                  value={editDriverName} 
+                  onChange={e => setEditDriverName(e.target.value)} 
+                  disabled={editLoading} 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input 
+                  type="email" 
+                  className="w-full p-2 border border-gray-200 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed" 
+                  value={editingDriver.email} 
+                  disabled 
+                  title="O email não pode ser alterado"
+                />
+                <p className="text-xs text-gray-500 mt-1">O email não pode ser alterado</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Telemóvel</label>
+                <input 
+                  type="tel" 
+                  className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900" 
+                  value={editDriverPhone} 
+                  onChange={e => setEditDriverPhone(e.target.value)} 
+                  placeholder="Ex: +351 912 345 678"
+                  disabled={editLoading} 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nova Senha (opcional)</label>
+                <input 
+                  type="password" 
+                  className="w-full p-2 border border-gray-300 rounded-lg bg-white text-gray-900" 
+                  value={editDriverPassword} 
+                  onChange={e => setEditDriverPassword(e.target.value)} 
+                  placeholder="Deixe em branco para manter a senha atual"
+                  disabled={editLoading}
+                  minLength={6}
+                />
+                <p className="text-xs text-gray-500 mt-1">Mínimo 6 caracteres. Deixe em branco para não alterar.</p>
+              </div>
+              <div className="flex justify-end space-x-3 pt-4">
+                <button 
+                  type="button" 
+                  onClick={handleCloseEditModal} 
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg" 
+                  disabled={editLoading}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleSaveDriverEdit} 
+                  disabled={editLoading} 
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  {editLoading && <Loader2 size={16} className="animate-spin" />}
+                  <span>{editLoading ? 'Salvando...' : 'Salvar Alterações'}</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

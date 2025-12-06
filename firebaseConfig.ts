@@ -32,3 +32,8 @@ export const deleteDriverFunction = httpsCallable<
   { uid: string },
   { success: boolean; message: string }
 >(functions, "deleteDriver");
+
+export const updateDriverFunction = httpsCallable<
+  { uid: string; name?: string; phone?: string; newPassword?: string },
+  { success: boolean; message: string }
+>(functions, "updateDriver");
