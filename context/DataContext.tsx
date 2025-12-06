@@ -214,18 +214,27 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         d => d.clientId === id && d.date === today && d.status === 'pending'
       );
       
+      console.log(`[updateClient] Atualizando ${pendingDeliveries.length} entregas pendentes para cliente ${id}`);
+      console.log(`[updateClient] Dia: ${dayKey}, Schedule:`, updates.deliverySchedule?.[dayKey]);
+      
       for (const delivery of pendingDeliveries) {
-        const client = clients.find(c => c.id === id);
+        // Usar os dados do updates, não do state (que pode estar desatualizado)
+        const clientData = clients.find(c => c.id === id);
+        const customPrices = updates.customPrices ?? clientData?.customPrices ?? {};
         const newScheduledItems = updates.deliverySchedule?.[dayKey] || [];
+        
+        console.log(`[updateClient] Novos itens para entrega ${delivery.id}:`, newScheduledItems);
         
         // Recalcular itens e valor
         let totalValue = 0;
         const items: { productId: string; quantity: number }[] = newScheduledItems.map(item => {
           const product = products.find(p => p.id === item.productId);
-          const price = client?.customPrices?.[item.productId] ?? product?.price ?? 0;
+          const price = customPrices[item.productId] ?? product?.price ?? 0;
           totalValue += price * item.quantity;
           return { productId: item.productId, quantity: item.quantity };
         });
+        
+        console.log(`[updateClient] Atualizando entrega ${delivery.id} com itens:`, items, `valor: ${totalValue}`);
         
         // Atualizar a entrega no Firestore
         await updateDoc(doc(db, 'client_deliveries', delivery.id), {
