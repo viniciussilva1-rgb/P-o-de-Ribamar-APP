@@ -24,6 +24,7 @@ const DriverDailyDeliveries: React.FC = () => {
   const { 
     products, 
     routes,
+    clients,
     generateDailyDeliveries,
     updateDeliveryStatus,
     getDeliveriesByDriver,
@@ -147,6 +148,27 @@ const DriverDailyDeliveries: React.FC = () => {
   // Clientes programados (para verificar se há entregas a gerar)
   const scheduledClients = currentUser?.id ? getScheduledClientsForDay(currentUser.id, selectedDate) : [];
   const hasUngenerated = scheduledClients.length > deliveries.length;
+
+  // Debug: Mostrar todos os clientes do entregador
+  const myClients = clients.filter(c => c.driverId === currentUser?.id);
+  const dayKey = getDayKey(selectedDate);
+  
+  // Debug log
+  console.log('=== DEBUG ENTREGAS ===');
+  console.log('currentUser.id:', currentUser?.id);
+  console.log('selectedDate:', selectedDate);
+  console.log('dayKey:', dayKey);
+  console.log('Total clientes:', clients.length);
+  console.log('Meus clientes:', myClients.length);
+  console.log('Meus clientes detalhes:', myClients.map(c => ({
+    id: c.id,
+    name: c.name,
+    driverId: c.driverId,
+    status: c.status,
+    deliverySchedule: c.deliverySchedule,
+    scheduledForDay: c.deliverySchedule?.[dayKey]
+  })));
+  console.log('scheduledClients:', scheduledClients.length);
 
   return (
     <div className="space-y-6">
