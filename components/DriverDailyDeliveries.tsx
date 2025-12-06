@@ -34,6 +34,7 @@ const DriverDailyDeliveries: React.FC = () => {
     clientDeliveries,
     getDynamicClientsForDriver,
     getDynamicClientPrediction,
+    getDynamicClientHistory,
     recordDynamicDelivery
   } = useData();
   
@@ -51,6 +52,8 @@ const DriverDailyDeliveries: React.FC = () => {
   // Estado para edição de entrega dinâmica
   const [editingDynamicDelivery, setEditingDynamicDelivery] = useState<string | null>(null);
   const [dynamicDeliveryItems, setDynamicDeliveryItems] = useState<{ productId: string; quantity: number; price: number }[]>([]);
+  const [selectedProductToAdd, setSelectedProductToAdd] = useState<string>('');
+  const [quantityToAdd, setQuantityToAdd] = useState<number>(1);
 
   // Clientes dinâmicos
   const dynamicClients = currentUser?.id ? getDynamicClientsForDriver(currentUser.id) : [];
@@ -122,18 +125,69 @@ const DriverDailyDeliveries: React.FC = () => {
     const client = clients.find(c => c.id === delivery.clientId);
     if (!client?.isDynamicChoice) return;
     
-    // Obter previsão para preencher valores iniciais
-    const prediction = getDynamicClientPrediction(delivery.clientId, selectedDate);
+    // Obter histórico para ver se há padrão
+    const history = getDynamicClientHistory(delivery.clientId);
     
-    // Inicializar com os itens da previsão ou com os itens já na entrega
-    const initialItems = prediction.predictedItems.map(item => ({
-      productId: item.productId,
-      quantity: item.recommendedQuantity,
-      price: client.customPrices?.[item.productId] ?? products.find(p => p.id === item.productId)?.price ?? 0
-    }));
+    // Se tem histórico com padrão, pré-carregar os produtos mais frequentes
+    let initialItems: { productId: string; quantity: number; price: number }[] = [];
+    
+    if (history && history.totalDeliveries >= 3) {
+      // Pegar os top 5 produtos mais pedidos
+      const topProducts = history.productStats
+        .sort((a, b) => b.totalOrders - a.totalOrders)
+        .slice(0, 5);
+      
+      initialItems = topProducts.map(stat => ({
+        productId: stat.productId,
+        quantity: Math.round(stat.averageQuantity),
+        price: client.customPrices?.[stat.productId] ?? products.find(p => p.id === stat.productId)?.price ?? 0
+      }));
+    }
+    // Se não tem histórico, começa vazio
     
     setDynamicDeliveryItems(initialItems);
+    setSelectedProductToAdd('');
+    setQuantityToAdd(1);
     setEditingDynamicDelivery(delivery.id);
+  };
+
+  // Adicionar produto à lista de entrega dinâmica
+  const handleAddDynamicProduct = (clientId: string) => {
+    if (!selectedProductToAdd || quantityToAdd <= 0) return;
+    
+    const client = clients.find(c => c.id === clientId);
+    const product = products.find(p => p.id === selectedProductToAdd);
+    if (!product) return;
+    
+    const price = client?.customPrices?.[selectedProductToAdd] ?? product.price;
+    
+    // Verificar se já existe na lista
+    const existingIndex = dynamicDeliveryItems.findIndex(item => item.productId === selectedProductToAdd);
+    
+    if (existingIndex >= 0) {
+      // Atualizar quantidade
+      setDynamicDeliveryItems(prev => 
+        prev.map((item, idx) => 
+          idx === existingIndex 
+            ? { ...item, quantity: item.quantity + quantityToAdd }
+            : item
+        )
+      );
+    } else {
+      // Adicionar novo
+      setDynamicDeliveryItems(prev => [
+        ...prev,
+        { productId: selectedProductToAdd, quantity: quantityToAdd, price }
+      ]);
+    }
+    
+    setSelectedProductToAdd('');
+    setQuantityToAdd(1);
+  };
+
+  // Remover produto da lista
+  const handleRemoveDynamicProduct = (productId: string) => {
+    setDynamicDeliveryItems(prev => prev.filter(item => item.productId !== productId));
   };
 
   // Atualizar quantidade de item dinâmico
@@ -662,56 +716,116 @@ const DriverDailyDeliveries: React.FC = () => {
                           ) : (
                             /* Editor de produtos para cliente dinâmico */
                             <div className="mt-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
-                              <div className="flex items-center gap-2 mb-3">
-                                <Sparkles size={16} className="text-purple-600" />
-                                <span className="text-sm font-medium text-purple-800">Selecione os produtos para esta entrega:</span>
+                              {/* Header */}
+                              <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                  <Sparkles size={16} className="text-purple-600" />
+                                  <span className="text-sm font-medium text-purple-800">Adicionar Produtos:</span>
+                                </div>
+                                {dynamicDeliveryItems.length > 0 && (
+                                  <span className="text-xs bg-purple-200 text-purple-700 px-2 py-0.5 rounded-full">
+                                    {dynamicDeliveryItems.length} produto(s)
+                                  </span>
+                                )}
                               </div>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                {dynamicDeliveryItems.map(item => {
-                                  const product = products.find(p => p.id === item.productId);
-                                  if (!product) return null;
-                                  return (
-                                    <div key={item.productId} className="flex items-center justify-between bg-white p-2 rounded border border-purple-100">
-                                      <div className="flex-1">
-                                        <span className="text-sm font-medium text-gray-800">{product.name}</span>
-                                        <span className="text-xs text-gray-500 ml-2">€{item.price.toFixed(2)}</span>
-                                      </div>
-                                      <div className="flex items-center gap-1">
-                                        <button
-                                          onClick={() => updateDynamicItemQuantity(item.productId, -1)}
-                                          className="p-1 rounded bg-purple-100 hover:bg-purple-200 text-purple-700"
-                                        >
-                                          <Minus size={14} />
-                                        </button>
-                                        <span className="w-8 text-center font-bold text-purple-700">{item.quantity}</span>
-                                        <button
-                                          onClick={() => updateDynamicItemQuantity(item.productId, 1)}
-                                          className="p-1 rounded bg-purple-100 hover:bg-purple-200 text-purple-700"
-                                        >
-                                          <Plus size={14} />
-                                        </button>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
+
+                              {/* Seletor de produto + quantidade */}
+                              <div className="flex gap-2 mb-3">
+                                <select
+                                  value={selectedProductToAdd}
+                                  onChange={(e) => setSelectedProductToAdd(e.target.value)}
+                                  className="flex-1 px-3 py-2 border border-purple-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-400"
+                                >
+                                  <option value="">Selecione um produto...</option>
+                                  {products
+                                    .filter(p => !dynamicDeliveryItems.find(item => item.productId === p.id))
+                                    .map(product => {
+                                      const client = clients.find(c => c.id === delivery.clientId);
+                                      const price = client?.customPrices?.[product.id] ?? product.price;
+                                      return (
+                                        <option key={product.id} value={product.id}>
+                                          {product.name} - €{price.toFixed(2)}
+                                        </option>
+                                      );
+                                    })}
+                                </select>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={quantityToAdd}
+                                  onChange={(e) => setQuantityToAdd(Math.max(1, parseInt(e.target.value) || 1))}
+                                  className="w-20 px-3 py-2 border border-purple-200 rounded-lg text-sm text-center font-bold"
+                                />
+                                <button
+                                  onClick={() => handleAddDynamicProduct(delivery.clientId)}
+                                  disabled={!selectedProductToAdd}
+                                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  <Plus size={18} />
+                                </button>
                               </div>
-                              <div className="flex items-center justify-between mt-3 pt-3 border-t border-purple-200">
+
+                              {/* Lista de produtos adicionados */}
+                              {dynamicDeliveryItems.length > 0 ? (
+                                <div className="space-y-2 mb-3">
+                                  {dynamicDeliveryItems.map(item => {
+                                    const product = products.find(p => p.id === item.productId);
+                                    if (!product) return null;
+                                    return (
+                                      <div key={item.productId} className="flex items-center justify-between bg-white p-2 rounded-lg border border-purple-100">
+                                        <div className="flex items-center gap-2">
+                                          <button
+                                            onClick={() => handleRemoveDynamicProduct(item.productId)}
+                                            className="p-1 rounded bg-red-100 hover:bg-red-200 text-red-600"
+                                          >
+                                            <XCircle size={14} />
+                                          </button>
+                                          <span className="text-sm font-medium text-gray-800">{product.name}</span>
+                                          <span className="text-xs text-gray-500">€{item.price.toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          <button
+                                            onClick={() => updateDynamicItemQuantity(item.productId, -1)}
+                                            className="p-1 rounded bg-purple-100 hover:bg-purple-200 text-purple-700"
+                                          >
+                                            <Minus size={14} />
+                                          </button>
+                                          <span className="w-10 text-center font-bold text-purple-700">{item.quantity}</span>
+                                          <button
+                                            onClick={() => updateDynamicItemQuantity(item.productId, 1)}
+                                            className="p-1 rounded bg-purple-100 hover:bg-purple-200 text-purple-700"
+                                          >
+                                            <Plus size={14} />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <div className="text-center py-4 text-gray-500 text-sm bg-white rounded-lg border border-dashed border-purple-200 mb-3">
+                                  Nenhum produto adicionado ainda
+                                </div>
+                              )}
+
+                              {/* Footer com total e botões */}
+                              <div className="flex items-center justify-between pt-3 border-t border-purple-200">
                                 <span className="text-sm text-purple-700">
-                                  Total: <strong>€{dynamicDeliveryItems.reduce((sum, i) => sum + (i.price * i.quantity), 0).toFixed(2)}</strong>
+                                  Total: <strong className="text-lg">€{dynamicDeliveryItems.reduce((sum, i) => sum + (i.price * i.quantity), 0).toFixed(2)}</strong>
                                 </span>
                                 <div className="flex gap-2">
                                   <button
-                                    onClick={() => { setEditingDynamicDelivery(null); setDynamicDeliveryItems([]); }}
-                                    className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded text-sm"
+                                    onClick={() => { setEditingDynamicDelivery(null); setDynamicDeliveryItems([]); setSelectedProductToAdd(''); }}
+                                    className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm"
                                   >
                                     Cancelar
                                   </button>
                                   <button
                                     onClick={() => handleConfirmDynamicDelivery(delivery.id)}
-                                    disabled={isProcessing}
-                                    className="flex items-center gap-1 px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 text-sm"
+                                    disabled={isProcessing || dynamicDeliveryItems.length === 0}
+                                    className="flex items-center gap-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
                                   >
-                                    {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                                    {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
                                     Confirmar Entrega
                                   </button>
                                 </div>
