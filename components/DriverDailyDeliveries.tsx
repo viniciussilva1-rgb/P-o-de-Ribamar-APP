@@ -35,6 +35,7 @@ const DriverDailyDeliveries: React.FC = () => {
   
   const today = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState(today);
+  const [selectedRoute, setSelectedRoute] = useState<string>('all');
   const [deliveries, setDeliveries] = useState<ClientDelivery[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -42,6 +43,9 @@ const DriverDailyDeliveries: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<DeliveryStatus | 'all'>('all');
   const [notDeliveredReason, setNotDeliveredReason] = useState('');
   const [processingId, setProcessingId] = useState<string | null>(null);
+
+  // Rotas do entregador
+  const myRoutes = routes.filter(r => r.driverId === currentUser?.id);
 
   // Carregar entregas do dia
   useEffect(() => {
@@ -129,18 +133,22 @@ const DriverDailyDeliveries: React.FC = () => {
     }
   };
 
-  // Filtrar entregas
-  const filteredDeliveries = deliveries.filter(d => 
-    statusFilter === 'all' || d.status === statusFilter
-  );
+  // Filtrar entregas por status E por rota
+  const filteredDeliveries = deliveries.filter(d => {
+    const matchesStatus = statusFilter === 'all' || d.status === statusFilter;
+    const matchesRoute = selectedRoute === 'all' || d.routeId === selectedRoute;
+    return matchesStatus && matchesRoute;
+  });
 
-  // Agrupar por rota
-  const deliveriesByRoute = filteredDeliveries.reduce((acc, delivery) => {
-    const routeId = delivery.routeId || 'sem-rota';
-    if (!acc[routeId]) acc[routeId] = [];
-    acc[routeId].push(delivery);
-    return acc;
-  }, {} as Record<string, ClientDelivery[]>);
+  // Agrupar por rota (só se não tiver rota selecionada)
+  const deliveriesByRoute = selectedRoute === 'all' 
+    ? filteredDeliveries.reduce((acc, delivery) => {
+        const routeId = delivery.routeId || 'sem-rota';
+        if (!acc[routeId]) acc[routeId] = [];
+        acc[routeId].push(delivery);
+        return acc;
+      }, {} as Record<string, ClientDelivery[]>)
+    : { [selectedRoute]: filteredDeliveries };
 
   // Resumo do dia
   const summary = currentUser?.id ? getDriverDailySummary(currentUser.id, selectedDate) : null;
@@ -149,26 +157,9 @@ const DriverDailyDeliveries: React.FC = () => {
   const scheduledClients = currentUser?.id ? getScheduledClientsForDay(currentUser.id, selectedDate) : [];
   const hasUngenerated = scheduledClients.length > deliveries.length;
 
-  // Debug: Mostrar todos os clientes do entregador
+  // Clientes do entregador para diagnóstico
   const myClients = clients.filter(c => c.driverId === currentUser?.id);
   const dayKey = getDayKey(selectedDate);
-  
-  // Debug log mais detalhado
-  console.log('=== DEBUG ENTREGAS ===');
-  console.log('currentUser.id:', currentUser?.id);
-  console.log('selectedDate:', selectedDate);
-  console.log('dayKey:', dayKey);
-  console.log('Total clientes:', clients.length);
-  console.log('Meus clientes:', myClients.length);
-  myClients.forEach((c, i) => {
-    console.log(`Cliente ${i + 1}: ${c.name}`);
-    console.log('  - status:', c.status);
-    console.log('  - deliverySchedule:', JSON.stringify(c.deliverySchedule));
-    console.log(`  - ${dayKey}:`, c.deliverySchedule?.[dayKey]);
-  });
-  console.log('scheduledClients:', scheduledClients.length);
-
-  // Clientes ativos do entregador (para mostrar info útil)
   const activeClients = myClients.filter(c => c.status === 'ACTIVE');
   const clientsWithSchedule = activeClients.filter(c => 
     c.deliverySchedule && Object.keys(c.deliverySchedule).length > 0
@@ -177,6 +168,11 @@ const DriverDailyDeliveries: React.FC = () => {
     const items = c.deliverySchedule?.[dayKey];
     return items && items.length > 0;
   });
+
+  // Filtrar clientes agendados por rota selecionada
+  const filteredScheduledClients = selectedRoute === 'all' 
+    ? scheduledClients 
+    : scheduledClients.filter(c => c.routeId === selectedRoute);
 
   return (
     <div className="space-y-6">
@@ -191,7 +187,7 @@ const DriverDailyDeliveries: React.FC = () => {
             <p className="text-sm text-gray-500">Gerencie suas entregas programadas</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2">
             <Calendar size={18} className="text-gray-400" />
             <input
@@ -211,6 +207,56 @@ const DriverDailyDeliveries: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Seletor de Rota */}
+      {myRoutes.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4">
+          <div className="flex flex-col md:flex-row md:items-center gap-4">
+            <div className="flex items-center gap-2">
+              <MapPin className="text-amber-600" size={20} />
+              <span className="font-medium text-amber-800">Selecione a Rota:</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setSelectedRoute('all')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  selectedRoute === 'all'
+                    ? 'bg-amber-600 text-white shadow-md'
+                    : 'bg-white text-amber-700 border border-amber-300 hover:bg-amber-100'
+                }`}
+              >
+                Todas as Rotas
+              </button>
+              {myRoutes.map(route => {
+                const routeDeliveryCount = deliveries.filter(d => d.routeId === route.id).length;
+                const routePendingCount = deliveries.filter(d => d.routeId === route.id && d.status === 'pending').length;
+                return (
+                  <button
+                    key={route.id}
+                    onClick={() => setSelectedRoute(route.id)}
+                    className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+                      selectedRoute === route.id
+                        ? 'bg-amber-600 text-white shadow-md'
+                        : 'bg-white text-amber-700 border border-amber-300 hover:bg-amber-100'
+                    }`}
+                  >
+                    {route.name}
+                    {routeDeliveryCount > 0 && (
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        selectedRoute === route.id 
+                          ? 'bg-amber-500 text-white' 
+                          : 'bg-amber-100 text-amber-700'
+                      }`}>
+                        {routePendingCount}/{routeDeliveryCount}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
@@ -237,43 +283,51 @@ const DriverDailyDeliveries: React.FC = () => {
         </div>
       )}
 
-      {/* Resumo do Dia */}
-      {summary && deliveries.length > 0 && (
+      {/* Resumo do Dia - filtrado por rota se selecionada */}
+      {summary && filteredDeliveries.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
             <div className="flex items-center gap-2 mb-1">
               <ClipboardList className="text-blue-500" size={18} />
               <span className="text-sm text-gray-500">Total</span>
             </div>
-            <span className="text-2xl font-bold text-blue-600">{summary.totalClients}</span>
+            <span className="text-2xl font-bold text-blue-600">{filteredDeliveries.length}</span>
           </div>
           <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
             <div className="flex items-center gap-2 mb-1">
               <CheckCircle className="text-green-500" size={18} />
               <span className="text-sm text-gray-500">Entregues</span>
             </div>
-            <span className="text-2xl font-bold text-green-600">{summary.totalDelivered}</span>
+            <span className="text-2xl font-bold text-green-600">
+              {filteredDeliveries.filter(d => d.status === 'delivered').length}
+            </span>
           </div>
           <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
             <div className="flex items-center gap-2 mb-1">
               <XCircle className="text-red-500" size={18} />
               <span className="text-sm text-gray-500">Não Entregues</span>
             </div>
-            <span className="text-2xl font-bold text-red-600">{summary.totalNotDelivered}</span>
+            <span className="text-2xl font-bold text-red-600">
+              {filteredDeliveries.filter(d => d.status === 'not_delivered').length}
+            </span>
           </div>
           <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
             <div className="flex items-center gap-2 mb-1">
               <Clock className="text-yellow-500" size={18} />
               <span className="text-sm text-gray-500">Pendentes</span>
             </div>
-            <span className="text-2xl font-bold text-yellow-600">{summary.totalPending}</span>
+            <span className="text-2xl font-bold text-yellow-600">
+              {filteredDeliveries.filter(d => d.status === 'pending').length}
+            </span>
           </div>
           <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
             <div className="flex items-center gap-2 mb-1">
               <DollarSign className="text-purple-500" size={18} />
               <span className="text-sm text-gray-500">Valor Total</span>
             </div>
-            <span className="text-2xl font-bold text-purple-600">€{summary.totalValue.toFixed(2)}</span>
+            <span className="text-2xl font-bold text-purple-600">
+              €{filteredDeliveries.reduce((sum, d) => sum + d.totalValue, 0).toFixed(2)}
+            </span>
           </div>
         </div>
       )}
@@ -331,18 +385,24 @@ const DriverDailyDeliveries: React.FC = () => {
               <Calendar size={20} />
               <span className="font-medium">
                 {getDayName(selectedDate)} - {new Date(selectedDate).toLocaleDateString('pt-BR')}
+                {selectedRoute !== 'all' && (
+                  <span className="ml-2 text-blue-600">
+                    • Rota: {getRouteName(selectedRoute)}
+                  </span>
+                )}
               </span>
             </div>
           </div>
 
-          {scheduledClients.length > 0 ? (
+          {filteredScheduledClients.length > 0 ? (
             <>
               {/* Lista de clientes agendados para o dia */}
               <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                 <div className="bg-gradient-to-r from-green-50 to-emerald-50 px-4 py-3 border-b border-gray-200">
                   <h3 className="font-semibold text-gray-800 flex items-center gap-2">
                     <Users size={18} className="text-green-600" />
-                    {scheduledClients.length} Cliente(s) com Entrega para {getDayName(selectedDate)}
+                    {filteredScheduledClients.length} Cliente(s) com Entrega para {getDayName(selectedDate)}
+                    {selectedRoute !== 'all' && ` na rota ${getRouteName(selectedRoute)}`}
                   </h3>
                   <p className="text-sm text-gray-500 mt-1">
                     Clique em "Gerar Lista de Entregas" para começar
@@ -350,7 +410,7 @@ const DriverDailyDeliveries: React.FC = () => {
                 </div>
                 
                 <div className="divide-y divide-gray-100">
-                  {scheduledClients.map((client: Client) => {
+                  {filteredScheduledClients.map((client: Client) => {
                     const dayKey = getDayKey(selectedDate);
                     const scheduleItems = client.deliverySchedule?.[dayKey] || [];
                     

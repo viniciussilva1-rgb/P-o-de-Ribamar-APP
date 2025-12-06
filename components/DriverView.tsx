@@ -133,11 +133,6 @@ export const DriverView: React.FC = () => {
   const handleSaveClient = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Debug: verificar o que está sendo salvo
-    console.log('=== SALVANDO CLIENTE ===');
-    console.log('editingClientId:', editingClientId);
-    console.log('clientForm.deliverySchedule:', JSON.stringify(clientForm.deliverySchedule));
-    
     if (editingClientId) {
       // Garantir que deliverySchedule seja incluído na atualização
       const updateData = {
@@ -145,7 +140,6 @@ export const DriverView: React.FC = () => {
         deliverySchedule: clientForm.deliverySchedule || {},
         customPrices: clientForm.customPrices || {},
       };
-      console.log('updateData:', JSON.stringify(updateData.deliverySchedule));
       updateClient(editingClientId, updateData);
     } else {
       const newClient: Client = {
@@ -239,9 +233,6 @@ export const DriverView: React.FC = () => {
   ];
 
   const handleAddItemToSchedule = (dayKey: string, productId: string, quantity: number) => {
-    console.log('=== ADICIONANDO AO SCHEDULE ===');
-    console.log('dayKey:', dayKey, 'productId:', productId, 'quantity:', quantity);
-    
     const currentSchedule = { ...clientForm.deliverySchedule };
     const dayItems = currentSchedule[dayKey as keyof DeliverySchedule] || [];
 
@@ -262,8 +253,6 @@ export const DriverView: React.FC = () => {
       ...currentSchedule,
       [dayKey]: newDayItems
     };
-    
-    console.log('newSchedule:', JSON.stringify(newSchedule));
 
     setClientForm({
       ...clientForm,
