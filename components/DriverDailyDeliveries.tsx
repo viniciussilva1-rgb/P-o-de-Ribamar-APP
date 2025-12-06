@@ -65,9 +65,14 @@ const DriverDailyDeliveries: React.FC = () => {
     try {
       const generated = await generateDailyDeliveries(currentUser.id, selectedDate);
       setDeliveries(generated);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao gerar entregas:', err);
-      setError('Erro ao gerar entregas. Tente novamente.');
+      const errorMessage = err?.message || err?.code || 'Erro desconhecido';
+      if (errorMessage.includes('permission-denied')) {
+        setError('Erro de permissão. Contacte o administrador para verificar as regras do Firestore.');
+      } else {
+        setError(`Erro ao gerar entregas: ${errorMessage}`);
+      }
     } finally {
       setLoading(false);
     }

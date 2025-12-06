@@ -46,5 +46,15 @@ service cloud.firestore {
     match /daily_production/{date} {
       allow read, write: if request.auth != null;
     }
+
+    // Carga do Dia (entregas de produtos)
+    match /daily_loads/{loadId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Entregas do Dia (entregas para clientes)
+    match /client_deliveries/{deliveryId} {
+      allow read, write: if request.auth != null;
+    }
   }
 }
