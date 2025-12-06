@@ -64,17 +64,23 @@ export const DriversOverview: React.FC = () => {
       if (!email) return;
       const uid = prompt("Digite o UID do entregador (veja no Firebase Console > Authentication):");
       if (!uid) return;
+      
+      const name = prompt("Digite o nome do entregador:", email.split("@")[0]);
+      if (!name) return;
+      
       const userDocRef = doc(db, "users", uid);
-      // Sempre cria/atualiza documento com role DRIVER
+      // Sempre cria/atualiza documento com role DRIVER (string)
       await setDoc(userDocRef, {
         id: uid,
-        name: email.split("@")[0],
-        email,
-        role: UserRole.DRIVER
+        name: name,
+        email: email,
+        role: "DRIVER"  // Usando string diretamente para evitar problemas
       });
-      alert("Entregador sincronizado com sucesso!");
-    } catch (err) {
-      alert("Erro ao sincronizar entregador. Verifique email/UID.");
+      alert(`Entregador "${name}" sincronizado com sucesso!\n\nUID: ${uid}\nEmail: ${email}`);
+    } catch (err: unknown) {
+      console.error("Erro ao sincronizar:", err);
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      alert(`Erro ao sincronizar entregador:\n${errorMsg}\n\nVerifique se o UID está correto.`);
     }
   };
   const drivers = getDrivers();

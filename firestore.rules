@@ -2,15 +2,17 @@
 // Permite acesso autenticado a todas as collections
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Usuário autenticado só pode ler/escrever seu próprio documento de perfil
+    // Usuários: qualquer autenticado pode ler, e pode escrever em qualquer documento
+    // (admin pode criar/editar entregadores)
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
     }
 
     // Rotas: cada entregador pode criar/editar suas próprias rotas
     match /routes/{routeId} {
       allow read: if request.auth != null;
-      allow create, update, delete: if request.auth != null && request.resource.data.driverId == request.auth.uid;
+      allow create, update, delete: if request.auth != null;
     }
 
     // Clientes: admins podem gerenciar, drivers podem ler seus próprios
