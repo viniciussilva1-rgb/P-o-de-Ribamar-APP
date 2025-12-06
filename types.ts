@@ -183,3 +183,95 @@ export interface ProductionSuggestion {
   confidence: 'low' | 'medium' | 'high'; // Baseado na quantidade de dados
   trend: 'up' | 'down' | 'stable'; // Tendência recente
 }
+
+// ========== SISTEMA DE ENTREGA DO DIA ==========
+
+export type DeliveryStatus = 'pending' | 'delivered' | 'not_delivered';
+
+export interface ClientDelivery {
+  id: string;
+  date: string; // YYYY-MM-DD
+  driverId: string;
+  clientId: string;
+  routeId?: string;
+  
+  // Dados do cliente (snapshot no momento)
+  clientName: string;
+  clientAddress: string;
+  clientPhone: string;
+  
+  // Itens da entrega
+  items: DeliveryItem[];
+  totalValue: number; // Valor total da entrega
+  
+  // Status e controle
+  status: DeliveryStatus;
+  deliveredAt?: string; // ISO timestamp quando foi entregue
+  notDeliveredReason?: string; // Motivo se não entregue
+  
+  // Ajustes financeiros
+  valueAdjustment?: number; // Valor abatido se não entregue
+  
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Resumo diário do entregador
+export interface DriverDailySummary {
+  date: string;
+  driverId: string;
+  
+  // Totais de produtos
+  productTotals: {
+    productId: string;
+    productName: string;
+    quantity: number;
+    value: number;
+  }[];
+  
+  // Totais por rota
+  routeTotals: {
+    routeId: string;
+    routeName: string;
+    clientCount: number;
+    totalValue: number;
+    deliveredCount: number;
+    pendingCount: number;
+  }[];
+  
+  // Métricas gerais
+  totalClients: number;
+  totalDelivered: number;
+  totalNotDelivered: number;
+  totalPending: number;
+  totalValue: number;
+  deliveredValue: number;
+  adjustedValue: number; // Valor abatido por não entregas
+}
+
+// Relatório administrativo
+export interface AdminDeliveryReport {
+  date: string;
+  drivers: {
+    driverId: string;
+    driverName: string;
+    deliveries: ClientDelivery[];
+    summary: DriverDailySummary;
+  }[];
+  totals: {
+    totalDeliveries: number;
+    deliveredCount: number;
+    notDeliveredCount: number;
+    pendingCount: number;
+    totalValue: number;
+    deliveredValue: number;
+    adjustedValue: number;
+    productBreakdown: {
+      productId: string;
+      productName: string;
+      totalQuantity: number;
+      deliveredQuantity: number;
+      notDeliveredQuantity: number;
+    }[];
+  };
+}

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, Client, UserRole, Product, ProductionData, DailyProductionRecord, Route, PaymentTransaction, DeliverySchedule, DailyLoad, LoadItem, ReturnItem, DailyLoadReport, ProductionSuggestion } from '../types';
+import { User, Client, UserRole, Product, ProductionData, DailyProductionRecord, Route, PaymentTransaction, DeliverySchedule, DailyLoad, LoadItem, ReturnItem, DailyLoadReport, ProductionSuggestion, ClientDelivery, DeliveryStatus, DriverDailySummary, AdminDeliveryReport, DeliveryItem } from '../types';
 import { INITIAL_PRODUCTS, MOCK_ADMIN_EMAIL } from '../constants';
 import { db } from '../firebaseConfig'; // Import database
 import { collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot, query, where, getDocs } from 'firebase/firestore';
@@ -39,6 +39,15 @@ interface DataContextType {
   getDailyLoadsByDate: (date: string) => DailyLoad[];
   getDailyLoadReport: (date: string) => DailyLoadReport;
   getProductionSuggestions: (daysToAnalyze?: number) => ProductionSuggestion[];
+  
+  // Funções de Entrega do Dia
+  clientDeliveries: ClientDelivery[];
+  generateDailyDeliveries: (driverId: string, date: string) => Promise<ClientDelivery[]>;
+  updateDeliveryStatus: (deliveryId: string, status: DeliveryStatus, reason?: string) => Promise<void>;
+  getDeliveriesByDriver: (driverId: string, date: string) => ClientDelivery[];
+  getDriverDailySummary: (driverId: string, date: string) => DriverDailySummary;
+  getAdminDeliveryReport: (date: string) => AdminDeliveryReport;
+  getScheduledClientsForDay: (driverId: string, date: string) => Client[];
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -50,6 +59,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [routes, setRoutes] = useState<Route[]>([]);
   const [productionData, setProductionData] = useState<ProductionData>({});
   const [dailyLoads, setDailyLoads] = useState<DailyLoad[]>([]);
+  const [clientDeliveries, setClientDeliveries] = useState<ClientDelivery[]>([]);
 
   // --- FIREBASE LISTENERS (Realtime Sync) ---
 
@@ -142,6 +152,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         id: docSnap.id
       } as DailyLoad));
       setDailyLoads(loadsList);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // 7. Client Deliveries (Entrega do Dia)
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'client_deliveries'), (snapshot) => {
+      const deliveriesList = snapshot.docs.map(docSnap => ({
+        ...docSnap.data(),
+        id: docSnap.id
+      } as ClientDelivery));
+      setClientDeliveries(deliveriesList);
     });
     return () => unsubscribe();
   }, []);
@@ -578,14 +600,259 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return suggestions;
   };
 
+  // ========== FUNÇÕES DE ENTREGA DO DIA ==========
+
+  // Helper: Obter dia da semana como chave do schedule
+  const getDayKey = (date: string): keyof DeliverySchedule => {
+    const dayIndex = new Date(date).getDay();
+    const mapKeys: (keyof DeliverySchedule)[] = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
+    return mapKeys[dayIndex];
+  };
+
+  // Obter clientes com entrega programada para um dia específico
+  const getScheduledClientsForDay = (driverId: string, date: string): Client[] => {
+    const dayKey = getDayKey(date);
+    
+    return clients.filter(client => {
+      // Deve pertencer ao entregador
+      if (client.driverId !== driverId) return false;
+      
+      // Deve estar ativo
+      if (client.status !== 'ACTIVE') return false;
+      
+      // Verificar se está nos dias pulados
+      if (client.skippedDates?.includes(date)) return false;
+      
+      // Verificar se tem entrega programada para este dia
+      const scheduledItems = client.deliverySchedule?.[dayKey];
+      return scheduledItems && scheduledItems.length > 0;
+    });
+  };
+
+  // Gerar entregas do dia para um entregador
+  const generateDailyDeliveries = async (driverId: string, date: string): Promise<ClientDelivery[]> => {
+    const dayKey = getDayKey(date);
+    const scheduledClients = getScheduledClientsForDay(driverId, date);
+    
+    // Verificar entregas já existentes
+    const existingDeliveries = clientDeliveries.filter(
+      d => d.driverId === driverId && d.date === date
+    );
+    const existingClientIds = new Set(existingDeliveries.map(d => d.clientId));
+    
+    const newDeliveries: ClientDelivery[] = [];
+    const now = new Date().toISOString();
+    
+    for (const client of scheduledClients) {
+      // Não criar se já existe
+      if (existingClientIds.has(client.id)) continue;
+      
+      const scheduledItems = client.deliverySchedule?.[dayKey] || [];
+      
+      // Calcular valor total
+      let totalValue = 0;
+      const items: DeliveryItem[] = scheduledItems.map(item => {
+        const product = products.find(p => p.id === item.productId);
+        const price = client.customPrices?.[item.productId] ?? product?.price ?? 0;
+        totalValue += price * item.quantity;
+        return { productId: item.productId, quantity: item.quantity };
+      });
+      
+      const deliveryId = `delivery-${driverId}-${client.id}-${date}`;
+      
+      const newDelivery: ClientDelivery = {
+        id: deliveryId,
+        date,
+        driverId,
+        clientId: client.id,
+        routeId: client.routeId,
+        clientName: client.name,
+        clientAddress: client.address,
+        clientPhone: client.phone,
+        items,
+        totalValue: parseFloat(totalValue.toFixed(2)),
+        status: 'pending',
+        createdAt: now,
+        updatedAt: now
+      };
+      
+      await setDoc(doc(db, 'client_deliveries', deliveryId), newDelivery);
+      newDeliveries.push(newDelivery);
+    }
+    
+    return [...existingDeliveries, ...newDeliveries];
+  };
+
+  // Atualizar status de uma entrega
+  const updateDeliveryStatus = async (deliveryId: string, status: DeliveryStatus, reason?: string): Promise<void> => {
+    const delivery = clientDeliveries.find(d => d.id === deliveryId);
+    if (!delivery) return;
+    
+    const now = new Date().toISOString();
+    const updates: Partial<ClientDelivery> = {
+      status,
+      updatedAt: now
+    };
+    
+    if (status === 'delivered') {
+      updates.deliveredAt = now;
+    } else if (status === 'not_delivered') {
+      updates.notDeliveredReason = reason || 'Não informado';
+      updates.valueAdjustment = delivery.totalValue;
+      
+      // Abater do saldo do cliente
+      const client = clients.find(c => c.id === delivery.clientId);
+      if (client) {
+        const newBalance = Math.max(0, (client.currentBalance || 0) - delivery.totalValue);
+        await updateDoc(doc(db, 'clients', client.id), {
+          currentBalance: newBalance
+        });
+      }
+    }
+    
+    await updateDoc(doc(db, 'client_deliveries', deliveryId), updates);
+  };
+
+  // Obter entregas de um entregador para uma data
+  const getDeliveriesByDriver = (driverId: string, date: string): ClientDelivery[] => {
+    return clientDeliveries.filter(d => d.driverId === driverId && d.date === date);
+  };
+
+  // Gerar resumo diário do entregador
+  const getDriverDailySummary = (driverId: string, date: string): DriverDailySummary => {
+    const deliveries = getDeliveriesByDriver(driverId, date);
+    
+    // Totais de produtos
+    const productMap = new Map<string, { quantity: number; value: number }>();
+    deliveries.forEach(delivery => {
+      delivery.items.forEach(item => {
+        const existing = productMap.get(item.productId) || { quantity: 0, value: 0 };
+        const product = products.find(p => p.id === item.productId);
+        const client = clients.find(c => c.id === delivery.clientId);
+        const price = client?.customPrices?.[item.productId] ?? product?.price ?? 0;
+        productMap.set(item.productId, {
+          quantity: existing.quantity + item.quantity,
+          value: existing.value + (price * item.quantity)
+        });
+      });
+    });
+    
+    const productTotals = Array.from(productMap.entries()).map(([productId, data]) => ({
+      productId,
+      productName: products.find(p => p.id === productId)?.name || 'Produto',
+      quantity: data.quantity,
+      value: data.value
+    }));
+    
+    // Totais por rota
+    const routeMap = new Map<string, { clientCount: number; totalValue: number; deliveredCount: number; pendingCount: number }>();
+    deliveries.forEach(delivery => {
+      const routeId = delivery.routeId || 'sem-rota';
+      const existing = routeMap.get(routeId) || { clientCount: 0, totalValue: 0, deliveredCount: 0, pendingCount: 0 };
+      routeMap.set(routeId, {
+        clientCount: existing.clientCount + 1,
+        totalValue: existing.totalValue + delivery.totalValue,
+        deliveredCount: existing.deliveredCount + (delivery.status === 'delivered' ? 1 : 0),
+        pendingCount: existing.pendingCount + (delivery.status === 'pending' ? 1 : 0)
+      });
+    });
+    
+    const routeTotals = Array.from(routeMap.entries()).map(([routeId, data]) => ({
+      routeId,
+      routeName: routes.find(r => r.id === routeId)?.name || 'Sem Rota',
+      ...data
+    }));
+    
+    // Métricas gerais
+    const delivered = deliveries.filter(d => d.status === 'delivered');
+    const notDelivered = deliveries.filter(d => d.status === 'not_delivered');
+    const pending = deliveries.filter(d => d.status === 'pending');
+    
+    return {
+      date,
+      driverId,
+      productTotals,
+      routeTotals,
+      totalClients: deliveries.length,
+      totalDelivered: delivered.length,
+      totalNotDelivered: notDelivered.length,
+      totalPending: pending.length,
+      totalValue: deliveries.reduce((sum, d) => sum + d.totalValue, 0),
+      deliveredValue: delivered.reduce((sum, d) => sum + d.totalValue, 0),
+      adjustedValue: notDelivered.reduce((sum, d) => sum + (d.valueAdjustment || 0), 0)
+    };
+  };
+
+  // Relatório administrativo
+  const getAdminDeliveryReport = (date: string): AdminDeliveryReport => {
+    const deliveriesForDate = clientDeliveries.filter(d => d.date === date);
+    
+    // Agrupar por entregador
+    const driverMap = new Map<string, ClientDelivery[]>();
+    deliveriesForDate.forEach(delivery => {
+      const existing = driverMap.get(delivery.driverId) || [];
+      driverMap.set(delivery.driverId, [...existing, delivery]);
+    });
+    
+    const driversData = Array.from(driverMap.entries()).map(([driverId, deliveries]) => {
+      const driver = users.find(u => u.id === driverId);
+      return {
+        driverId,
+        driverName: driver?.name || 'Desconhecido',
+        deliveries,
+        summary: getDriverDailySummary(driverId, date)
+      };
+    });
+    
+    // Calcular totais gerais
+    const allDelivered = deliveriesForDate.filter(d => d.status === 'delivered');
+    const allNotDelivered = deliveriesForDate.filter(d => d.status === 'not_delivered');
+    const allPending = deliveriesForDate.filter(d => d.status === 'pending');
+    
+    // Breakdown por produto
+    const productBreakdown = new Map<string, { total: number; delivered: number; notDelivered: number }>();
+    deliveriesForDate.forEach(delivery => {
+      delivery.items.forEach(item => {
+        const existing = productBreakdown.get(item.productId) || { total: 0, delivered: 0, notDelivered: 0 };
+        productBreakdown.set(item.productId, {
+          total: existing.total + item.quantity,
+          delivered: existing.delivered + (delivery.status === 'delivered' ? item.quantity : 0),
+          notDelivered: existing.notDelivered + (delivery.status === 'not_delivered' ? item.quantity : 0)
+        });
+      });
+    });
+    
+    return {
+      date,
+      drivers: driversData,
+      totals: {
+        totalDeliveries: deliveriesForDate.length,
+        deliveredCount: allDelivered.length,
+        notDeliveredCount: allNotDelivered.length,
+        pendingCount: allPending.length,
+        totalValue: deliveriesForDate.reduce((sum, d) => sum + d.totalValue, 0),
+        deliveredValue: allDelivered.reduce((sum, d) => sum + d.totalValue, 0),
+        adjustedValue: allNotDelivered.reduce((sum, d) => sum + (d.valueAdjustment || 0), 0),
+        productBreakdown: Array.from(productBreakdown.entries()).map(([productId, data]) => ({
+          productId,
+          productName: products.find(p => p.id === productId)?.name || 'Produto',
+          totalQuantity: data.total,
+          deliveredQuantity: data.delivered,
+          notDeliveredQuantity: data.notDelivered
+        }))
+      }
+    };
+  };
+
   return (
     <DataContext.Provider value={{ 
-      users, clients, products, productionData, routes, dailyLoads,
+      users, clients, products, productionData, routes, dailyLoads, clientDeliveries,
       addUser, addClient, updateClient, updateProduct, addProduct, deleteProduct, addRoute, deleteRoute,
       getRoutesByDriver, getClientsByDriver, getAllClients, getDrivers,
       updateDailyProduction, getDailyRecord,
       calculateClientDebt, registerPayment, toggleSkippedDate, updateClientPrice,
-      createDailyLoad, updateDailyLoad, completeDailyLoad, getDailyLoadByDriver, getDailyLoadsByDate, getDailyLoadReport, getProductionSuggestions
+      createDailyLoad, updateDailyLoad, completeDailyLoad, getDailyLoadByDriver, getDailyLoadsByDate, getDailyLoadReport, getProductionSuggestions,
+      generateDailyDeliveries, updateDeliveryStatus, getDeliveriesByDriver, getDriverDailySummary, getAdminDeliveryReport, getScheduledClientsForDay
     }}>
       {children}
     </DataContext.Provider>

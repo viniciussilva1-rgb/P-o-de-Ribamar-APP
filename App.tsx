@@ -8,6 +8,8 @@ import { DriversOverview, ProductCatalog, ProductionManager, ClientManager } fro
 import { DriverView } from './components/DriverView';
 import DriverDailyLoad from './components/DriverDailyLoad';
 import AdminDailyLoadReport from './components/AdminDailyLoadReport';
+import DriverDailyDeliveries from './components/DriverDailyDeliveries';
+import AdminDeliveryDashboard from './components/AdminDeliveryDashboard';
 import { UserRole } from './types';
 import useSyncEntregadorFirestore from './hooks/useSyncEntregadorFirestore';
 
@@ -45,6 +47,8 @@ const AppContent: React.FC = () => {
         return <ClientManager />;
       case 'daily-loads':
         return <AdminDailyLoadReport />;
+      case 'deliveries':
+        return <AdminDeliveryDashboard />;
       case 'drivers':
       default:
         return <DriversOverview />;
@@ -55,6 +59,8 @@ const AppContent: React.FC = () => {
     switch (activeTab) {
       case 'my-clients':
         return <DriverView />;
+      case 'daily-deliveries':
+        return <DriverDailyDeliveries />;
       case 'daily-load':
       default:
         return <DriverDailyLoad />;

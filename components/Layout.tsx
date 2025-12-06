@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, Truck, Wheat, Users, Package, ClipboardList, PackageCheck, BarChart3 } from 'lucide-react';
+import { LogOut, Truck, Wheat, Users, Package, ClipboardList, PackageCheck, BarChart3, Send } from 'lucide-react';
 import { APP_NAME } from '../constants';
 
 interface LayoutProps {
@@ -80,6 +80,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
                 active={activeTab === 'daily-loads'} 
                 onClick={() => setActiveTab('daily-loads')} 
               />
+              <NavItem 
+                icon={<Send />} 
+                label="Entregas" 
+                active={activeTab === 'deliveries'} 
+                onClick={() => setActiveTab('deliveries')} 
+              />
             </>
           ) : (
             <>
@@ -97,6 +103,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
                 label="Meus Clientes" 
                 active={activeTab === 'my-clients'} 
                 onClick={() => setActiveTab('my-clients')} 
+              />
+              <NavItem 
+                icon={<Send />} 
+                label="Entregas do Dia" 
+                active={activeTab === 'daily-deliveries'} 
+                onClick={() => setActiveTab('daily-deliveries')} 
               />
             </>
           )}
@@ -160,6 +172,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
                 active={activeTab === 'daily-loads'} 
                 onClick={() => setActiveTab('daily-loads')} 
               />
+              <MobileNavItem 
+                icon={<Send size={20} />} 
+                label="Entregas" 
+                active={activeTab === 'deliveries'} 
+                onClick={() => setActiveTab('deliveries')} 
+              />
             </>
           ) : (
             <>
@@ -174,6 +192,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
                 label="Clientes" 
                 active={activeTab === 'my-clients'} 
                 onClick={() => setActiveTab('my-clients')} 
+              />
+              <MobileNavItem 
+                icon={<Send size={20} />} 
+                label="Entregas" 
+                active={activeTab === 'daily-deliveries'} 
+                onClick={() => setActiveTab('daily-deliveries')} 
               />
             </>
           )}
