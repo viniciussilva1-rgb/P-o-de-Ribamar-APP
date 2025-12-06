@@ -54,7 +54,7 @@ const AddScheduleItemRow: React.FC<{ products: Product[], onAdd: (productId: str
 };
 
 export const DriversOverview: React.FC = () => {
-  const { getDrivers, getClientsByDriver, addUser } = useData();
+  const { getDrivers, getClientsByDriver, getRoutesByDriver, routes, products, calculateClientDebt, addUser } = useData();
   const { register } = useAuth(); // Fallback para quando Cloud Function não está disponível
 
   // Função para garantir que entregador registrado no Auth também tenha documento correto no Firestore
@@ -458,26 +458,195 @@ export const DriversOverview: React.FC = () => {
 
               {isExpanded && (
                 <div className="bg-orange-50/30 p-4 border-t border-amber-100 animate-in slide-in-from-top-2 duration-200">
-                  <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Carteira de Clientes</h4>
-                  {clients.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {clients.map(client => (
-                        <div key={client.id} className="bg-white p-3 rounded-lg border border-gray-100 shadow-sm">
-                          <div className="font-medium text-gray-800">{client.name}</div>
-                          <div className="flex items-center text-xs text-gray-500 mt-1">
-                            <MapPin size={12} className="mr-1" />
-                            {client.address}
+                  {(() => {
+                    // Buscar rotas do entregador
+                    const driverRoutes = getRoutesByDriver(driver.id);
+                    const allClients = clients;
+                    
+                    // Função para calcular status de pagamento
+                    const getPaymentStatus = (client: Client) => {
+                      const debt = calculateClientDebt(client);
+                      if (debt.total === 0) return { status: 'Pago', color: 'green' };
+                      
+                      // Verificar se está em atraso (mais de 30 dias sem pagamento)
+                      const lastPayment = client.lastPaymentDate ? new Date(client.lastPaymentDate) : new Date(client.createdAt);
+                      const daysSincePayment = Math.floor((Date.now() - lastPayment.getTime()) / (1000 * 60 * 60 * 24));
+                      
+                      if (daysSincePayment > 30) return { status: 'Em atraso', color: 'red' };
+                      return { status: 'Em aberto', color: 'yellow' };
+                    };
+
+                    // Agrupar clientes por rota
+                    const clientsByRoute: Record<string, Client[]> = {};
+                    const clientsWithoutRoute: Client[] = [];
+
+                    allClients.forEach(client => {
+                      if (client.routeId) {
+                        if (!clientsByRoute[client.routeId]) {
+                          clientsByRoute[client.routeId] = [];
+                        }
+                        clientsByRoute[client.routeId].push(client);
+                      } else {
+                        clientsWithoutRoute.push(client);
+                      }
+                    });
+
+                    // Ordenar clientes por status (Em atraso primeiro, depois Em aberto, depois Pago)
+                    const sortByStatus = (a: Client, b: Client) => {
+                      const statusOrder = { 'Em atraso': 0, 'Em aberto': 1, 'Pago': 2 };
+                      const statusA = getPaymentStatus(a).status as keyof typeof statusOrder;
+                      const statusB = getPaymentStatus(b).status as keyof typeof statusOrder;
+                      return statusOrder[statusA] - statusOrder[statusB];
+                    };
+
+                    return (
+                      <div className="space-y-6">
+                        {/* Resumo */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          <div className="bg-white p-3 rounded-lg border">
+                            <div className="text-2xl font-bold text-gray-800">{allClients.length}</div>
+                            <div className="text-xs text-gray-500">Total Clientes</div>
                           </div>
-                          <div className="flex items-center text-xs text-gray-500 mt-0.5">
-                            <Phone size={12} className="mr-1" />
-                            {client.phone}
+                          <div className="bg-white p-3 rounded-lg border">
+                            <div className="text-2xl font-bold text-gray-800">{driverRoutes.length}</div>
+                            <div className="text-xs text-gray-500">Rotas</div>
+                          </div>
+                          <div className="bg-white p-3 rounded-lg border">
+                            <div className="text-2xl font-bold text-red-600">
+                              {allClients.filter(c => getPaymentStatus(c).status === 'Em atraso').length}
+                            </div>
+                            <div className="text-xs text-gray-500">Em Atraso</div>
+                          </div>
+                          <div className="bg-white p-3 rounded-lg border">
+                            <div className="text-2xl font-bold text-green-600">
+                              € {allClients.reduce((sum, c) => sum + calculateClientDebt(c).total, 0).toFixed(2)}
+                            </div>
+                            <div className="text-xs text-gray-500">Total a Receber</div>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-500 italic">Nenhum cliente cadastrado para este entregador.</p>
-                  )}
+
+                        {/* Rotas e Clientes */}
+                        {driverRoutes.length > 0 ? (
+                          driverRoutes.map(route => {
+                            const routeClients = (clientsByRoute[route.id] || []).sort(sortByStatus);
+                            return (
+                              <div key={route.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                                <div className="bg-amber-50 px-4 py-2 border-b flex items-center justify-between">
+                                  <div className="flex items-center space-x-2">
+                                    <Navigation size={16} className="text-amber-600" />
+                                    <span className="font-semibold text-gray-800">{route.name}</span>
+                                  </div>
+                                  <span className="text-sm text-gray-500">{routeClients.length} clientes</span>
+                                </div>
+                                {routeClients.length > 0 ? (
+                                  <div className="divide-y divide-gray-100">
+                                    {routeClients.map(client => {
+                                      const debt = calculateClientDebt(client);
+                                      const paymentInfo = getPaymentStatus(client);
+                                      return (
+                                        <div key={client.id} className="p-3 hover:bg-gray-50">
+                                          <div className="flex justify-between items-start">
+                                            <div className="flex-1">
+                                              <div className="font-medium text-gray-800">{client.name}</div>
+                                              <div className="flex items-center text-xs text-gray-500 mt-1">
+                                                <MapPin size={12} className="mr-1 flex-shrink-0" />
+                                                <span className="truncate">{client.address}</span>
+                                              </div>
+                                              <div className="flex items-center text-xs text-gray-500 mt-0.5">
+                                                <Phone size={12} className="mr-1 flex-shrink-0" />
+                                                {client.phone}
+                                              </div>
+                                            </div>
+                                            <div className="text-right ml-4">
+                                              <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                                                paymentInfo.color === 'green' ? 'bg-green-100 text-green-700' :
+                                                paymentInfo.color === 'red' ? 'bg-red-100 text-red-700' :
+                                                'bg-yellow-100 text-yellow-700'
+                                              }`}>
+                                                {paymentInfo.status}
+                                              </span>
+                                              <div className="text-sm font-semibold text-gray-800 mt-1">
+                                                € {debt.total.toFixed(2)}
+                                              </div>
+                                              <div className="text-xs text-gray-400">
+                                                {client.lastPaymentDate ? `Último: ${new Date(client.lastPaymentDate).toLocaleDateString('pt-PT')}` : 'Sem pagamentos'}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                ) : (
+                                  <div className="p-4 text-sm text-gray-500 italic text-center">
+                                    Nenhum cliente nesta rota
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })
+                        ) : null}
+
+                        {/* Clientes sem rota */}
+                        {clientsWithoutRoute.length > 0 && (
+                          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                            <div className="bg-gray-50 px-4 py-2 border-b flex items-center justify-between">
+                              <div className="flex items-center space-x-2">
+                                <UserIcon size={16} className="text-gray-500" />
+                                <span className="font-semibold text-gray-800">Sem Rota Definida</span>
+                              </div>
+                              <span className="text-sm text-gray-500">{clientsWithoutRoute.length} clientes</span>
+                            </div>
+                            <div className="divide-y divide-gray-100">
+                              {clientsWithoutRoute.sort(sortByStatus).map(client => {
+                                const debt = calculateClientDebt(client);
+                                const paymentInfo = getPaymentStatus(client);
+                                return (
+                                  <div key={client.id} className="p-3 hover:bg-gray-50">
+                                    <div className="flex justify-between items-start">
+                                      <div className="flex-1">
+                                        <div className="font-medium text-gray-800">{client.name}</div>
+                                        <div className="flex items-center text-xs text-gray-500 mt-1">
+                                          <MapPin size={12} className="mr-1 flex-shrink-0" />
+                                          <span className="truncate">{client.address}</span>
+                                        </div>
+                                        <div className="flex items-center text-xs text-gray-500 mt-0.5">
+                                          <Phone size={12} className="mr-1 flex-shrink-0" />
+                                          {client.phone}
+                                        </div>
+                                      </div>
+                                      <div className="text-right ml-4">
+                                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                                          paymentInfo.color === 'green' ? 'bg-green-100 text-green-700' :
+                                          paymentInfo.color === 'red' ? 'bg-red-100 text-red-700' :
+                                          'bg-yellow-100 text-yellow-700'
+                                        }`}>
+                                          {paymentInfo.status}
+                                        </span>
+                                        <div className="text-sm font-semibold text-gray-800 mt-1">
+                                          € {debt.total.toFixed(2)}
+                                        </div>
+                                        <div className="text-xs text-gray-400">
+                                          {client.lastPaymentDate ? `Último: ${new Date(client.lastPaymentDate).toLocaleDateString('pt-PT')}` : 'Sem pagamentos'}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Se não tem clientes nem rotas */}
+                        {allClients.length === 0 && driverRoutes.length === 0 && (
+                          <p className="text-sm text-gray-500 italic text-center py-4">
+                            Nenhum cliente ou rota cadastrado para este entregador.
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>
