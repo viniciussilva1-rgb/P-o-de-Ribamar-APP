@@ -4,10 +4,8 @@ import { Wheat, Loader2, Wifi } from 'lucide-react';
 import { APP_NAME } from '../constants';
 
 export const Login: React.FC = () => {
-  const { login, register } = useAuth();
-  const [isRegistering, setIsRegistering] = useState(false);
+  const { login } = useAuth();
   
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -19,14 +17,8 @@ export const Login: React.FC = () => {
     setError('');
 
     try {
-      let success;
-      if (isRegistering) {
-        success = await register(email, password, name);
-        if (!success) setError('Erro ao criar conta. Email já em uso ou senha fraca (min 6 digitos).');
-      } else {
-        success = await login(email, password);
-        if (!success) setError('Email ou senha inválidos.');
-      }
+      const success = await login(email, password);
+      if (!success) setError('Email ou senha inválidos.');
     } catch (err) {
       setError('Ocorreu um erro inesperado.');
     } finally {
@@ -58,22 +50,8 @@ export const Login: React.FC = () => {
         <div className="p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
             <h2 className="text-center text-lg font-bold text-gray-700">
-              {isRegistering ? 'Criar Nova Conta' : 'Acessar Sistema'}
+              Acessar Sistema
             </h2>
-
-            {isRegistering && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Seu Nome</label>
-                <input
-                  type="text"
-                  required={isRegistering}
-                  className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-300 text-gray-900 focus:ring-2 focus:ring-amber-500 outline-none placeholder-gray-400"
-                  placeholder="Ex: João Silva"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </div>
-            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
@@ -110,18 +88,17 @@ export const Login: React.FC = () => {
               disabled={loading}
               className="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold py-3 rounded-lg transition-all flex justify-center items-center shadow-md active:scale-[0.98]"
             >
-              {loading ? <Loader2 className="animate-spin" /> : (isRegistering ? 'Cadastrar' : 'Entrar')}
+              {loading ? <Loader2 className="animate-spin" /> : 'Entrar'}
             </button>
           </form>
 
-          <div className="mt-6 text-center space-y-2">
-            <button 
-              type="button"
-              onClick={() => { setIsRegistering(!isRegistering); setError(''); }}
-              className="text-sm text-amber-700 hover:underline font-medium"
-            >
-              {isRegistering ? 'Já tem conta? Clique para entrar.' : 'É seu primeiro acesso? Clique para cadastrar.'}
-            </button>
+          <div className="mt-6 text-center">
+            <p className="text-xs text-gray-500">
+              Acesso restrito a funcionários autorizados.
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              Contacte o administrador para obter credenciais.
+            </p>
           </div>
         </div>
       </div>
