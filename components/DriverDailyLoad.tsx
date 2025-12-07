@@ -18,7 +18,9 @@ const DriverDailyLoad: React.FC = () => {
     getDailyLoadByDriver,
     dailyLoads,
     getDynamicLoadSummary,
-    getDynamicClientsForDriver
+    getDynamicClientsForDriver,
+    getScheduledClientsForDay,
+    clients
   } = useData();
   
   const today = new Date().toISOString().split('T')[0];
@@ -154,8 +156,77 @@ const DriverDailyLoad: React.FC = () => {
   const totalReturned = returnItems.reduce((sum, item) => sum + item.returned, 0);
   const totalSold = returnItems.reduce((sum, item) => sum + item.sold, 0);
 
+  // Calcular dia da semana para obter clientes agendados
+  const getDayKey = (dateStr: string): keyof import('../types').DeliverySchedule => {
+    const date = new Date(dateStr + 'T12:00:00');
+    const days: (keyof import('../types').DeliverySchedule)[] = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
+    return days[date.getDay()];
+  };
+
+  // Obter clientes agendados para o dia (excluindo dinâmicos)
+  const scheduledClients = currentUser?.id 
+    ? getScheduledClientsForDay(currentUser.id, selectedDate).filter(c => !c.isDynamicChoice)
+    : [];
+
+  // Calcular carga necessária baseada nos clientes agendados
+  const calculateScheduledLoad = (): { productId: string; quantity: number; clients: string[] }[] => {
+    const dayKey = getDayKey(selectedDate);
+    const loadMap: Record<string, { quantity: number; clients: string[] }> = {};
+
+    scheduledClients.forEach(client => {
+      const items = client.deliverySchedule?.[dayKey] || [];
+      items.forEach(item => {
+        if (!loadMap[item.productId]) {
+          loadMap[item.productId] = { quantity: 0, clients: [] };
+        }
+        loadMap[item.productId].quantity += item.quantity;
+        loadMap[item.productId].clients.push(client.name);
+      });
+    });
+
+    return Object.entries(loadMap).map(([productId, data]) => ({
+      productId,
+      quantity: data.quantity,
+      clients: data.clients
+    }));
+  };
+
+  const scheduledLoad = calculateScheduledLoad();
+  const totalScheduledItems = scheduledLoad.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Função para aplicar a carga recomendada dos clientes agendados
+  const applyScheduledRecommendation = () => {
+    setLoadItems(prev => {
+      const newItems = [...prev];
+      scheduledLoad.forEach(rec => {
+        const idx = newItems.findIndex(item => item.productId === rec.productId);
+        if (idx !== -1) {
+          newItems[idx] = { ...newItems[idx], quantity: rec.quantity };
+        }
+      });
+      return newItems;
+    });
+    setSuccess('Carga dos clientes agendados aplicada!');
+  };
+
+  // Função para adicionar a carga recomendada (soma com a atual)
+  const addScheduledRecommendation = () => {
+    setLoadItems(prev => {
+      const newItems = [...prev];
+      scheduledLoad.forEach(rec => {
+        const idx = newItems.findIndex(item => item.productId === rec.productId);
+        if (idx !== -1) {
+          newItems[idx] = { ...newItems[idx], quantity: newItems[idx].quantity + rec.quantity };
+        }
+      });
+      return newItems;
+    });
+    setSuccess('Carga adicionada!');
+  };
+
   // Estado e dados para clientes dinâmicos
   const [showDynamicInfo, setShowDynamicInfo] = useState(true);
+  const [showScheduledInfo, setShowScheduledInfo] = useState(true);
   const dynamicClients = currentUser?.id ? getDynamicClientsForDriver(currentUser.id) : [];
   const dynamicSummary: DynamicLoadSummary | null = currentUser?.id && dynamicClients.length > 0 
     ? getDynamicLoadSummary(currentUser.id, selectedDate) 
@@ -242,13 +313,132 @@ const DriverDailyLoad: React.FC = () => {
           </div>
         )}
 
+        {/* Seção de Carga Recomendada - Clientes Agendados */}
+        {scheduledClients.length > 0 && showScheduledInfo && (
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200 overflow-hidden">
+            <div className="px-4 py-3 border-b border-amber-200 flex items-center justify-between">
+              <h3 className="font-semibold text-amber-800 flex items-center gap-2">
+                <ClipboardList size={18} className="text-amber-600" />
+                Carga Necessária - Clientes Agendados
+              </h3>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-amber-600 bg-amber-100 px-2 py-1 rounded-full">
+                  {scheduledClients.length} cliente{scheduledClients.length !== 1 ? 's' : ''} • {totalScheduledItems} itens
+                </span>
+                <button
+                  onClick={() => setShowScheduledInfo(false)}
+                  className="text-amber-400 hover:text-amber-600 text-sm"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-4">
+              {/* Info */}
+              <div className="mb-3 p-2 bg-amber-100/50 rounded-lg">
+                <p className="text-xs text-amber-700 flex items-center gap-1">
+                  <Info size={14} />
+                  Calculado automaticamente baseado nos pedidos programados dos seus clientes para hoje
+                </p>
+              </div>
+
+              {/* Produtos necessários */}
+              {scheduledLoad.length > 0 ? (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
+                    {scheduledLoad.map(item => {
+                      const product = products.find(p => p.id === item.productId);
+                      return (
+                        <div key={item.productId} className="bg-white rounded-lg p-3 border border-amber-100 hover:shadow-sm transition-shadow">
+                          <span className="text-sm text-gray-600 block truncate">{product?.name || 'Produto'}</span>
+                          <div className="flex items-end justify-between mt-1">
+                            <span className="text-xl font-bold text-amber-700">{item.quantity}</span>
+                            <span className="text-xs text-gray-400">
+                              {item.clients.length} cliente{item.clients.length !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Detalhes por cliente */}
+                  <details className="mb-4">
+                    <summary className="cursor-pointer text-sm text-amber-600 hover:text-amber-800 flex items-center gap-1">
+                      <Info size={14} />
+                      Ver clientes para hoje ({getDayKey(selectedDate).toUpperCase()})
+                    </summary>
+                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {scheduledClients.map(client => {
+                        const dayKey = getDayKey(selectedDate);
+                        const items = client.deliverySchedule?.[dayKey] || [];
+                        const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
+                        return (
+                          <div key={client.id} className="bg-white rounded-lg p-3 border border-gray-100 flex items-center justify-between">
+                            <div>
+                              <span className="font-medium text-gray-800 text-sm">{client.name}</span>
+                              <div className="text-xs text-gray-500">
+                                {items.map(i => {
+                                  const prod = products.find(p => p.id === i.productId);
+                                  return `${prod?.name || 'Produto'}: ${i.quantity}`;
+                                }).join(', ')}
+                              </div>
+                            </div>
+                            <span className="text-amber-700 font-bold">{totalItems}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </details>
+
+                  {/* Botões de ação */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={applyScheduledRecommendation}
+                      className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
+                    >
+                      <Zap size={16} />
+                      Aplicar Carga ({totalScheduledItems} itens)
+                    </button>
+                    <button
+                      onClick={addScheduledRecommendation}
+                      className="py-2.5 px-4 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
+                      title="Adicionar à carga atual"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-4 text-gray-500">
+                  <p className="text-sm">Nenhum produto programado para os clientes de hoje.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Indicador de clientes agendados (colapsado) */}
+        {scheduledClients.length > 0 && !showScheduledInfo && (
+          <button
+            onClick={() => setShowScheduledInfo(true)}
+            className="w-full flex items-center justify-center gap-2 py-3 bg-amber-50 rounded-lg border border-amber-200 text-amber-700 hover:bg-amber-100"
+          >
+            <ClipboardList size={16} />
+            <span className="text-sm font-medium">
+              Ver carga necessária: {scheduledClients.length} cliente{scheduledClients.length !== 1 ? 's' : ''} agendado{scheduledClients.length !== 1 ? 's' : ''} ({totalScheduledItems} itens)
+            </span>
+          </button>
+        )}
+
         {/* Seção de Clientes Dinâmicos */}
         {dynamicClients.length > 0 && dynamicSummary && showDynamicInfo && (
           <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200 overflow-hidden">
             <div className="px-4 py-3 border-b border-purple-200 flex items-center justify-between">
               <h3 className="font-semibold text-purple-800 flex items-center gap-2">
                 <Sparkles size={18} className="text-purple-600" />
-                Clientes com Escolha Dinâmica
+                Carga Extra - Clientes Dinâmicos (IA)
               </h3>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-purple-600 bg-purple-100 px-2 py-1 rounded-full">
