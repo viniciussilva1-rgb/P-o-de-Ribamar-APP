@@ -1390,6 +1390,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         lastPaymentDate: lastPayment?.date || client.lastPaymentDate,
         paidUntil: lastPayment?.paidUntil || client.lastPaymentDate,
         paymentMethod: client.paymentMethod || 'Dinheiro',
+        paymentFrequency: client.paymentFrequency,
+        paymentCustomDays: client.paymentCustomDays,
         todayPayment: todayPayment > 0 ? todayPayment : undefined,
         totalDebt: Math.max(0, totalDebt - todayPayment)
       };

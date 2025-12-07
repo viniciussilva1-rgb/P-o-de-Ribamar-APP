@@ -21,8 +21,18 @@ import {
   RefreshCw,
   ChevronDown,
   ChevronUp,
-  Eye
+  Eye,
+  Search,
+  X
 } from 'lucide-react';
+
+// Função para normalizar texto (remover acentos)
+const normalizeText = (text: string): string => {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+};
 
 const DriverCashBox: React.FC = () => {
   const { currentUser } = useAuth();
@@ -57,7 +67,10 @@ const DriverCashBox: React.FC = () => {
   const [selectedClientForPayment, setSelectedClientForPayment] = useState<string>('');
   const [paymentAmount, setPaymentAmount] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState<string>('Dinheiro');
+  const [paidUntilDate, setPaidUntilDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [savingPayment, setSavingPayment] = useState(false);
+  const [clientSearchTerm, setClientSearchTerm] = useState('');
+  const [showClientSuggestions, setShowClientSuggestions] = useState(false);
 
   // Expandable route sections
   const [expandedRoutes, setExpandedRoutes] = useState<Set<string>>(new Set());
@@ -144,11 +157,13 @@ const DriverCashBox: React.FC = () => {
     
     setSavingPayment(true);
     try {
-      await registerDailyPayment(driverId, selectedClientForPayment, paymentAmount, paymentMethod);
+      await registerDailyPayment(driverId, selectedClientForPayment, paymentAmount, paymentMethod, paidUntilDate);
       alert('Pagamento registrado com sucesso!');
       setShowPaymentModal(false);
       setSelectedClientForPayment('');
+      setClientSearchTerm('');
       setPaymentAmount(0);
+      setPaidUntilDate(new Date().toISOString().split('T')[0]);
     } catch (error) {
       console.error('Erro ao registrar pagamento:', error);
       alert('Erro ao registrar pagamento');
@@ -637,78 +652,241 @@ const DriverCashBox: React.FC = () => {
       {/* Modal de Registro de Pagamento */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
-            <h3 className="text-lg font-bold text-gray-800">Registrar Pagamento</h3>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Cliente
-              </label>
-              <select
-                value={selectedClientForPayment}
-                onChange={(e) => setSelectedClientForPayment(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-800">Registrar Pagamento</h3>
+              <button 
+                onClick={() => {
+                  setShowPaymentModal(false);
+                  setSelectedClientForPayment('');
+                  setClientSearchTerm('');
+                }}
+                className="p-1 hover:bg-gray-100 rounded-lg"
               >
-                <option value="">Selecione um cliente</option>
-                {clientSummaries.map(client => (
-                  <option key={client.clientId} value={client.clientId}>
-                    {client.clientName} ({client.routeName || 'Sem rota'})
-                    {client.totalDebt > 0 && ` - Deve: ${formatCurrency(client.totalDebt)}`}
-                  </option>
-                ))}
-              </select>
+                <X size={20} className="text-gray-500" />
+              </button>
             </div>
             
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Valor (€)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={paymentAmount}
-                onChange={(e) => setPaymentAmount(parseFloat(e.target.value) || 0)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
-                placeholder="0.00"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Método de Pagamento
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {['Dinheiro', 'MBWay', 'Transferência', 'Cartão'].map(method => (
-                  <button
-                    key={method}
-                    type="button"
-                    onClick={() => setPaymentMethod(method)}
-                    className={`py-2 px-3 rounded-lg border-2 transition-colors ${
-                      paymentMethod === method
-                        ? 'border-amber-500 bg-amber-50 text-amber-700'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    {method}
-                  </button>
-                ))}
+            <div className="p-6 space-y-5">
+              {/* Busca de Cliente */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Buscar Cliente
+                </label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+                  <input
+                    type="text"
+                    value={clientSearchTerm}
+                    onChange={(e) => {
+                      setClientSearchTerm(e.target.value);
+                      setShowClientSuggestions(true);
+                      if (e.target.value === '') {
+                        setSelectedClientForPayment('');
+                      }
+                    }}
+                    onFocus={() => setShowClientSuggestions(true)}
+                    placeholder="Digite o nome do cliente..."
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  />
+                  
+                  {/* Sugestões de clientes */}
+                  {showClientSuggestions && clientSearchTerm.length >= 1 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-10 max-h-60 overflow-y-auto">
+                      {clientSummaries
+                        .filter(c => normalizeText(c.clientName).includes(normalizeText(clientSearchTerm)))
+                        .slice(0, 10)
+                        .map(client => (
+                          <button
+                            key={client.clientId}
+                            type="button"
+                            className={`w-full px-4 py-3 text-left hover:bg-amber-50 border-b border-gray-100 last:border-0 transition-colors ${
+                              selectedClientForPayment === client.clientId ? 'bg-amber-50' : ''
+                            }`}
+                            onClick={() => {
+                              setSelectedClientForPayment(client.clientId);
+                              setClientSearchTerm(client.clientName);
+                              setShowClientSuggestions(false);
+                              // Auto-preencher data pago até baseado na frequência
+                              const today = new Date();
+                              if (client.paymentFrequency === 'Semanal') {
+                                const nextWeek = new Date(today);
+                                nextWeek.setDate(today.getDate() + 7);
+                                setPaidUntilDate(nextWeek.toISOString().split('T')[0]);
+                              } else if (client.paymentFrequency === 'Mensal') {
+                                const nextMonth = new Date(today);
+                                nextMonth.setMonth(today.getMonth() + 1);
+                                setPaidUntilDate(nextMonth.toISOString().split('T')[0]);
+                              } else if (client.paymentFrequency === 'Personalizado' && client.paymentCustomDays) {
+                                const customDate = new Date(today);
+                                customDate.setDate(today.getDate() + client.paymentCustomDays);
+                                setPaidUntilDate(customDate.toISOString().split('T')[0]);
+                              } else {
+                                setPaidUntilDate(today.toISOString().split('T')[0]);
+                              }
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <span className="font-medium text-gray-800">{client.clientName}</span>
+                                <div className="text-xs text-gray-500 mt-0.5">
+                                  {client.routeName || 'Sem rota'} • {client.paymentFrequency}
+                                </div>
+                              </div>
+                              {client.totalDebt > 0 && (
+                                <span className="text-sm text-amber-600 font-medium">
+                                  {formatCurrency(client.totalDebt)}
+                                </span>
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      {clientSummaries.filter(c => normalizeText(c.clientName).includes(normalizeText(clientSearchTerm))).length === 0 && (
+                        <div className="px-4 py-3 text-gray-500 text-sm text-center">
+                          Nenhum cliente encontrado
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Info do cliente selecionado */}
+              {selectedClientForPayment && (() => {
+                const selectedClient = clientSummaries.find(c => c.clientId === selectedClientForPayment);
+                if (!selectedClient) return null;
+                return (
+                  <div className="bg-amber-50 rounded-xl p-4 border border-amber-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-semibold text-amber-800">{selectedClient.clientName}</span>
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        selectedClient.paymentFrequency === 'Diário' ? 'bg-blue-100 text-blue-700' :
+                        selectedClient.paymentFrequency === 'Semanal' ? 'bg-green-100 text-green-700' :
+                        selectedClient.paymentFrequency === 'Mensal' ? 'bg-purple-100 text-purple-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {selectedClient.paymentFrequency}
+                        {selectedClient.paymentFrequency === 'Personalizado' && selectedClient.paymentCustomDays && 
+                          ` (${selectedClient.paymentCustomDays} dias)`
+                        }
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div className="text-gray-600">
+                        <Clock size={14} className="inline mr-1" />
+                        Último pag.: {formatDate(selectedClient.lastPaymentDate)}
+                      </div>
+                      <div className="text-gray-600">
+                        <Calendar size={14} className="inline mr-1" />
+                        Pago até: {formatDate(selectedClient.paidUntil)}
+                      </div>
+                    </div>
+                    {selectedClient.totalDebt > 0 && (
+                      <div className="mt-2 pt-2 border-t border-amber-200">
+                        <span className="text-amber-700 font-medium">
+                          Valor em aberto: {formatCurrency(selectedClient.totalDebt)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+              
+              {/* Valor */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Valor Recebido (€)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(parseFloat(e.target.value) || 0)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent text-lg font-semibold"
+                  placeholder="0.00"
+                />
+              </div>
+
+              {/* Data Pago Até - Só mostra se não for pagamento diário */}
+              {selectedClientForPayment && (() => {
+                const selectedClient = clientSummaries.find(c => c.clientId === selectedClientForPayment);
+                if (!selectedClient || selectedClient.paymentFrequency === 'Diário') return null;
+                return (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Pago Até (Data)
+                    </label>
+                    <p className="text-xs text-gray-500 mb-2">
+                      Este cliente paga {selectedClient.paymentFrequency.toLowerCase()}. 
+                      Selecione até quando fica pago.
+                    </p>
+                    <input
+                      type="date"
+                      value={paidUntilDate}
+                      onChange={(e) => setPaidUntilDate(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    />
+                  </div>
+                );
+              })()}
+              
+              {/* Método de Pagamento */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Método de Pagamento
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {['Dinheiro', 'MBWay', 'Transferência', 'Cartão'].map(method => (
+                    <button
+                      key={method}
+                      type="button"
+                      onClick={() => setPaymentMethod(method)}
+                      className={`py-3 px-4 rounded-xl border-2 transition-colors flex items-center justify-center gap-2 ${
+                        paymentMethod === method
+                          ? 'border-amber-500 bg-amber-50 text-amber-700'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      {method === 'Dinheiro' && <Banknote size={18} />}
+                      {method === 'MBWay' && <Smartphone size={18} />}
+                      {method === 'Transferência' && <ArrowRightLeft size={18} />}
+                      {method === 'Cartão' && <CreditCard size={18} />}
+                      {method}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
             
-            <div className="flex gap-3 pt-4">
+            {/* Botões de ação */}
+            <div className="p-6 border-t border-gray-100 flex gap-3">
               <button
-                onClick={() => setShowPaymentModal(false)}
-                className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                onClick={() => {
+                  setShowPaymentModal(false);
+                  setSelectedClientForPayment('');
+                  setClientSearchTerm('');
+                }}
+                className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleRegisterPayment}
                 disabled={savingPayment || !selectedClientForPayment || paymentAmount <= 0}
-                className="flex-1 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                className="flex-1 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {savingPayment ? 'Salvando...' : 'Confirmar'}
+                {savingPayment ? (
+                  <>
+                    <RefreshCw size={18} className="animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle size={18} />
+                    Confirmar Pagamento
+                  </>
+                )}
               </button>
             </div>
           </div>

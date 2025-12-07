@@ -517,6 +517,8 @@ export interface ClientPaymentSummary {
   lastPaymentDate?: string;
   paidUntil?: string;
   paymentMethod?: string;
+  paymentFrequency: 'Diário' | 'Semanal' | 'Mensal' | 'Personalizado';
+  paymentCustomDays?: number;
   todayPayment?: number; // Valor pago hoje (se houver)
   totalDebt: number; // Saldo devedor atual
 }
