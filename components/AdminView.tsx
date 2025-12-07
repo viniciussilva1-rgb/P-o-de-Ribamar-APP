@@ -1983,7 +1983,7 @@ export const ClientManager: React.FC = () => {
 // ============================================
 export const RoutePriceEditor: React.FC = () => {
   const { routes, products, clients, getDrivers, updatePricesForRoute } = useData();
-  const { user } = useAuth();
+  const { currentUser } = useAuth();
   const drivers = getDrivers();
 
   const [selectedDriverId, setSelectedDriverId] = useState<string>('');
@@ -2033,7 +2033,7 @@ export const RoutePriceEditor: React.FC = () => {
 
   // Aplica os preços a todos os clientes da rota
   const handleApplyPrices = async () => {
-    if (!selectedRouteId || !user) return;
+    if (!selectedRouteId || !currentUser) return;
 
     setIsApplying(true);
     setApplyResult(null);
@@ -2048,7 +2048,7 @@ export const RoutePriceEditor: React.FC = () => {
         }
       }
 
-      const result = await updatePricesForRoute(selectedRouteId, pricesToApply, user.role);
+      const result = await updatePricesForRoute(selectedRouteId, pricesToApply, currentUser.role);
       setApplyResult(result);
     } catch (error) {
       console.error('Erro ao aplicar preços:', error);
