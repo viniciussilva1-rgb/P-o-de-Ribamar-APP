@@ -1198,6 +1198,7 @@ export const ClientManager: React.FC = () => {
   const clients = getAllClients();
 
   const [selectedDriverId, setSelectedDriverId] = useState<string>('all');
+  const [selectedRouteId, setSelectedRouteId] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
@@ -1228,12 +1229,18 @@ export const ClientManager: React.FC = () => {
   };
   const [clientForm, setClientForm] = useState<Partial<Client>>(initialClientState);
 
+  // Rotas disponíveis para o entregador selecionado no filtro
+  const filterRoutes = selectedDriverId === 'all' 
+    ? routes 
+    : routes.filter(r => r.driverId === selectedDriverId);
+
   // Computed
   const filteredClients = clients.filter(c => {
     const matchesDriver = selectedDriverId === 'all' || c.driverId === selectedDriverId;
+    const matchesRoute = selectedRouteId === 'all' || c.routeId === selectedRouteId;
     const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           c.address.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesDriver && matchesSearch;
+    return matchesDriver && matchesRoute && matchesSearch;
   });
 
   // Entregador vê só suas rotas, admin vê todas
@@ -1464,11 +1471,27 @@ export const ClientManager: React.FC = () => {
             <select 
               className="w-full p-2 border border-gray-200 rounded-lg bg-gray-50"
               value={selectedDriverId}
-              onChange={(e) => setSelectedDriverId(e.target.value)}
+              onChange={(e) => {
+                setSelectedDriverId(e.target.value);
+                setSelectedRouteId('all'); // Reset rota quando muda entregador
+              }}
             >
               <option value="all">Todos os Entregadores</option>
               {drivers.map(d => (
                 <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+         </div>
+         <div className="flex-1">
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Filtrar por Rota</label>
+            <select 
+              className="w-full p-2 border border-gray-200 rounded-lg bg-gray-50"
+              value={selectedRouteId}
+              onChange={(e) => setSelectedRouteId(e.target.value)}
+            >
+              <option value="all">Todas as Rotas</option>
+              {filterRoutes.map(r => (
+                <option key={r.id} value={r.id}>{r.name}</option>
               ))}
             </select>
          </div>
@@ -1512,7 +1535,11 @@ export const ClientManager: React.FC = () => {
                   </td>
                   <td className="p-4">
                     <div className="text-sm text-gray-800">{driverName}{driverIdHint}</div>
-                    {client.routeId && <span className="text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">Rota ID: {client.routeId.slice(-4)}</span>}
+                    {client.routeId && (
+                      <span className="text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">
+                        {routes.find(r => r.id === client.routeId)?.name || `Rota ID: ${client.routeId.slice(-4)}`}
+                      </span>
+                    )}
                   </td>
                   <td className="p-4 text-sm text-gray-600 max-w-xs truncate">{client.address}</td>
                   <td className="p-4 text-center">
