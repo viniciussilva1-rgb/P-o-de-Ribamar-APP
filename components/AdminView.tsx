@@ -1977,3 +1977,298 @@ export const ClientManager: React.FC = () => {
        </div>
      );
 };
+
+// ============================================
+// ROUTE PRICE EDITOR - Edição de preços por rota
+// ============================================
+export const RoutePriceEditor: React.FC = () => {
+  const { routes, products, clients, getDrivers, updatePricesForRoute } = useData();
+  const { user } = useAuth();
+  const drivers = getDrivers();
+
+  const [selectedDriverId, setSelectedDriverId] = useState<string>('');
+  const [selectedRouteId, setSelectedRouteId] = useState<string>('');
+  const [routePrices, setRoutePrices] = useState<Record<string, string>>({});
+  const [isApplying, setIsApplying] = useState(false);
+  const [applyResult, setApplyResult] = useState<{ success: number; failed: number } | null>(null);
+
+  // Rotas disponíveis para o entregador selecionado
+  const availableRoutes = selectedDriverId 
+    ? routes.filter(r => r.driverId === selectedDriverId)
+    : routes;
+
+  // Clientes na rota selecionada
+  const clientsInRoute = selectedRouteId
+    ? clients.filter(c => c.routeId === selectedRouteId && c.status === 'ACTIVE')
+    : [];
+
+  // Quando muda a rota, carrega os preços atuais (pega do primeiro cliente como referência)
+  const handleRouteChange = (routeId: string) => {
+    setSelectedRouteId(routeId);
+    setApplyResult(null);
+    
+    if (routeId) {
+      const firstClient = clients.find(c => c.routeId === routeId && c.status === 'ACTIVE');
+      if (firstClient && firstClient.customPrices) {
+        const prices: Record<string, string> = {};
+        for (const [productId, price] of Object.entries(firstClient.customPrices)) {
+          prices[productId] = (price as number).toFixed(2);
+        }
+        setRoutePrices(prices);
+      } else {
+        setRoutePrices({});
+      }
+    } else {
+      setRoutePrices({});
+    }
+  };
+
+  // Atualiza preço de um produto
+  const handlePriceChange = (productId: string, value: string) => {
+    setRoutePrices(prev => ({
+      ...prev,
+      [productId]: value
+    }));
+  };
+
+  // Aplica os preços a todos os clientes da rota
+  const handleApplyPrices = async () => {
+    if (!selectedRouteId || !user) return;
+
+    setIsApplying(true);
+    setApplyResult(null);
+
+    try {
+      // Converte strings para números, ignora campos vazios
+      const pricesToApply: Record<string, number> = {};
+      for (const [productId, priceStr] of Object.entries(routePrices)) {
+        const price = parseFloat(priceStr as string);
+        if (!isNaN(price) && price >= 0) {
+          pricesToApply[productId] = price;
+        }
+      }
+
+      const result = await updatePricesForRoute(selectedRouteId, pricesToApply, user.role);
+      setApplyResult(result);
+    } catch (error) {
+      console.error('Erro ao aplicar preços:', error);
+      setApplyResult({ success: 0, failed: clientsInRoute.length });
+    } finally {
+      setIsApplying(false);
+    }
+  };
+
+  // Limpa preços personalizados
+  const handleClearPrice = (productId: string) => {
+    setRoutePrices(prev => {
+      const newPrices = { ...prev };
+      delete newPrices[productId];
+      return newPrices;
+    });
+  };
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-300">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <Tag className="text-amber-600" />
+            Preços por Rota
+          </h2>
+          <p className="text-gray-500 text-sm">Defina preços personalizados para todos os clientes de uma rota de uma vez.</p>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Entregador</label>
+            <select 
+              className="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-800 font-medium focus:ring-2 focus:ring-amber-500 outline-none"
+              value={selectedDriverId}
+              onChange={(e) => {
+                setSelectedDriverId(e.target.value);
+                setSelectedRouteId('');
+                setRoutePrices({});
+                setApplyResult(null);
+              }}
+            >
+              <option value="">Todos os Entregadores</option>
+              {drivers.map(d => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Rota / Zona</label>
+            <select 
+              className="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-800 font-medium focus:ring-2 focus:ring-amber-500 outline-none disabled:opacity-50"
+              value={selectedRouteId}
+              onChange={(e) => handleRouteChange(e.target.value)}
+              disabled={availableRoutes.length === 0}
+            >
+              <option value="">Selecione uma rota...</option>
+              {availableRoutes.map(r => {
+                const clientCount = clients.filter(c => c.routeId === r.id && c.status === 'ACTIVE').length;
+                return (
+                  <option key={r.id} value={r.id}>
+                    {r.name} ({clientCount} clientes)
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+        </div>
+
+        {availableRoutes.length === 0 && (
+          <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-yellow-800 text-sm">
+              {selectedDriverId 
+                ? 'Este entregador não possui rotas cadastradas.'
+                : 'Não há rotas cadastradas no sistema.'}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Price Editor */}
+      {selectedRouteId && (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="p-4 bg-amber-50 border-b border-amber-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-amber-800">
+                  {availableRoutes.find(r => r.id === selectedRouteId)?.name}
+                </h3>
+                <p className="text-sm text-amber-700">
+                  {clientsInRoute.length} cliente{clientsInRoute.length !== 1 ? 's' : ''} ativo{clientsInRoute.length !== 1 ? 's' : ''} nesta rota
+                </p>
+              </div>
+              <button
+                onClick={handleApplyPrices}
+                disabled={isApplying || clientsInRoute.length === 0 || Object.keys(routePrices).length === 0}
+                className="px-6 py-2.5 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300 text-white font-bold rounded-lg shadow transition-all flex items-center gap-2"
+              >
+                {isApplying ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    Aplicando...
+                  </>
+                ) : (
+                  <>
+                    <Save size={18} />
+                    Aplicar a Todos
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Result message */}
+            {applyResult && (
+              <div className={`mt-3 p-3 rounded-lg ${applyResult.failed === 0 ? 'bg-green-100 border border-green-200' : 'bg-yellow-100 border border-yellow-200'}`}>
+                <p className={`text-sm font-medium ${applyResult.failed === 0 ? 'text-green-800' : 'text-yellow-800'}`}>
+                  {applyResult.failed === 0 ? (
+                    <>
+                      <CheckCircle size={14} className="inline mr-1" />
+                      Preços aplicados com sucesso a {applyResult.success} cliente{applyResult.success !== 1 ? 's' : ''}!
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle size={14} className="inline mr-1" />
+                      {applyResult.success} atualizado{applyResult.success !== 1 ? 's' : ''}, {applyResult.failed} falha{applyResult.failed !== 1 ? 's' : ''}.
+                    </>
+                  )}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Products Table */}
+          <table className="w-full text-sm text-left">
+            <thead className="bg-gray-50 text-gray-600 font-semibold uppercase text-xs">
+              <tr>
+                <th className="p-4 border-b">Produto</th>
+                <th className="p-4 border-b text-right">Preço Padrão</th>
+                <th className="p-4 border-b text-right">Preço Rota</th>
+                <th className="p-4 border-b text-center w-20">Ação</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {products.map(product => {
+                const hasCustomPrice = routePrices[product.id] !== undefined && routePrices[product.id] !== '';
+                return (
+                  <tr key={product.id} className={`hover:bg-gray-50 transition-colors ${hasCustomPrice ? 'bg-amber-50/30' : ''}`}>
+                    <td className="p-4">
+                      <span className="font-medium text-gray-800">{product.name}</span>
+                    </td>
+                    <td className="p-4 text-right text-gray-500">
+                      € {product.price.toFixed(2)}
+                    </td>
+                    <td className="p-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <span className="text-gray-400">€</span>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          min="0"
+                          placeholder={product.price.toFixed(2)}
+                          className={`w-28 p-2 border rounded-lg text-right font-bold focus:ring-2 focus:ring-amber-500 outline-none ${
+                            hasCustomPrice 
+                              ? 'border-amber-400 bg-amber-50 text-amber-800' 
+                              : 'border-gray-300 text-gray-700'
+                          }`}
+                          value={routePrices[product.id] ?? ''}
+                          onChange={(e) => handlePriceChange(product.id, e.target.value)}
+                        />
+                      </div>
+                    </td>
+                    <td className="p-4 text-center">
+                      {hasCustomPrice && (
+                        <button
+                          onClick={() => handleClearPrice(product.id)}
+                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                          title="Limpar preço personalizado"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          {/* Clients Preview */}
+          {clientsInRoute.length > 0 && (
+            <div className="p-4 bg-gray-50 border-t border-gray-200">
+              <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Clientes que serão atualizados:</h4>
+              <div className="flex flex-wrap gap-2">
+                {clientsInRoute.map(client => (
+                  <span 
+                    key={client.id}
+                    className="inline-flex items-center px-2.5 py-1 bg-white border border-gray-200 rounded-full text-xs text-gray-700"
+                  >
+                    {client.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* No route selected message */}
+      {!selectedRouteId && availableRoutes.length > 0 && (
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center">
+          <MapPin size={48} className="mx-auto text-gray-300 mb-4" />
+          <p className="text-gray-500 font-medium">Selecione uma rota para editar os preços</p>
+          <p className="text-gray-400 text-sm mt-1">Os preços serão aplicados a todos os clientes ativos da rota selecionada.</p>
+        </div>
+      )}
+    </div>
+  );
+};

@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, Truck, Wheat, Users, Package, ClipboardList, PackageCheck, BarChart3, Send, Wallet, Calculator } from 'lucide-react';
+import { LogOut, Truck, Wheat, Users, Package, ClipboardList, PackageCheck, BarChart3, Send, Wallet, Calculator, Tag } from 'lucide-react';
 import { APP_NAME } from '../constants';
 
 interface LayoutProps {
@@ -67,6 +67,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
                 label="Produtos" 
                 active={activeTab === 'products'} 
                 onClick={() => setActiveTab('products')} 
+              />
+              <NavItem 
+                icon={<Tag />} 
+                label="Preços por Rota" 
+                active={activeTab === 'route-prices'} 
+                onClick={() => setActiveTab('route-prices')} 
               />
               <NavItem 
                 icon={<ClipboardList />} 
@@ -171,6 +177,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
                 label="Produtos" 
                 active={activeTab === 'products'} 
                 onClick={() => setActiveTab('products')} 
+              />
+              <MobileNavItem 
+                icon={<Tag size={20} />} 
+                label="Preços" 
+                active={activeTab === 'route-prices'} 
+                onClick={() => setActiveTab('route-prices')} 
               />
               <MobileNavItem 
                 icon={<ClipboardList size={20} />} 

@@ -30,6 +30,7 @@ interface DataContextType {
   registerPayment: (clientId: string, amount: number, method: string) => void;
   toggleSkippedDate: (clientId: string, date: string) => void;
   updateClientPrice: (clientId: string, productId: string, newPrice: number, userRole: UserRole) => void;
+  updatePricesForRoute: (routeId: string, prices: Record<string, number>, userRole: UserRole) => Promise<{ success: number; failed: number }>;
   
   // Funções de Carga do Dia
   createDailyLoad: (driverId: string, date: string, loadItems: LoadItem[], observations?: string) => Promise<DailyLoad>;
@@ -509,6 +510,42 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             [productId]: newPrice
         }
     });
+  };
+
+  // Atualizar preços para todos os clientes de uma rota
+  const updatePricesForRoute = async (routeId: string, prices: Record<string, number>, userRole: UserRole): Promise<{ success: number; failed: number }> => {
+    if (userRole !== UserRole.ADMIN) {
+      console.warn("Acesso negado: Apenas administradores podem alterar preços em massa.");
+      return { success: 0, failed: 0 };
+    }
+
+    const clientsInRoute = clients.filter(c => c.routeId === routeId && c.status === 'ACTIVE');
+    let success = 0;
+    let failed = 0;
+
+    for (const client of clientsInRoute) {
+      try {
+        const currentCustomPrices = client.customPrices || {};
+        const updatedPrices = { ...currentCustomPrices };
+        
+        // Só atualiza os produtos que têm preço definido (não vazio)
+        for (const [productId, price] of Object.entries(prices)) {
+          if (price !== undefined && price !== null && !isNaN(price)) {
+            updatedPrices[productId] = price;
+          }
+        }
+
+        await updateDoc(doc(db, 'clients', client.id), {
+          customPrices: updatedPrices
+        });
+        success++;
+      } catch (error) {
+        console.error(`Erro ao atualizar preços do cliente ${client.name}:`, error);
+        failed++;
+      }
+    }
+
+    return { success, failed };
   };
 
   // ========== FUNÇÕES DE CARGA DO DIA ==========
@@ -1604,7 +1641,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       addUser, addClient, updateClient, updateProduct, addProduct, deleteProduct, addRoute, deleteRoute,
       getRoutesByDriver, getClientsByDriver, getAllClients, getDrivers,
       updateDailyProduction, getDailyRecord,
-      calculateClientDebt, registerPayment, toggleSkippedDate, updateClientPrice,
+      calculateClientDebt, registerPayment, toggleSkippedDate, updateClientPrice, updatePricesForRoute,
       createDailyLoad, updateDailyLoad, completeDailyLoad, getDailyLoadByDriver, getDailyLoadsByDate, getDailyLoadReport, getProductionSuggestions,
       generateDailyDeliveries, updateDeliveryStatus, getDeliveriesByDriver, getDriverDailySummary, getAdminDeliveryReport, getScheduledClientsForDay,
       recordDynamicDelivery, getDynamicClientHistory, getDynamicClientPrediction, getDynamicLoadSummary, getDynamicClientsForDriver,

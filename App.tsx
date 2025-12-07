@@ -4,7 +4,7 @@ import { DataProvider } from './context/DataContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Login } from './components/Login';
 import { Layout } from './components/Layout';
-import { DriversOverview, ProductCatalog, ProductionManager, ClientManager } from './components/AdminView';
+import { DriversOverview, ProductCatalog, ProductionManager, ClientManager, RoutePriceEditor } from './components/AdminView';
 import { DriverView } from './components/DriverView';
 import DriverDailyLoad from './components/DriverDailyLoad';
 import AdminDailyLoadReport from './components/AdminDailyLoadReport';
@@ -43,6 +43,8 @@ const AppContent: React.FC = () => {
     switch (activeTab) {
       case 'products':
         return <ProductCatalog />;
+      case 'route-prices':
+        return <RoutePriceEditor />;
       case 'production':
         return <ProductionManager />;
       case 'clients-admin':
