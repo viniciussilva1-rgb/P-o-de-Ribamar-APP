@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { Plus, User, MapPin, Phone, Search, Map, Save, X, Navigation, CreditCard, Loader2, Calendar, AlertCircle, Tag, FileText, RotateCcw, Calculator, CheckCircle, Sparkles } from 'lucide-react';
+import { Plus, User, MapPin, Phone, Search, Map, Save, X, Navigation, CreditCard, Loader2, Calendar, AlertCircle, Tag, FileText, RotateCcw, Calculator, CheckCircle, Sparkles, Copy, Check } from 'lucide-react';
 import { Client, Route, DeliverySchedule, Product } from '../types';
 
 // Componente auxiliar para isolar o estado de adição por linha
@@ -46,6 +46,216 @@ const AddScheduleItemRow: React.FC<{ products: Product[], onAdd: (productId: str
       >
         <Plus size={16} />
       </button>
+    </div>
+  );
+};
+
+// Componente para aplicar produtos em múltiplos dias de uma vez
+const QuickScheduleSetup: React.FC<{ 
+  products: Product[], 
+  onApply: (items: { productId: string, quantity: number }[], days: string[]) => void 
+}> = ({ products, onApply }) => {
+  const [selectedProducts, setSelectedProducts] = useState<{ productId: string, quantity: number }[]>([]);
+  const [selectedDays, setSelectedDays] = useState<Set<string>>(new Set());
+  const [newProductId, setNewProductId] = useState('');
+  const [newQuantity, setNewQuantity] = useState(1);
+
+  const daysOptions = [
+    { key: 'seg', label: 'Seg', fullLabel: 'Segunda' },
+    { key: 'ter', label: 'Ter', fullLabel: 'Terça' },
+    { key: 'qua', label: 'Qua', fullLabel: 'Quarta' },
+    { key: 'qui', label: 'Qui', fullLabel: 'Quinta' },
+    { key: 'sex', label: 'Sex', fullLabel: 'Sexta' },
+    { key: 'sab', label: 'Sáb', fullLabel: 'Sábado' },
+    { key: 'dom', label: 'Dom', fullLabel: 'Domingo' },
+  ];
+
+  const handleAddProduct = () => {
+    if (newProductId && newQuantity > 0) {
+      const exists = selectedProducts.find(p => p.productId === newProductId);
+      if (exists) {
+        setSelectedProducts(prev => prev.map(p => 
+          p.productId === newProductId ? { ...p, quantity: newQuantity } : p
+        ));
+      } else {
+        setSelectedProducts(prev => [...prev, { productId: newProductId, quantity: newQuantity }]);
+      }
+      setNewProductId('');
+      setNewQuantity(1);
+    }
+  };
+
+  const handleRemoveProduct = (productId: string) => {
+    setSelectedProducts(prev => prev.filter(p => p.productId !== productId));
+  };
+
+  const toggleDay = (dayKey: string) => {
+    const newDays = new Set(selectedDays);
+    if (newDays.has(dayKey)) {
+      newDays.delete(dayKey);
+    } else {
+      newDays.add(dayKey);
+    }
+    setSelectedDays(newDays);
+  };
+
+  const selectAllWeekdays = () => {
+    setSelectedDays(new Set(['seg', 'ter', 'qua', 'qui', 'sex']));
+  };
+
+  const selectAllDays = () => {
+    setSelectedDays(new Set(['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom']));
+  };
+
+  const clearDays = () => {
+    setSelectedDays(new Set());
+  };
+
+  const handleApply = () => {
+    if (selectedProducts.length > 0 && selectedDays.size > 0) {
+      onApply(selectedProducts, Array.from(selectedDays));
+      setSelectedProducts([]);
+      setSelectedDays(new Set());
+    }
+  };
+
+  return (
+    <div className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-4 space-y-4">
+      <div className="flex items-center gap-2">
+        <Copy size={18} className="text-amber-600" />
+        <h4 className="font-bold text-amber-800">Aplicar em Múltiplos Dias</h4>
+        <span className="text-xs bg-amber-200 text-amber-700 px-2 py-0.5 rounded-full">Rápido</span>
+      </div>
+      
+      <p className="text-xs text-amber-700">
+        Selecione os produtos e dias, depois clique em "Aplicar" para adicionar de uma vez.
+      </p>
+
+      {/* Seletor de Produtos */}
+      <div className="space-y-2">
+        <label className="text-xs font-semibold text-gray-600 uppercase">1. Escolha os Produtos</label>
+        
+        {/* Lista de produtos selecionados */}
+        {selectedProducts.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {selectedProducts.map(sp => {
+              const prod = products.find(p => p.id === sp.productId);
+              return (
+                <div key={sp.productId} className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-amber-300 shadow-sm">
+                  <span className="text-sm font-medium">{prod?.name}</span>
+                  <span className="text-xs bg-amber-100 text-amber-700 px-1.5 rounded font-bold">{sp.quantity}</span>
+                  <button 
+                    type="button"
+                    onClick={() => handleRemoveProduct(sp.productId)}
+                    className="text-red-400 hover:text-red-600 ml-1"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        
+        {/* Adicionar novo produto */}
+        <div className="flex gap-2">
+          <select
+            value={newProductId}
+            onChange={(e) => setNewProductId(e.target.value)}
+            className="flex-1 p-2 text-sm border border-amber-300 rounded-lg bg-white focus:ring-2 focus:ring-amber-500"
+          >
+            <option value="">Selecionar produto...</option>
+            {products.filter(p => !selectedProducts.find(sp => sp.productId === p.id)).map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+          <input
+            type="number"
+            min="1"
+            value={newQuantity}
+            onChange={(e) => setNewQuantity(parseInt(e.target.value) || 1)}
+            className="w-20 p-2 text-sm border border-amber-300 rounded-lg text-center font-bold"
+            placeholder="Qtd"
+          />
+          <button
+            type="button"
+            onClick={handleAddProduct}
+            disabled={!newProductId}
+            className="px-3 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Plus size={18} />
+          </button>
+        </div>
+      </div>
+
+      {/* Seletor de Dias */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-semibold text-gray-600 uppercase">2. Escolha os Dias</label>
+          <div className="flex gap-2">
+            <button 
+              type="button"
+              onClick={selectAllWeekdays}
+              className="text-xs text-amber-600 hover:text-amber-800 font-medium"
+            >
+              Seg-Sex
+            </button>
+            <span className="text-gray-300">|</span>
+            <button 
+              type="button"
+              onClick={selectAllDays}
+              className="text-xs text-amber-600 hover:text-amber-800 font-medium"
+            >
+              Todos
+            </button>
+            <span className="text-gray-300">|</span>
+            <button 
+              type="button"
+              onClick={clearDays}
+              className="text-xs text-gray-500 hover:text-gray-700 font-medium"
+            >
+              Limpar
+            </button>
+          </div>
+        </div>
+        
+        <div className="flex gap-2 flex-wrap">
+          {daysOptions.map(day => (
+            <button
+              key={day.key}
+              type="button"
+              onClick={() => toggleDay(day.key)}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                selectedDays.has(day.key)
+                  ? 'bg-amber-500 text-white shadow-md'
+                  : 'bg-white border border-gray-300 text-gray-600 hover:border-amber-400'
+              }`}
+            >
+              {day.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Resumo e Botão Aplicar */}
+      {selectedProducts.length > 0 && selectedDays.size > 0 && (
+        <div className="pt-2 border-t border-amber-200">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-amber-800">
+              <span className="font-semibold">{selectedProducts.length}</span> produto(s) em{' '}
+              <span className="font-semibold">{selectedDays.size}</span> dia(s)
+            </div>
+            <button
+              type="button"
+              onClick={handleApply}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium flex items-center gap-2 shadow-md transition-all active:scale-95"
+            >
+              <Check size={18} />
+              Aplicar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -272,6 +482,33 @@ export const DriverView: React.FC = () => {
         ...currentSchedule,
         [dayKey]: dayItems.filter(i => i.productId !== productId)
       }
+    });
+  };
+
+  // Aplicar produtos em múltiplos dias de uma vez
+  const handleApplyToMultipleDays = (items: { productId: string, quantity: number }[], days: string[]) => {
+    const currentSchedule = { ...clientForm.deliverySchedule };
+    
+    days.forEach(dayKey => {
+      const dayItems = [...(currentSchedule[dayKey as keyof DeliverySchedule] || [])];
+      
+      items.forEach(item => {
+        const existingIndex = dayItems.findIndex(i => i.productId === item.productId);
+        if (existingIndex >= 0) {
+          // Atualizar quantidade se já existe
+          dayItems[existingIndex].quantity = item.quantity;
+        } else {
+          // Adicionar novo item
+          dayItems.push({ productId: item.productId, quantity: item.quantity });
+        }
+      });
+      
+      currentSchedule[dayKey as keyof DeliverySchedule] = dayItems;
+    });
+    
+    setClientForm({
+      ...clientForm,
+      deliverySchedule: currentSchedule
     });
   };
 
@@ -710,6 +947,19 @@ export const DriverView: React.FC = () => {
                 {activeTab === 'entrega' && (
                   <div className="space-y-4 animate-in fade-in duration-200">
                     <p className="text-sm text-gray-500 mb-2">Defina os dias e a quantidade de produtos para entrega automática.</p>
+                    
+                    {/* Quick Setup - Aplicar em múltiplos dias */}
+                    <QuickScheduleSetup 
+                      products={products}
+                      onApply={handleApplyToMultipleDays}
+                    />
+
+                    {/* Separador */}
+                    <div className="flex items-center gap-3 py-2">
+                      <div className="flex-1 h-px bg-gray-200"></div>
+                      <span className="text-xs text-gray-400 font-medium">ou edite dia a dia</span>
+                      <div className="flex-1 h-px bg-gray-200"></div>
+                    </div>
                     
                     <div className="space-y-3">
                       {daysOfWeek.map(day => {
