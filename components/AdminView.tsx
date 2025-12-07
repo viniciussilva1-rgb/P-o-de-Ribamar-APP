@@ -8,6 +8,14 @@ import { useAuth } from '../context/AuthContext';
 import { User, UserRole, Client, Product, Route, DeliverySchedule } from '../types';
 import { ChevronDown, ChevronRight, UserPlus, MapPin, Phone, Truck, Calendar, Package, Pencil, Trash2, Plus, ArrowRightLeft, X, Save, Navigation, Map, Search, User as UserIcon, CreditCard, FileText, RotateCcw, Loader2, AlertCircle, Calculator, CheckCircle, DollarSign, Tag } from 'lucide-react';
 
+// Função utilitária para normalizar texto (remover acentos e converter para minúsculas)
+const normalizeText = (text: string): string => {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, ''); // Remove diacríticos (acentos)
+};
+
 // Helper component for isolated row state (Reused from DriverView logic)
 const AddScheduleItemRow: React.FC<{ products: Product[], onAdd: (productId: string, quantity: number) => void }> = ({ products, onAdd }) => {
   const [selectedProduct, setSelectedProduct] = useState('');
@@ -1200,6 +1208,7 @@ export const ClientManager: React.FC = () => {
   const [selectedDriverId, setSelectedDriverId] = useState<string>('all');
   const [selectedRouteId, setSelectedRouteId] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'geral' | 'entrega' | 'pagamento' | 'obs' | 'falhas' | 'precos'>('geral');
@@ -1235,13 +1244,29 @@ export const ClientManager: React.FC = () => {
     : routes.filter(r => r.driverId === selectedDriverId);
 
   // Computed
+  const normalizedSearchTerm = normalizeText(searchTerm);
   const filteredClients = clients.filter(c => {
     const matchesDriver = selectedDriverId === 'all' || c.driverId === selectedDriverId;
     const matchesRoute = selectedRouteId === 'all' || c.routeId === selectedRouteId;
-    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          c.address.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = normalizeText(c.name).includes(normalizedSearchTerm) || 
+                          normalizeText(c.address).includes(normalizedSearchTerm) ||
+                          normalizeText(c.phone || '').includes(normalizedSearchTerm);
     return matchesDriver && matchesRoute && matchesSearch;
   });
+
+  // Sugestões de busca (máximo 5)
+  const searchSuggestions = searchTerm.length >= 2 
+    ? clients
+        .filter(c => {
+          const matchesDriver = selectedDriverId === 'all' || c.driverId === selectedDriverId;
+          const matchesRoute = selectedRouteId === 'all' || c.routeId === selectedRouteId;
+          return matchesDriver && matchesRoute && (
+            normalizeText(c.name).includes(normalizedSearchTerm) ||
+            normalizeText(c.address).includes(normalizedSearchTerm)
+          );
+        })
+        .slice(0, 5)
+    : [];
 
   // Entregador vê só suas rotas, admin vê todas
   // Removido duplicidade de isAdmin e routes
@@ -1498,14 +1523,49 @@ export const ClientManager: React.FC = () => {
          <div className="flex-[2]">
             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Buscar Cliente</label>
             <div className="relative">
-              <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+              <Search className="absolute left-3 top-2.5 text-gray-400 z-10" size={18} />
               <input 
                 type="text" 
-                placeholder="Nome, Endereço..."
+                placeholder="Nome, Endereço, Telefone..."
                 className="w-full pl-10 p-2 border border-gray-200 rounded-lg bg-gray-50"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
               />
+              {/* Sugestões de busca */}
+              {showSuggestions && searchSuggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 overflow-hidden">
+                  {searchSuggestions.map((client) => (
+                    <button
+                      key={client.id}
+                      type="button"
+                      className="w-full px-4 py-2 text-left hover:bg-amber-50 flex items-center gap-3 border-b border-gray-100 last:border-0"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setSearchTerm(client.name);
+                        setShowSuggestions(false);
+                      }}
+                    >
+                      <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center text-amber-700 font-bold text-sm">
+                        {client.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-gray-800 truncate">{client.name}</div>
+                        <div className="text-xs text-gray-500 truncate">{client.address}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {showSuggestions && searchTerm.length >= 2 && searchSuggestions.length === 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 p-3 text-center text-gray-500 text-sm">
+                  Nenhum cliente encontrado
+                </div>
+              )}
             </div>
          </div>
       </div>
