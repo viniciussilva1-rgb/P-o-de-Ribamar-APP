@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, Truck, Wheat, Users, Package, ClipboardList, PackageCheck, BarChart3, Send } from 'lucide-react';
+import { LogOut, Truck, Wheat, Users, Package, ClipboardList, PackageCheck, BarChart3, Send, Wallet, Calculator } from 'lucide-react';
 import { APP_NAME } from '../constants';
 
 interface LayoutProps {
@@ -86,6 +86,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
                 active={activeTab === 'deliveries'} 
                 onClick={() => setActiveTab('deliveries')} 
               />
+              <NavItem 
+                icon={<Calculator />} 
+                label="Fecho Semanal" 
+                active={activeTab === 'weekly-settlement'} 
+                onClick={() => setActiveTab('weekly-settlement')} 
+              />
             </>
           ) : (
             <>
@@ -109,6 +115,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
                 label="Entregas do Dia" 
                 active={activeTab === 'daily-deliveries'} 
                 onClick={() => setActiveTab('daily-deliveries')} 
+              />
+              <NavItem 
+                icon={<Wallet />} 
+                label="Caixa" 
+                active={activeTab === 'cashbox'} 
+                onClick={() => setActiveTab('cashbox')} 
               />
             </>
           )}
@@ -178,6 +190,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
                 active={activeTab === 'deliveries'} 
                 onClick={() => setActiveTab('deliveries')} 
               />
+              <MobileNavItem 
+                icon={<Calculator size={20} />} 
+                label="Fecho" 
+                active={activeTab === 'weekly-settlement'} 
+                onClick={() => setActiveTab('weekly-settlement')} 
+              />
             </>
           ) : (
             <>
@@ -198,6 +216,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
                 label="Entregas" 
                 active={activeTab === 'daily-deliveries'} 
                 onClick={() => setActiveTab('daily-deliveries')} 
+              />
+              <MobileNavItem 
+                icon={<Wallet size={20} />} 
+                label="Caixa" 
+                active={activeTab === 'cashbox'} 
+                onClick={() => setActiveTab('cashbox')} 
               />
             </>
           )}

@@ -10,6 +10,8 @@ import DriverDailyLoad from './components/DriverDailyLoad';
 import AdminDailyLoadReport from './components/AdminDailyLoadReport';
 import DriverDailyDeliveries from './components/DriverDailyDeliveries';
 import AdminDeliveryDashboard from './components/AdminDeliveryDashboard';
+import DriverCashBox from './components/DriverCashBox';
+import AdminWeeklySettlement from './components/AdminWeeklySettlement';
 import { UserRole } from './types';
 import useSyncEntregadorFirestore from './hooks/useSyncEntregadorFirestore';
 
@@ -49,6 +51,8 @@ const AppContent: React.FC = () => {
         return <AdminDailyLoadReport />;
       case 'deliveries':
         return <AdminDeliveryDashboard />;
+      case 'weekly-settlement':
+        return <AdminWeeklySettlement />;
       case 'drivers':
       default:
         return <DriversOverview />;
@@ -61,6 +65,8 @@ const AppContent: React.FC = () => {
         return <DriverView />;
       case 'daily-deliveries':
         return <DriverDailyDeliveries />;
+      case 'cashbox':
+        return <DriverCashBox />;
       case 'daily-load':
       default:
         return <DriverDailyLoad />;

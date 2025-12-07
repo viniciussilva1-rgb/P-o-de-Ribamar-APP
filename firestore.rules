@@ -61,5 +61,27 @@ service cloud.firestore {
     match /dynamic_consumption/{recordId} {
       allow read, write: if request.auth != null;
     }
+
+    // ===== CAIXA DO ENTREGADOR =====
+    
+    // Fundo de Caixa Diário
+    match /daily_cash_funds/{fundId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Fecho Diário do Entregador
+    match /daily_driver_closures/{closureId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Pagamentos Recebidos (registro diário)
+    match /daily_payments_received/{paymentId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Fecho Semanal (Admin)
+    match /weekly_settlements/{settlementId} {
+      allow read, write: if request.auth != null;
+    }
   }
 }

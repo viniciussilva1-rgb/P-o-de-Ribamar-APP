@@ -385,3 +385,139 @@ export interface DynamicDefaultSettings {
   updatedBy: string;
 }
 
+// ========== CAIXA DO ENTREGADOR ==========
+
+// Fundo de Caixa Diário
+export interface DailyCashFund {
+  id: string;
+  driverId: string;
+  date: string; // YYYY-MM-DD
+  initialAmount: number; // Valor inicial do fundo
+  observations?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Fecho Diário do Entregador
+export interface DailyDriverClosure {
+  id: string;
+  driverId: string;
+  date: string; // YYYY-MM-DD
+  
+  // Valores do entregador
+  cashFundAmount: number; // Fundo de caixa inicial
+  countedAmount: number; // Valor contado pelo entregador no final
+  
+  // Valores calculados automaticamente
+  totalReceivedCash: number; // Total recebido em dinheiro no dia
+  totalReceivedMbway: number; // Total recebido em MBWay
+  totalReceivedTransfer: number; // Total recebido em transferência
+  totalReceivedOther: number; // Outros métodos
+  expectedCashAmount: number; // Fundo + recebido em dinheiro
+  
+  // Diferença
+  difference: number; // countedAmount - expectedCashAmount
+  status: 'balanced' | 'surplus' | 'shortage'; // Bateu certo, Sobra, Falta
+  
+  // Por rota
+  routeTotals: {
+    routeId: string;
+    routeName: string;
+    totalReceived: number;
+    clientCount: number;
+  }[];
+  
+  observations?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Pagamento recebido pelo entregador (registro diário)
+export interface DailyPaymentReceived {
+  id: string;
+  driverId: string;
+  clientId: string;
+  date: string; // YYYY-MM-DD
+  
+  // Dados do cliente (snapshot)
+  clientName: string;
+  routeId?: string;
+  routeName?: string;
+  
+  // Pagamento
+  amount: number;
+  method: 'Dinheiro' | 'MBWay' | 'Transferência' | 'Cartão' | 'Outro';
+  
+  // Período que o pagamento cobre
+  paidUntil?: string; // Data até quando está pago
+  
+  // Referência
+  referenceDeliveryIds?: string[]; // IDs das entregas que este pagamento cobre
+  
+  createdAt: string;
+}
+
+// Fecho Semanal (Administrador)
+export interface WeeklyDriverSettlement {
+  id: string;
+  driverId: string;
+  driverName: string;
+  
+  // Período
+  weekStartDate: string; // YYYY-MM-DD (segunda-feira)
+  weekEndDate: string; // YYYY-MM-DD (domingo)
+  
+  // Totais da semana
+  totalDelivered: number; // Valor total de entregas entregues
+  totalReceived: number; // Valor total recebido dos clientes
+  totalToSettle: number; // Valor que o entregador deve entregar ao admin
+  
+  // Por método de pagamento
+  cashTotal: number;
+  mbwayTotal: number;
+  transferTotal: number;
+  otherTotal: number;
+  
+  // Por rota
+  routeTotals: {
+    routeId: string;
+    routeName: string;
+    totalDelivered: number;
+    totalReceived: number;
+    clientsPaid: number;
+  }[];
+  
+  // Lista de clientes que pagaram
+  clientPayments: {
+    clientId: string;
+    clientName: string;
+    routeId?: string;
+    routeName?: string;
+    totalPaid: number;
+    method: string;
+    paymentDates: string[];
+  }[];
+  
+  // Status
+  status: 'pending' | 'confirmed';
+  confirmedAt?: string;
+  confirmedBy?: string;
+  
+  observations?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Resumo de pagamentos de um cliente (para visualização)
+export interface ClientPaymentSummary {
+  clientId: string;
+  clientName: string;
+  routeId?: string;
+  routeName?: string;
+  lastPaymentDate?: string;
+  paidUntil?: string;
+  paymentMethod?: string;
+  todayPayment?: number; // Valor pago hoje (se houver)
+  totalDebt: number; // Saldo devedor atual
+}
+

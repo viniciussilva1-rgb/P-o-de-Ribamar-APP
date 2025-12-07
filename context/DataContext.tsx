@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, Client, UserRole, Product, ProductionData, DailyProductionRecord, Route, PaymentTransaction, DeliverySchedule, DailyLoad, LoadItem, ReturnItem, DailyLoadReport, ProductionSuggestion, ClientDelivery, DeliveryStatus, DriverDailySummary, AdminDeliveryReport, DeliveryItem, DynamicConsumptionRecord, ProductConsumptionStats, DynamicClientHistory, DynamicClientPrediction, DynamicLoadSummary } from '../types';
+import { User, Client, UserRole, Product, ProductionData, DailyProductionRecord, Route, PaymentTransaction, DeliverySchedule, DailyLoad, LoadItem, ReturnItem, DailyLoadReport, ProductionSuggestion, ClientDelivery, DeliveryStatus, DriverDailySummary, AdminDeliveryReport, DeliveryItem, DynamicConsumptionRecord, ProductConsumptionStats, DynamicClientHistory, DynamicClientPrediction, DynamicLoadSummary, DailyCashFund, DailyDriverClosure, DailyPaymentReceived, WeeklyDriverSettlement, ClientPaymentSummary } from '../types';
 import { INITIAL_PRODUCTS, MOCK_ADMIN_EMAIL } from '../constants';
 import { db } from '../firebaseConfig'; // Import database
 import { collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot, query, where, getDocs } from 'firebase/firestore';
@@ -56,6 +56,32 @@ interface DataContextType {
   getDynamicClientPrediction: (clientId: string, date: string) => DynamicClientPrediction;
   getDynamicLoadSummary: (driverId: string, date: string) => DynamicLoadSummary;
   getDynamicClientsForDriver: (driverId: string) => Client[];
+  
+  // Funções do Caixa do Entregador
+  dailyCashFunds: DailyCashFund[];
+  dailyDriverClosures: DailyDriverClosure[];
+  dailyPaymentsReceived: DailyPaymentReceived[];
+  weeklySettlements: WeeklyDriverSettlement[];
+  
+  // Fundo de Caixa
+  saveDailyCashFund: (driverId: string, date: string, initialAmount: number, observations?: string) => Promise<void>;
+  getDailyCashFund: (driverId: string, date: string) => DailyCashFund | undefined;
+  
+  // Pagamentos Recebidos
+  registerDailyPayment: (driverId: string, clientId: string, amount: number, method: string, paidUntil?: string) => Promise<void>;
+  getDailyPaymentsByDriver: (driverId: string, date: string) => DailyPaymentReceived[];
+  getClientPaymentSummaries: (driverId: string) => ClientPaymentSummary[];
+  
+  // Fecho Diário
+  saveDailyDriverClosure: (driverId: string, date: string, countedAmount: number, observations?: string) => Promise<void>;
+  getDailyDriverClosure: (driverId: string, date: string) => DailyDriverClosure | undefined;
+  calculateDailyClosureData: (driverId: string, date: string) => Omit<DailyDriverClosure, 'id' | 'countedAmount' | 'difference' | 'status' | 'observations' | 'createdAt' | 'updatedAt'>;
+  
+  // Fecho Semanal (Admin)
+  getWeeklySettlement: (driverId: string, weekStartDate: string) => WeeklyDriverSettlement | undefined;
+  calculateWeeklySettlement: (driverId: string, weekStartDate: string) => Omit<WeeklyDriverSettlement, 'id' | 'status' | 'confirmedAt' | 'confirmedBy' | 'observations' | 'createdAt' | 'updatedAt'>;
+  confirmWeeklySettlement: (settlementId: string, adminId: string, observations?: string) => Promise<void>;
+  getAllPendingSettlements: () => WeeklyDriverSettlement[];
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -69,6 +95,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [dailyLoads, setDailyLoads] = useState<DailyLoad[]>([]);
   const [clientDeliveries, setClientDeliveries] = useState<ClientDelivery[]>([]);
   const [dynamicConsumptionRecords, setDynamicConsumptionRecords] = useState<DynamicConsumptionRecord[]>([]);
+  
+  // Estados do Caixa do Entregador
+  const [dailyCashFunds, setDailyCashFunds] = useState<DailyCashFund[]>([]);
+  const [dailyDriverClosures, setDailyDriverClosures] = useState<DailyDriverClosure[]>([]);
+  const [dailyPaymentsReceived, setDailyPaymentsReceived] = useState<DailyPaymentReceived[]>([]);
+  const [weeklySettlements, setWeeklySettlements] = useState<WeeklyDriverSettlement[]>([]);
 
   // --- FIREBASE LISTENERS (Realtime Sync) ---
 
@@ -185,6 +217,54 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         id: docSnap.id
       } as DynamicConsumptionRecord));
       setDynamicConsumptionRecords(recordsList);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // 9. Daily Cash Funds (Fundo de Caixa Diário)
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'daily_cash_funds'), (snapshot) => {
+      const fundsList = snapshot.docs.map(docSnap => ({
+        ...docSnap.data(),
+        id: docSnap.id
+      } as DailyCashFund));
+      setDailyCashFunds(fundsList);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // 10. Daily Driver Closures (Fecho Diário do Entregador)
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'daily_driver_closures'), (snapshot) => {
+      const closuresList = snapshot.docs.map(docSnap => ({
+        ...docSnap.data(),
+        id: docSnap.id
+      } as DailyDriverClosure));
+      setDailyDriverClosures(closuresList);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // 11. Daily Payments Received (Pagamentos Recebidos)
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'daily_payments_received'), (snapshot) => {
+      const paymentsList = snapshot.docs.map(docSnap => ({
+        ...docSnap.data(),
+        id: docSnap.id
+      } as DailyPaymentReceived));
+      setDailyPaymentsReceived(paymentsList);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // 12. Weekly Settlements (Fecho Semanal)
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'weekly_settlements'), (snapshot) => {
+      const settlementsList = snapshot.docs.map(docSnap => ({
+        ...docSnap.data(),
+        id: docSnap.id
+      } as WeeklyDriverSettlement));
+      setWeeklySettlements(settlementsList);
     });
     return () => unsubscribe();
   }, []);
@@ -1182,16 +1262,355 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   };
 
+  // ========== FUNÇÕES DO CAIXA DO ENTREGADOR ==========
+
+  // Salvar Fundo de Caixa Diário
+  const saveDailyCashFund = async (driverId: string, date: string, initialAmount: number, observations?: string): Promise<void> => {
+    const fundId = `fund-${driverId}-${date}`;
+    const now = new Date().toISOString();
+    
+    const existingFund = dailyCashFunds.find(f => f.driverId === driverId && f.date === date);
+    
+    const fundData: DailyCashFund = {
+      id: fundId,
+      driverId,
+      date,
+      initialAmount,
+      observations,
+      createdAt: existingFund?.createdAt || now,
+      updatedAt: now
+    };
+    
+    await setDoc(doc(db, 'daily_cash_funds', fundId), fundData);
+  };
+
+  // Obter Fundo de Caixa do dia
+  const getDailyCashFund = (driverId: string, date: string): DailyCashFund | undefined => {
+    return dailyCashFunds.find(f => f.driverId === driverId && f.date === date);
+  };
+
+  // Registrar Pagamento Recebido
+  const registerDailyPayment = async (driverId: string, clientId: string, amount: number, method: string, paidUntil?: string): Promise<void> => {
+    const today = new Date().toISOString().split('T')[0];
+    const paymentId = `payment-${driverId}-${clientId}-${Date.now()}`;
+    const now = new Date().toISOString();
+    
+    const client = clients.find(c => c.id === clientId);
+    const route = client?.routeId ? routes.find(r => r.id === client.routeId) : null;
+    
+    const paymentData: DailyPaymentReceived = {
+      id: paymentId,
+      driverId,
+      clientId,
+      date: today,
+      clientName: client?.name || 'Cliente',
+      routeId: client?.routeId,
+      routeName: route?.name,
+      amount,
+      method: method as DailyPaymentReceived['method'],
+      paidUntil: paidUntil || today,
+      createdAt: now
+    };
+    
+    await setDoc(doc(db, 'daily_payments_received', paymentId), paymentData);
+    
+    // Também atualiza o lastPaymentDate do cliente
+    if (client) {
+      await updateDoc(doc(db, 'clients', clientId), {
+        lastPaymentDate: today,
+        currentBalance: 0
+      });
+    }
+  };
+
+  // Obter pagamentos do dia de um entregador
+  const getDailyPaymentsByDriver = (driverId: string, date: string): DailyPaymentReceived[] => {
+    return dailyPaymentsReceived.filter(p => p.driverId === driverId && p.date === date);
+  };
+
+  // Obter resumo de pagamentos de todos os clientes de um entregador
+  const getClientPaymentSummaries = (driverId: string): ClientPaymentSummary[] => {
+    const driverClients = clients.filter(c => c.driverId === driverId && c.status === 'ACTIVE');
+    const today = new Date().toISOString().split('T')[0];
+    
+    return driverClients.map(client => {
+      const route = client.routeId ? routes.find(r => r.id === client.routeId) : null;
+      const todayPayments = dailyPaymentsReceived.filter(p => p.clientId === client.id && p.date === today);
+      const todayPayment = todayPayments.reduce((sum, p) => sum + p.amount, 0);
+      
+      // Calcular débito
+      const { total: totalDebt } = calculateClientDebt(client);
+      
+      // Encontrar último pagamento
+      const clientPayments = dailyPaymentsReceived.filter(p => p.clientId === client.id).sort((a, b) => b.date.localeCompare(a.date));
+      const lastPayment = clientPayments[0];
+      
+      return {
+        clientId: client.id,
+        clientName: client.name,
+        routeId: client.routeId,
+        routeName: route?.name,
+        lastPaymentDate: lastPayment?.date || client.lastPaymentDate,
+        paidUntil: lastPayment?.paidUntil || client.lastPaymentDate,
+        paymentMethod: client.paymentMethod || 'Dinheiro',
+        todayPayment: todayPayment > 0 ? todayPayment : undefined,
+        totalDebt: Math.max(0, totalDebt - todayPayment)
+      };
+    });
+  };
+
+  // Calcular dados do fecho diário (sem countedAmount, que é preenchido pelo entregador)
+  const calculateDailyClosureData = (driverId: string, date: string) => {
+    const payments = getDailyPaymentsByDriver(driverId, date);
+    const cashFund = getDailyCashFund(driverId, date);
+    
+    // Totais por método
+    const totalReceivedCash = payments.filter(p => p.method === 'Dinheiro').reduce((sum, p) => sum + p.amount, 0);
+    const totalReceivedMbway = payments.filter(p => p.method === 'MBWay').reduce((sum, p) => sum + p.amount, 0);
+    const totalReceivedTransfer = payments.filter(p => p.method === 'Transferência').reduce((sum, p) => sum + p.amount, 0);
+    const totalReceivedOther = payments.filter(p => !['Dinheiro', 'MBWay', 'Transferência'].includes(p.method)).reduce((sum, p) => sum + p.amount, 0);
+    
+    // Valor esperado no caixa (fundo + dinheiro recebido)
+    const cashFundAmount = cashFund?.initialAmount || 0;
+    const expectedCashAmount = cashFundAmount + totalReceivedCash;
+    
+    // Totais por rota
+    const routeMap = new Map<string, { routeName: string; totalReceived: number; clientCount: number }>();
+    payments.forEach(p => {
+      const routeId = p.routeId || 'sem-rota';
+      const existing = routeMap.get(routeId) || { routeName: p.routeName || 'Sem Rota', totalReceived: 0, clientCount: 0 };
+      
+      // Contar clientes únicos
+      const clientsInRoute = new Set(payments.filter(pay => pay.routeId === routeId).map(pay => pay.clientId));
+      
+      routeMap.set(routeId, {
+        routeName: existing.routeName,
+        totalReceived: existing.totalReceived + p.amount,
+        clientCount: clientsInRoute.size
+      });
+    });
+    
+    const routeTotals = Array.from(routeMap.entries()).map(([routeId, data]) => ({
+      routeId,
+      ...data
+    }));
+    
+    return {
+      driverId,
+      date,
+      cashFundAmount,
+      totalReceivedCash,
+      totalReceivedMbway,
+      totalReceivedTransfer,
+      totalReceivedOther,
+      expectedCashAmount,
+      routeTotals
+    };
+  };
+
+  // Salvar Fecho Diário
+  const saveDailyDriverClosure = async (driverId: string, date: string, countedAmount: number, observations?: string): Promise<void> => {
+    const closureId = `closure-${driverId}-${date}`;
+    const now = new Date().toISOString();
+    
+    const calculatedData = calculateDailyClosureData(driverId, date);
+    const difference = countedAmount - calculatedData.expectedCashAmount;
+    
+    let status: DailyDriverClosure['status'] = 'balanced';
+    if (Math.abs(difference) < 0.01) {
+      status = 'balanced';
+    } else if (difference > 0) {
+      status = 'surplus';
+    } else {
+      status = 'shortage';
+    }
+    
+    const existingClosure = dailyDriverClosures.find(c => c.driverId === driverId && c.date === date);
+    
+    const closureData: DailyDriverClosure = {
+      id: closureId,
+      ...calculatedData,
+      countedAmount,
+      difference: parseFloat(difference.toFixed(2)),
+      status,
+      observations,
+      createdAt: existingClosure?.createdAt || now,
+      updatedAt: now
+    };
+    
+    await setDoc(doc(db, 'daily_driver_closures', closureId), closureData);
+  };
+
+  // Obter Fecho Diário
+  const getDailyDriverClosure = (driverId: string, date: string): DailyDriverClosure | undefined => {
+    return dailyDriverClosures.find(c => c.driverId === driverId && c.date === date);
+  };
+
+  // Calcular dados do Fecho Semanal
+  const calculateWeeklySettlement = (driverId: string, weekStartDate: string) => {
+    const driver = users.find(u => u.id === driverId);
+    
+    // Calcular data final da semana (domingo)
+    const startDate = new Date(weekStartDate);
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 6);
+    const weekEndDate = endDate.toISOString().split('T')[0];
+    
+    // Buscar todos os pagamentos da semana
+    const weekPayments = dailyPaymentsReceived.filter(p => {
+      return p.driverId === driverId && p.date >= weekStartDate && p.date <= weekEndDate;
+    });
+    
+    // Buscar todas as entregas da semana
+    const weekDeliveries = clientDeliveries.filter(d => {
+      return d.driverId === driverId && d.date >= weekStartDate && d.date <= weekEndDate && d.status === 'delivered';
+    });
+    
+    // Totais gerais
+    const totalDelivered = weekDeliveries.reduce((sum, d) => sum + d.totalValue, 0);
+    const totalReceived = weekPayments.reduce((sum, p) => sum + p.amount, 0);
+    
+    // Por método de pagamento
+    const cashTotal = weekPayments.filter(p => p.method === 'Dinheiro').reduce((sum, p) => sum + p.amount, 0);
+    const mbwayTotal = weekPayments.filter(p => p.method === 'MBWay').reduce((sum, p) => sum + p.amount, 0);
+    const transferTotal = weekPayments.filter(p => p.method === 'Transferência').reduce((sum, p) => sum + p.amount, 0);
+    const otherTotal = weekPayments.filter(p => !['Dinheiro', 'MBWay', 'Transferência'].includes(p.method)).reduce((sum, p) => sum + p.amount, 0);
+    
+    // Por rota
+    const routeMap = new Map<string, { routeName: string; totalDelivered: number; totalReceived: number; clientsPaid: Set<string> }>();
+    
+    weekDeliveries.forEach(d => {
+      const routeId = d.routeId || 'sem-rota';
+      const route = routes.find(r => r.id === routeId);
+      const existing = routeMap.get(routeId) || { routeName: route?.name || 'Sem Rota', totalDelivered: 0, totalReceived: 0, clientsPaid: new Set() };
+      routeMap.set(routeId, {
+        ...existing,
+        totalDelivered: existing.totalDelivered + d.totalValue
+      });
+    });
+    
+    weekPayments.forEach(p => {
+      const routeId = p.routeId || 'sem-rota';
+      const existing = routeMap.get(routeId) || { routeName: p.routeName || 'Sem Rota', totalDelivered: 0, totalReceived: 0, clientsPaid: new Set() };
+      existing.clientsPaid.add(p.clientId);
+      routeMap.set(routeId, {
+        ...existing,
+        totalReceived: existing.totalReceived + p.amount
+      });
+    });
+    
+    const routeTotals = Array.from(routeMap.entries()).map(([routeId, data]) => ({
+      routeId,
+      routeName: data.routeName,
+      totalDelivered: parseFloat(data.totalDelivered.toFixed(2)),
+      totalReceived: parseFloat(data.totalReceived.toFixed(2)),
+      clientsPaid: data.clientsPaid.size
+    }));
+    
+    // Lista de clientes que pagaram
+    const clientPaymentMap = new Map<string, { clientName: string; routeId?: string; routeName?: string; totalPaid: number; method: string; paymentDates: string[] }>();
+    weekPayments.forEach(p => {
+      const existing = clientPaymentMap.get(p.clientId) || { 
+        clientName: p.clientName, 
+        routeId: p.routeId, 
+        routeName: p.routeName, 
+        totalPaid: 0, 
+        method: p.method, 
+        paymentDates: [] 
+      };
+      clientPaymentMap.set(p.clientId, {
+        ...existing,
+        totalPaid: existing.totalPaid + p.amount,
+        paymentDates: [...existing.paymentDates, p.date]
+      });
+    });
+    
+    const clientPayments = Array.from(clientPaymentMap.entries()).map(([clientId, data]) => ({
+      clientId,
+      ...data
+    }));
+    
+    // O valor a entregar é o dinheiro recebido (MBWay e Transferência já vão para a conta)
+    const totalToSettle = cashTotal;
+    
+    return {
+      driverId,
+      driverName: driver?.name || 'Entregador',
+      weekStartDate,
+      weekEndDate,
+      totalDelivered: parseFloat(totalDelivered.toFixed(2)),
+      totalReceived: parseFloat(totalReceived.toFixed(2)),
+      totalToSettle: parseFloat(totalToSettle.toFixed(2)),
+      cashTotal: parseFloat(cashTotal.toFixed(2)),
+      mbwayTotal: parseFloat(mbwayTotal.toFixed(2)),
+      transferTotal: parseFloat(transferTotal.toFixed(2)),
+      otherTotal: parseFloat(otherTotal.toFixed(2)),
+      routeTotals,
+      clientPayments
+    };
+  };
+
+  // Obter Fecho Semanal existente
+  const getWeeklySettlement = (driverId: string, weekStartDate: string): WeeklyDriverSettlement | undefined => {
+    return weeklySettlements.find(s => s.driverId === driverId && s.weekStartDate === weekStartDate);
+  };
+
+  // Confirmar Fecho Semanal (Admin)
+  const confirmWeeklySettlement = async (settlementId: string, adminId: string, observations?: string): Promise<void> => {
+    const settlement = weeklySettlements.find(s => s.id === settlementId);
+    if (!settlement) {
+      // Criar novo settlement
+      const parts = settlementId.split('-');
+      const driverId = parts[1];
+      const weekStartDate = parts.slice(2).join('-');
+      
+      const calculatedData = calculateWeeklySettlement(driverId, weekStartDate);
+      const now = new Date().toISOString();
+      
+      const newSettlement: WeeklyDriverSettlement = {
+        id: settlementId,
+        ...calculatedData,
+        status: 'confirmed',
+        confirmedAt: now,
+        confirmedBy: adminId,
+        observations,
+        createdAt: now,
+        updatedAt: now
+      };
+      
+      await setDoc(doc(db, 'weekly_settlements', settlementId), newSettlement);
+    } else {
+      // Atualizar existente
+      const now = new Date().toISOString();
+      await updateDoc(doc(db, 'weekly_settlements', settlementId), {
+        status: 'confirmed',
+        confirmedAt: now,
+        confirmedBy: adminId,
+        observations,
+        updatedAt: now
+      });
+    }
+  };
+
+  // Obter todos os fechos pendentes
+  const getAllPendingSettlements = (): WeeklyDriverSettlement[] => {
+    return weeklySettlements.filter(s => s.status === 'pending');
+  };
+
   return (
     <DataContext.Provider value={{ 
       users, clients, products, productionData, routes, dailyLoads, clientDeliveries, dynamicConsumptionRecords,
+      dailyCashFunds, dailyDriverClosures, dailyPaymentsReceived, weeklySettlements,
       addUser, addClient, updateClient, updateProduct, addProduct, deleteProduct, addRoute, deleteRoute,
       getRoutesByDriver, getClientsByDriver, getAllClients, getDrivers,
       updateDailyProduction, getDailyRecord,
       calculateClientDebt, registerPayment, toggleSkippedDate, updateClientPrice,
       createDailyLoad, updateDailyLoad, completeDailyLoad, getDailyLoadByDriver, getDailyLoadsByDate, getDailyLoadReport, getProductionSuggestions,
       generateDailyDeliveries, updateDeliveryStatus, getDeliveriesByDriver, getDriverDailySummary, getAdminDeliveryReport, getScheduledClientsForDay,
-      recordDynamicDelivery, getDynamicClientHistory, getDynamicClientPrediction, getDynamicLoadSummary, getDynamicClientsForDriver
+      recordDynamicDelivery, getDynamicClientHistory, getDynamicClientPrediction, getDynamicLoadSummary, getDynamicClientsForDriver,
+      saveDailyCashFund, getDailyCashFund, registerDailyPayment, getDailyPaymentsByDriver, getClientPaymentSummaries,
+      saveDailyDriverClosure, getDailyDriverClosure, calculateDailyClosureData,
+      getWeeklySettlement, calculateWeeklySettlement, confirmWeeklySettlement, getAllPendingSettlements
     }}>
       {children}
     </DataContext.Provider>
