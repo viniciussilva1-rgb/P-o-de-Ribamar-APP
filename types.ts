@@ -54,6 +54,9 @@ export interface Client {
   };
   status: 'ACTIVE' | 'INACTIVE';
   
+  // Ordem de entrega (para ordenação na rota)
+  sortOrder?: number;
+  
   // Escolha Dinâmica de Produtos
   isDynamicChoice?: boolean; // Cliente com escolha dinâmica (sem lista fixa)
   

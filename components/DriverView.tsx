@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { Plus, User, MapPin, Phone, Search, Map, Save, X, Navigation, CreditCard, Loader2, Calendar, AlertCircle, Tag, FileText, RotateCcw, Calculator, CheckCircle, Sparkles, Copy, Check } from 'lucide-react';
+import { Plus, User, MapPin, Phone, Search, Map, Save, X, Navigation, CreditCard, Loader2, Calendar, AlertCircle, Tag, FileText, RotateCcw, Calculator, CheckCircle, Sparkles, Copy, Check, GripVertical, ArrowUpDown } from 'lucide-react';
 import { Client, Route, DeliverySchedule, Product } from '../types';
 
 // Componente auxiliar para isolar o estado de adição por linha
@@ -272,7 +272,8 @@ export const DriverView: React.FC = () => {
     products,
     calculateClientDebt,
     registerPayment,
-    toggleSkippedDate
+    toggleSkippedDate,
+    updateClientsOrder
   } = useData();
   
   // Modals
@@ -291,6 +292,11 @@ export const DriverView: React.FC = () => {
   
   // Route Form
   const [newRouteName, setNewRouteName] = useState('');
+
+  // Drag & Drop States
+  const [isReorderMode, setIsReorderMode] = useState(false);
+  const [draggedClientId, setDraggedClientId] = useState<string | null>(null);
+  const [savingOrder, setSavingOrder] = useState(false);
 
   // Client Form
   const initialClientState: Partial<Client> = {
@@ -321,12 +327,71 @@ export const DriverView: React.FC = () => {
   const myClients = getClientsByDriver(currentUser.id);
   const myRoutes = getRoutesByDriver(currentUser.id);
 
-  const filteredClients = myClients.filter(c => {
+  // Lista local para ordenação durante drag & drop
+  const [localClientOrder, setLocalClientOrder] = useState<Client[]>([]);
+
+  // Sincronizar lista local quando myClients mudar
+  React.useEffect(() => {
+    // Ordenar por sortOrder (se existir) ou manter ordem original
+    const sorted = [...myClients].sort((a, b) => {
+      const orderA = a.sortOrder ?? 9999;
+      const orderB = b.sortOrder ?? 9999;
+      return orderA - orderB;
+    });
+    setLocalClientOrder(sorted);
+  }, [myClients]);
+
+  // Clientes filtrados e ordenados
+  const filteredClients = localClientOrder.filter(c => {
     const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           c.address.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRoute = selectedRouteFilter === 'all' || c.routeId === selectedRouteFilter;
     return matchesSearch && matchesRoute;
   });
+
+  // Funções de Drag & Drop
+  const handleDragStart = (clientId: string) => {
+    setDraggedClientId(clientId);
+  };
+
+  const handleDragOver = (e: React.DragEvent, targetClientId: string) => {
+    e.preventDefault();
+    if (!draggedClientId || draggedClientId === targetClientId) return;
+    
+    const draggedIndex = localClientOrder.findIndex(c => c.id === draggedClientId);
+    const targetIndex = localClientOrder.findIndex(c => c.id === targetClientId);
+    
+    if (draggedIndex === -1 || targetIndex === -1) return;
+    
+    // Reordenar lista local
+    const newOrder = [...localClientOrder];
+    const [draggedItem] = newOrder.splice(draggedIndex, 1);
+    newOrder.splice(targetIndex, 0, draggedItem);
+    setLocalClientOrder(newOrder);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedClientId(null);
+  };
+
+  const handleSaveOrder = async () => {
+    setSavingOrder(true);
+    try {
+      // Criar lista de atualizações com a nova ordem
+      const updates = localClientOrder.map((client, index) => ({
+        id: client.id,
+        sortOrder: index
+      }));
+      await updateClientsOrder(updates);
+      alert('Ordem de entrega salva com sucesso!');
+      setIsReorderMode(false);
+    } catch (error) {
+      console.error('Erro ao salvar ordem:', error);
+      alert('Erro ao salvar ordem de entrega');
+    } finally {
+      setSavingOrder(false);
+    }
+  };
 
   const handleOpenClientModal = (client?: Client) => {
     setCalculatedTotal(null); // Reset calc
@@ -560,23 +625,74 @@ export const DriverView: React.FC = () => {
           <h2 className="text-2xl font-bold text-gray-800">Meus Clientes</h2>
           <p className="text-gray-500">Gerencie sua carteira e rotas de entrega</p>
         </div>
-        <div className="flex space-x-2">
-          <button 
-            onClick={() => setIsRouteModalOpen(true)}
-            className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-gray-50 transition-colors shadow-sm"
-          >
-            <Map size={20} />
-            <span className="hidden sm:inline">Gerenciar Rotas</span>
-          </button>
-          <button 
-            onClick={() => handleOpenClientModal()}
-            className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 shadow-lg transition-transform active:scale-95"
-          >
-            <Plus size={20} />
-            <span>Novo Cliente</span>
-          </button>
+        <div className="flex flex-wrap gap-2">
+          {isReorderMode ? (
+            <>
+              <button 
+                onClick={handleSaveOrder}
+                disabled={savingOrder}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 shadow-lg transition-transform active:scale-95 disabled:opacity-50"
+              >
+                {savingOrder ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
+                <span>Salvar Ordem</span>
+              </button>
+              <button 
+                onClick={() => {
+                  setIsReorderMode(false);
+                  // Restaurar ordem original
+                  const sorted = [...myClients].sort((a, b) => {
+                    const orderA = a.sortOrder ?? 9999;
+                    const orderB = b.sortOrder ?? 9999;
+                    return orderA - orderB;
+                  });
+                  setLocalClientOrder(sorted);
+                }}
+                className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 shadow-lg transition-transform active:scale-95"
+              >
+                <X size={20} />
+                <span>Cancelar</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button 
+                onClick={() => setIsReorderMode(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 shadow-lg transition-transform active:scale-95"
+              >
+                <ArrowUpDown size={20} />
+                <span className="hidden sm:inline">Ordenar Entrega</span>
+              </button>
+              <button 
+                onClick={() => setIsRouteModalOpen(true)}
+                className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-gray-50 transition-colors shadow-sm"
+              >
+                <Map size={20} />
+                <span className="hidden sm:inline">Gerenciar Rotas</span>
+              </button>
+              <button 
+                onClick={() => handleOpenClientModal()}
+                className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 shadow-lg transition-transform active:scale-95"
+              >
+                <Plus size={20} />
+                <span>Novo Cliente</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
+
+      {/* Modo de Ordenação - Instruções */}
+      {isReorderMode && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 text-blue-700">
+            <GripVertical size={20} />
+            <span className="font-medium">Modo de Ordenação Ativo</span>
+          </div>
+          <p className="text-blue-600 text-sm mt-1">
+            Arraste os clientes para reorganizar a ordem de entrega. A ordem será usada ao gerar as "Entregas do Dia".
+          </p>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
@@ -605,9 +721,9 @@ export const DriverView: React.FC = () => {
       </div>
 
       {/* Client List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className={`grid gap-4 ${isReorderMode ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
         {filteredClients.length > 0 ? (
-          filteredClients.map(client => {
+          filteredClients.map((client, index) => {
             const routeName = myRoutes.find(r => r.id === client.routeId)?.name || 'Sem Rota';
             
             // Auto Calculate Debt for display in card (Optional performance hit, but better UX)
@@ -616,20 +732,42 @@ export const DriverView: React.FC = () => {
 
             return (
               <div 
-                key={client.id} 
-                onClick={() => handleOpenClientModal(client)}
-                className={`bg-white p-5 rounded-xl shadow-sm border cursor-pointer hover:shadow-md transition-shadow relative overflow-hidden ${client.status === 'INACTIVE' ? 'opacity-70 border-gray-200' : client.isDynamicChoice ? 'border-purple-200 ring-2 ring-purple-100' : 'border-amber-50'}`}
+                key={client.id}
+                draggable={isReorderMode}
+                onDragStart={() => handleDragStart(client.id)}
+                onDragOver={(e) => handleDragOver(e, client.id)}
+                onDragEnd={handleDragEnd}
+                onClick={() => !isReorderMode && handleOpenClientModal(client)}
+                className={`bg-white p-5 rounded-xl shadow-sm border relative overflow-hidden transition-all ${
+                  isReorderMode 
+                    ? `cursor-grab active:cursor-grabbing ${draggedClientId === client.id ? 'opacity-50 scale-95' : 'hover:bg-gray-50'}`
+                    : 'cursor-pointer hover:shadow-md'
+                } ${client.status === 'INACTIVE' ? 'opacity-70 border-gray-200' : client.isDynamicChoice ? 'border-purple-200 ring-2 ring-purple-100' : 'border-amber-50'}`}
               >
-                {client.status === 'INACTIVE' && (
+                {/* Número da Ordem de Entrega */}
+                {isReorderMode && (
+                  <div className="absolute top-2 left-2 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                    {index + 1}
+                  </div>
+                )}
+                
+                {/* Ícone de arrastar */}
+                {isReorderMode && (
+                  <div className="absolute top-2 right-2 text-gray-400">
+                    <GripVertical size={20} />
+                  </div>
+                )}
+                
+                {client.status === 'INACTIVE' && !isReorderMode && (
                    <div className="absolute top-0 right-0 bg-red-100 text-red-600 text-xs px-2 py-1 rounded-bl-lg font-bold">INATIVO</div>
                 )}
-                {client.isDynamicChoice && client.status !== 'INACTIVE' && (
+                {client.isDynamicChoice && client.status !== 'INACTIVE' && !isReorderMode && (
                    <div className="absolute top-0 right-0 bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded-bl-lg font-bold flex items-center gap-1">
                      <Sparkles size={12} />
                      DINÂMICO
                    </div>
                 )}
-                <div className="flex items-start justify-between">
+                <div className={`flex items-start justify-between ${isReorderMode ? 'ml-8' : ''}`}>
                   <div className="flex items-center space-x-3 mb-3">
                     <div className={`p-2 rounded-full ${client.status === 'INACTIVE' ? 'bg-gray-200' : client.isDynamicChoice ? 'bg-purple-100' : 'bg-amber-100'}`}>
                       <User className={client.status === 'INACTIVE' ? 'text-gray-500' : client.isDynamicChoice ? 'text-purple-600' : 'text-amber-600'} size={20} />
@@ -642,24 +780,28 @@ export const DriverView: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <div className="space-y-2 text-sm text-gray-600">
+                <div className={`space-y-2 text-sm text-gray-600 ${isReorderMode ? 'ml-8' : ''}`}>
                   <div className="flex items-start space-x-2">
                     <MapPin size={16} className="mt-0.5 text-amber-500 shrink-0" />
                     <span className="line-clamp-2">{client.address}</span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Phone size={16} className="text-amber-500 shrink-0" />
-                    <span>{client.phone}</span>
-                  </div>
-                   <div className="flex items-center space-x-2 pt-1">
-                    <CreditCard size={16} className="text-gray-400 shrink-0" />
-                    <span className="text-xs font-medium bg-gray-100 px-2 py-0.5 rounded text-gray-600">{client.paymentFrequency || 'Mensal'}</span>
-                    {displayBalance > 0 && (
-                      <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded">
-                        Deve: € {displayBalance.toFixed(2)}
-                      </span>
-                    )}
-                  </div>
+                  {!isReorderMode && (
+                    <div className="flex items-center space-x-2">
+                      <Phone size={16} className="text-amber-500 shrink-0" />
+                      <span>{client.phone}</span>
+                    </div>
+                  )}
+                  {!isReorderMode && (
+                    <div className="flex items-center space-x-2 pt-1">
+                      <CreditCard size={16} className="text-gray-400 shrink-0" />
+                      <span className="text-xs font-medium bg-gray-100 px-2 py-0.5 rounded text-gray-600">{client.paymentFrequency || 'Mensal'}</span>
+                      {displayBalance > 0 && (
+                        <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded">
+                          Deve: € {displayBalance.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             );

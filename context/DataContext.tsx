@@ -14,6 +14,7 @@ interface DataContextType {
   addUser: (user: User) => void;
   addClient: (client: Client) => void;
   updateClient: (id: string, updates: Partial<Client>) => void;
+  updateClientsOrder: (clientsOrder: { id: string; sortOrder: number }[]) => Promise<void>;
   updateProduct: (id: string, updates: Partial<Product>) => void;
   addProduct: (product: Product) => void;
   deleteProduct: (id: string) => void;
@@ -325,6 +326,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         });
       }
     }
+  };
+
+  // Atualizar ordem de múltiplos clientes de uma vez
+  const updateClientsOrder = async (clientsOrder: { id: string; sortOrder: number }[]): Promise<void> => {
+    const promises = clientsOrder.map(({ id, sortOrder }) => 
+      updateDoc(doc(db, 'clients', id), { sortOrder })
+    );
+    await Promise.all(promises);
   };
 
   // Helper para obter a chave do dia
@@ -794,11 +803,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return mapKeys[dayIndex];
   };
 
-  // Obter clientes com entrega programada para um dia específico
+  // Obter clientes com entrega programada para um dia específico (ordenados por sortOrder)
   const getScheduledClientsForDay = (driverId: string, date: string): Client[] => {
     const dayKey = getDayKey(date);
     
-    return clients.filter(client => {
+    const filteredClients = clients.filter(client => {
       // Deve pertencer ao entregador
       if (client.driverId !== driverId) return false;
       
@@ -814,6 +823,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Para clientes normais, verificar se tem entrega programada para este dia
       const scheduledItems = client.deliverySchedule?.[dayKey];
       return scheduledItems && scheduledItems.length > 0;
+    });
+    
+    // Ordenar por sortOrder (clientes sem sortOrder vão para o final)
+    return filteredClients.sort((a, b) => {
+      const orderA = a.sortOrder ?? 9999;
+      const orderB = b.sortOrder ?? 9999;
+      return orderA - orderB;
     });
   };
 
@@ -1648,7 +1664,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     <DataContext.Provider value={{ 
       users, clients, products, productionData, routes, dailyLoads, clientDeliveries, dynamicConsumptionRecords,
       dailyCashFunds, dailyDriverClosures, dailyPaymentsReceived, weeklySettlements,
-      addUser, addClient, updateClient, updateProduct, addProduct, deleteProduct, addRoute, deleteRoute,
+      addUser, addClient, updateClient, updateClientsOrder, updateProduct, addProduct, deleteProduct, addRoute, deleteRoute,
       getRoutesByDriver, getClientsByDriver, getAllClients, getDrivers,
       updateDailyProduction, getDailyRecord,
       calculateClientDebt, registerPayment, toggleSkippedDate, updateClientPrice, updatePricesForRoute,

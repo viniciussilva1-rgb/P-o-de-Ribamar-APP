@@ -277,14 +277,37 @@ const DriverDailyDeliveries: React.FC = () => {
   });
 
   // Agrupar por rota (só se não tiver rota selecionada)
-  const deliveriesByRoute = selectedRoute === 'all' 
-    ? filteredDeliveries.reduce((acc, delivery) => {
-        const routeId = delivery.routeId || 'sem-rota';
-        if (!acc[routeId]) acc[routeId] = [];
-        acc[routeId].push(delivery);
+  // Ordenar: pendentes primeiro (por sortOrder), depois entregues/não entregues
+  const sortDeliveries = (deliveryList: ClientDelivery[]): ClientDelivery[] => {
+    return [...deliveryList].sort((a, b) => {
+      // Primeiro: pendentes no topo
+      const isPendingA = a.status === 'pending' ? 0 : 1;
+      const isPendingB = b.status === 'pending' ? 0 : 1;
+      if (isPendingA !== isPendingB) return isPendingA - isPendingB;
+      
+      // Depois: ordenar por sortOrder do cliente
+      const clientA = clients.find(c => c.id === a.clientId);
+      const clientB = clients.find(c => c.id === b.clientId);
+      const orderA = clientA?.sortOrder ?? 9999;
+      const orderB = clientB?.sortOrder ?? 9999;
+      return orderA - orderB;
+    });
+  };
+
+  const groupedDeliveries: Record<string, ClientDelivery[]> = filteredDeliveries.reduce((acc, delivery) => {
+    const routeId = delivery.routeId || 'sem-rota';
+    if (!acc[routeId]) acc[routeId] = [];
+    acc[routeId].push(delivery);
+    return acc;
+  }, {} as Record<string, ClientDelivery[]>);
+
+  // Ordenar cada grupo de entregas
+  const deliveriesByRoute: Record<string, ClientDelivery[]> = selectedRoute === 'all'
+    ? Object.keys(groupedDeliveries).reduce((acc, routeId) => {
+        acc[routeId] = sortDeliveries(groupedDeliveries[routeId]);
         return acc;
       }, {} as Record<string, ClientDelivery[]>)
-    : { [selectedRoute]: filteredDeliveries };
+    : { [selectedRoute]: sortDeliveries(filteredDeliveries) };
 
   // Resumo do dia
   const summary = currentUser?.id ? getDriverDailySummary(currentUser.id, selectedDate) : null;
