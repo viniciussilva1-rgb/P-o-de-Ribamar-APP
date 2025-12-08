@@ -7,6 +7,7 @@ import { Layout } from './components/Layout';
 import { DriversOverview, ProductCatalog, ProductionManager, ClientManager, RoutePriceEditor } from './components/AdminView';
 import { DriverView } from './components/DriverView';
 import DriverDailyLoad from './components/DriverDailyLoad';
+import DriverDashboard from './components/DriverDashboard';
 import AdminDailyLoadReport from './components/AdminDailyLoadReport';
 import DriverDailyDeliveries from './components/DriverDailyDeliveries';
 import AdminDeliveryDashboard from './components/AdminDeliveryDashboard';
@@ -69,6 +70,8 @@ const AppContent: React.FC = () => {
         return <DriverDailyDeliveries />;
       case 'cashbox':
         return <DriverCashBox />;
+      case 'dashboard':
+        return <DriverDashboard />;
       case 'daily-load':
       default:
         return <DriverDailyLoad />;

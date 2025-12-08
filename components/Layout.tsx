@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, Truck, Wheat, Users, Package, ClipboardList, PackageCheck, BarChart3, Send, Wallet, Calculator, Tag } from 'lucide-react';
+import { LogOut, Truck, Wheat, Users, Package, ClipboardList, PackageCheck, BarChart3, Send, Wallet, Calculator, Tag, LayoutDashboard } from 'lucide-react';
 import { APP_NAME } from '../constants';
 
 interface LayoutProps {
@@ -104,6 +104,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
                <div className="px-3 pb-2 pt-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
                 Minha Área
               </div>
+              <NavItem 
+                icon={<LayoutDashboard />} 
+                label="Dashboard" 
+                active={activeTab === 'dashboard'} 
+                onClick={() => setActiveTab('dashboard')} 
+              />
               <NavItem 
                 icon={<PackageCheck />} 
                 label="Carga do Dia" 
@@ -211,6 +217,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
             </>
           ) : (
             <>
+              <MobileNavItem 
+                icon={<LayoutDashboard size={20} />} 
+                label="Dashboard" 
+                active={activeTab === 'dashboard'} 
+                onClick={() => setActiveTab('dashboard')} 
+              />
               <MobileNavItem 
                 icon={<PackageCheck size={20} />} 
                 label="Carga" 
