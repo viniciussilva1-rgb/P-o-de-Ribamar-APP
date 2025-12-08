@@ -342,12 +342,15 @@ export const DriverView: React.FC = () => {
   }, [myClients]);
 
   // Clientes filtrados e ordenados
-  const filteredClients = localClientOrder.filter(c => {
-    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          c.address.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRoute = selectedRouteFilter === 'all' || c.routeId === selectedRouteFilter;
-    return matchesSearch && matchesRoute;
-  });
+  // No modo de reordenação, mostrar todos os clientes sem filtro
+  const filteredClients = isReorderMode 
+    ? localClientOrder 
+    : localClientOrder.filter(c => {
+        const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                              c.address.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesRoute = selectedRouteFilter === 'all' || c.routeId === selectedRouteFilter;
+        return matchesSearch && matchesRoute;
+      });
 
   // Funções de Drag & Drop
   const handleDragStart = (e: React.DragEvent, clientId: string) => {
@@ -798,7 +801,7 @@ export const DriverView: React.FC = () => {
                     
                     {/* Número da posição */}
                     <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-lg">
-                      {index + 1}
+                      {clientIndex + 1}
                     </div>
                     
                     {/* Info do cliente */}
