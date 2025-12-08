@@ -571,12 +571,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       date,
       status: 'in_route',
       loadItems,
-      loadObservations: observations,
       loadStartTime: now,
       totalLoaded,
       createdAt: now,
       updatedAt: now
     };
+
+    // Apenas incluir loadObservations se não estiver vazio
+    if (observations && observations.trim()) {
+      newLoad.loadObservations = observations.trim();
+    }
     
     await setDoc(doc(db, 'daily_loads', loadId), newLoad);
     return newLoad;
@@ -602,16 +606,23 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       ? Math.round((totalSold / load.totalLoaded) * 100) 
       : 0;
 
-    await updateDoc(doc(db, 'daily_loads', loadId), {
+    // Preparar dados para atualização (sem campos undefined)
+    const updateData: Record<string, unknown> = {
       status: 'completed',
       returnItems,
-      returnObservations: observations,
       returnTime: now,
       totalSold,
       totalReturned,
       utilizationRate,
       updatedAt: now
-    });
+    };
+
+    // Apenas incluir returnObservations se não estiver vazio
+    if (observations && observations.trim()) {
+      updateData.returnObservations = observations.trim();
+    }
+
+    await updateDoc(doc(db, 'daily_loads', loadId), updateData);
 
     // Atualizar produção diária com os dados de venda e sobra
     for (const item of returnItems) {

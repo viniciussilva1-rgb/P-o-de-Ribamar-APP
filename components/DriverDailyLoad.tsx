@@ -603,10 +603,16 @@ const DriverDailyLoad: React.FC = () => {
                       <Minus size={16} />
                     </button>
                     <input
-                      type="number"
-                      min="0"
-                      value={quantity}
-                      onChange={(e) => setLoadQuantity(product.id, parseInt(e.target.value) || 0)}
+                      type="text"
+                      inputMode="numeric"
+                      value={quantity === 0 ? '' : quantity.toString()}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '' || /^\d+$/.test(val)) {
+                          setLoadQuantity(product.id, val === '' ? 0 : parseInt(val));
+                        }
+                      }}
+                      placeholder="0"
                       className="w-20 text-center px-2 py-2 border border-gray-200 rounded-lg font-semibold"
                     />
                     <button
