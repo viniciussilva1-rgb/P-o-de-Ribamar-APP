@@ -157,7 +157,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
         </header>
         
         {/* Mobile Tab Bar */}
-        <div className="md:hidden bg-amber-800 text-amber-100 flex justify-around p-2 shadow-inner z-20 overflow-x-auto">
+        <div className="md:hidden bg-amber-800 text-amber-100 flex justify-around p-1 shadow-inner z-20 overflow-x-auto flex-shrink-0">
             {isAdmin ? (
             <>
               <MobileNavItem 
@@ -267,9 +267,9 @@ const NavItem = ({ icon, label, active, onClick }: any) => (
 const MobileNavItem = ({ icon, label, active, onClick }: any) => (
     <button 
         onClick={onClick}
-        className={`flex flex-col items-center px-4 py-1 rounded transition-colors min-w-[60px] ${active ? 'bg-amber-700 text-white' : 'opacity-70'}`}
+        className={`flex flex-col items-center px-2 py-1.5 rounded transition-colors min-w-[50px] flex-shrink-0 ${active ? 'bg-amber-700 text-white' : 'opacity-70'}`}
     >
         {icon}
-        <span className="text-[10px] mt-1">{label}</span>
+        <span className="text-[9px] mt-0.5 whitespace-nowrap">{label}</span>
     </button>
 );

@@ -2,13 +2,55 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#78350f" />
     <title>Pão de Ribamar</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-      body {
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+      
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        min-height: 100vh;
+        overflow-x: hidden;
         font-family: 'Inter', sans-serif;
+      }
+      
+      #root {
+        width: 100%;
+        min-height: 100vh;
+      }
+      
+      /* Melhorar inputs em mobile */
+      input, select, textarea {
+        font-size: 16px !important; /* Previne zoom automático no iOS */
+      }
+      
+      /* Scroll suave */
+      * {
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+      }
+      
+      /* Melhorar tabelas em mobile */
+      table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      
+      /* Prevenir que elementos ultrapassem a tela */
+      img, video, iframe {
+        max-width: 100%;
+        height: auto;
       }
     </style>
   </head>
