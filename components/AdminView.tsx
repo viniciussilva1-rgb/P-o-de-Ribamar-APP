@@ -855,22 +855,28 @@ export const ProductionManager: React.FC = () => {
   const [empeloMode, setEmpeloMode] = useState<Record<string, boolean>>({});
 
   // Calcular totais de carga dos entregadores por produto
-  const loadsForDate = getDailyLoadsByDate(currentDate);
+  const loadsForDate = getDailyLoadsByDate(currentDate) || [];
   const deliveredByProduct = new Map<string, number>();
   const soldByProduct = new Map<string, number>();
   const returnedByProduct = new Map<string, number>();
   
   loadsForDate.forEach(load => {
-    // Somar cargas (levado)
-    load.loadItems.forEach(item => {
-      const current = deliveredByProduct.get(item.productId) || 0;
-      deliveredByProduct.set(item.productId, current + item.quantity);
-    });
-    // Somar retornos/sobras
-    if (load.returnItems) {
+    // Somar cargas (levado) - verificar se loadItems existe
+    if (load.loadItems && Array.isArray(load.loadItems)) {
+      load.loadItems.forEach(item => {
+        if (item && item.productId) {
+          const current = deliveredByProduct.get(item.productId) || 0;
+          deliveredByProduct.set(item.productId, current + (item.quantity || 0));
+        }
+      });
+    }
+    // Somar retornos/sobras - verificar se returnItems existe
+    if (load.returnItems && Array.isArray(load.returnItems)) {
       load.returnItems.forEach(item => {
-        const currentReturned = returnedByProduct.get(item.productId) || 0;
-        returnedByProduct.set(item.productId, currentReturned + item.quantity);
+        if (item && item.productId) {
+          const currentReturned = returnedByProduct.get(item.productId) || 0;
+          returnedByProduct.set(item.productId, currentReturned + (item.quantity || 0));
+        }
       });
     }
   });
