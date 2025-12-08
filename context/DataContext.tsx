@@ -1308,15 +1308,19 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     const existingFund = dailyCashFunds.find(f => f.driverId === driverId && f.date === date);
     
-    const fundData: DailyCashFund = {
+    const fundData: Record<string, unknown> = {
       id: fundId,
       driverId,
       date,
       initialAmount,
-      observations,
       createdAt: existingFund?.createdAt || now,
       updatedAt: now
     };
+    
+    // Só incluir observations se tiver valor
+    if (observations && observations.trim()) {
+      fundData.observations = observations;
+    }
     
     await setDoc(doc(db, 'daily_cash_funds', fundId), fundData);
   };
@@ -1466,16 +1470,20 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     const existingClosure = dailyDriverClosures.find(c => c.driverId === driverId && c.date === date);
     
-    const closureData: DailyDriverClosure = {
+    const closureData: Record<string, unknown> = {
       id: closureId,
       ...calculatedData,
       countedAmount,
       difference: parseFloat(difference.toFixed(2)),
       status,
-      observations,
       createdAt: existingClosure?.createdAt || now,
       updatedAt: now
     };
+    
+    // Só incluir observations se tiver valor
+    if (observations && observations.trim()) {
+      closureData.observations = observations;
+    }
     
     await setDoc(doc(db, 'daily_driver_closures', closureId), closureData);
   };
