@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { Plus, User, MapPin, Phone, Search, Map, Save, X, Navigation, CreditCard, Loader2, Calendar, AlertCircle, Tag, FileText, RotateCcw, Calculator, CheckCircle, Sparkles, Copy, Check, GripVertical, ArrowUpDown } from 'lucide-react';
+import { Plus, User, MapPin, Phone, Search, Map, Save, X, Navigation, CreditCard, Loader2, Calendar, AlertCircle, Tag, FileText, RotateCcw, Calculator, CheckCircle, Sparkles, Copy, Check, GripVertical, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
 import { Client, Route, DeliverySchedule, Product } from '../types';
 
 // Componente auxiliar para isolar o estado de adição por linha
@@ -350,12 +350,15 @@ export const DriverView: React.FC = () => {
   });
 
   // Funções de Drag & Drop
-  const handleDragStart = (clientId: string) => {
+  const handleDragStart = (e: React.DragEvent, clientId: string) => {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', clientId);
     setDraggedClientId(clientId);
   };
 
   const handleDragOver = (e: React.DragEvent, targetClientId: string) => {
     e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
     if (!draggedClientId || draggedClientId === targetClientId) return;
     
     const draggedIndex = localClientOrder.findIndex(c => c.id === draggedClientId);
@@ -370,8 +373,32 @@ export const DriverView: React.FC = () => {
     setLocalClientOrder(newOrder);
   };
 
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDraggedClientId(null);
+  };
+
   const handleDragEnd = () => {
     setDraggedClientId(null);
+  };
+
+  // Funções de mover com botões (alternativa ao drag & drop)
+  const handleMoveUp = (clientId: string) => {
+    const index = localClientOrder.findIndex(c => c.id === clientId);
+    if (index <= 0) return;
+    
+    const newOrder = [...localClientOrder];
+    [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+    setLocalClientOrder(newOrder);
+  };
+
+  const handleMoveDown = (clientId: string) => {
+    const index = localClientOrder.findIndex(c => c.id === clientId);
+    if (index === -1 || index >= localClientOrder.length - 1) return;
+    
+    const newOrder = [...localClientOrder];
+    [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+    setLocalClientOrder(newOrder);
   };
 
   const handleSaveOrder = async () => {
@@ -729,80 +756,114 @@ export const DriverView: React.FC = () => {
             // Auto Calculate Debt for display in card (Optional performance hit, but better UX)
             // Ideally we store this, but for now lets calc on fly or use stored
             const displayBalance = client.currentBalance;
+            const clientIndex = localClientOrder.findIndex(c => c.id === client.id);
 
             return (
               <div 
                 key={client.id}
                 draggable={isReorderMode}
-                onDragStart={() => handleDragStart(client.id)}
+                onDragStart={(e) => handleDragStart(e, client.id)}
                 onDragOver={(e) => handleDragOver(e, client.id)}
+                onDrop={handleDrop}
                 onDragEnd={handleDragEnd}
                 onClick={() => !isReorderMode && handleOpenClientModal(client)}
-                className={`bg-white p-5 rounded-xl shadow-sm border relative overflow-hidden transition-all ${
+                className={`bg-white p-4 rounded-xl shadow-sm border relative overflow-hidden transition-all ${
                   isReorderMode 
-                    ? `cursor-grab active:cursor-grabbing ${draggedClientId === client.id ? 'opacity-50 scale-95' : 'hover:bg-gray-50'}`
+                    ? `${draggedClientId === client.id ? 'opacity-50 scale-95 ring-2 ring-blue-400' : 'hover:bg-blue-50'}`
                     : 'cursor-pointer hover:shadow-md'
                 } ${client.status === 'INACTIVE' ? 'opacity-70 border-gray-200' : client.isDynamicChoice ? 'border-purple-200 ring-2 ring-purple-100' : 'border-amber-50'}`}
               >
-                {/* Número da Ordem de Entrega */}
-                {isReorderMode && (
-                  <div className="absolute top-2 left-2 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
-                    {index + 1}
-                  </div>
-                )}
-                
-                {/* Ícone de arrastar */}
-                {isReorderMode && (
-                  <div className="absolute top-2 right-2 text-gray-400">
-                    <GripVertical size={20} />
-                  </div>
-                )}
-                
-                {client.status === 'INACTIVE' && !isReorderMode && (
-                   <div className="absolute top-0 right-0 bg-red-100 text-red-600 text-xs px-2 py-1 rounded-bl-lg font-bold">INATIVO</div>
-                )}
-                {client.isDynamicChoice && client.status !== 'INACTIVE' && !isReorderMode && (
-                   <div className="absolute top-0 right-0 bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded-bl-lg font-bold flex items-center gap-1">
-                     <Sparkles size={12} />
-                     DINÂMICO
-                   </div>
-                )}
-                <div className={`flex items-start justify-between ${isReorderMode ? 'ml-8' : ''}`}>
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className={`p-2 rounded-full ${client.status === 'INACTIVE' ? 'bg-gray-200' : client.isDynamicChoice ? 'bg-purple-100' : 'bg-amber-100'}`}>
-                      <User className={client.status === 'INACTIVE' ? 'text-gray-500' : client.isDynamicChoice ? 'text-purple-600' : 'text-amber-600'} size={20} />
+                {/* Modo de Reordenação */}
+                {isReorderMode ? (
+                  <div className="flex items-center gap-3">
+                    {/* Botões de mover */}
+                    <div className="flex flex-col gap-1">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleMoveUp(client.id); }}
+                        disabled={clientIndex === 0}
+                        className="p-1.5 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        title="Mover para cima"
+                      >
+                        <ChevronUp size={18} />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleMoveDown(client.id); }}
+                        disabled={clientIndex === localClientOrder.length - 1}
+                        className="p-1.5 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        title="Mover para baixo"
+                      >
+                        <ChevronDown size={18} />
+                      </button>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-lg text-gray-800 leading-tight">{client.name}</h3>
+                    
+                    {/* Número da posição */}
+                    <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-lg">
+                      {index + 1}
+                    </div>
+                    
+                    {/* Info do cliente */}
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-800">{client.name}</h3>
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <MapPin size={14} className="text-amber-500" />
+                        <span className="line-clamp-1">{client.address}</span>
+                      </div>
                       <span className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
                         {routeName}
                       </span>
                     </div>
-                  </div>
-                </div>
-                <div className={`space-y-2 text-sm text-gray-600 ${isReorderMode ? 'ml-8' : ''}`}>
-                  <div className="flex items-start space-x-2">
-                    <MapPin size={16} className="mt-0.5 text-amber-500 shrink-0" />
-                    <span className="line-clamp-2">{client.address}</span>
-                  </div>
-                  {!isReorderMode && (
-                    <div className="flex items-center space-x-2">
-                      <Phone size={16} className="text-amber-500 shrink-0" />
-                      <span>{client.phone}</span>
+                    
+                    {/* Ícone de arrastar */}
+                    <div className="text-gray-400 cursor-grab active:cursor-grabbing p-2">
+                      <GripVertical size={24} />
                     </div>
-                  )}
-                  {!isReorderMode && (
-                    <div className="flex items-center space-x-2 pt-1">
-                      <CreditCard size={16} className="text-gray-400 shrink-0" />
-                      <span className="text-xs font-medium bg-gray-100 px-2 py-0.5 rounded text-gray-600">{client.paymentFrequency || 'Mensal'}</span>
-                      {displayBalance > 0 && (
-                        <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded">
-                          Deve: € {displayBalance.toFixed(2)}
-                        </span>
-                      )}
+                  </div>
+                ) : (
+                  /* Modo Normal */
+                  <>
+                    {client.status === 'INACTIVE' && (
+                       <div className="absolute top-0 right-0 bg-red-100 text-red-600 text-xs px-2 py-1 rounded-bl-lg font-bold">INATIVO</div>
+                    )}
+                    {client.isDynamicChoice && client.status !== 'INACTIVE' && (
+                       <div className="absolute top-0 right-0 bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded-bl-lg font-bold flex items-center gap-1">
+                         <Sparkles size={12} />
+                         DINÂMICO
+                       </div>
+                    )}
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center space-x-3 mb-3">
+                        <div className={`p-2 rounded-full ${client.status === 'INACTIVE' ? 'bg-gray-200' : client.isDynamicChoice ? 'bg-purple-100' : 'bg-amber-100'}`}>
+                          <User className={client.status === 'INACTIVE' ? 'text-gray-500' : client.isDynamicChoice ? 'text-purple-600' : 'text-amber-600'} size={20} />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-lg text-gray-800 leading-tight">{client.name}</h3>
+                          <span className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
+                            {routeName}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </div>
+                    <div className="space-y-2 text-sm text-gray-600">
+                      <div className="flex items-start space-x-2">
+                        <MapPin size={16} className="mt-0.5 text-amber-500 shrink-0" />
+                        <span className="line-clamp-2">{client.address}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Phone size={16} className="text-amber-500 shrink-0" />
+                        <span>{client.phone}</span>
+                      </div>
+                      <div className="flex items-center space-x-2 pt-1">
+                        <CreditCard size={16} className="text-gray-400 shrink-0" />
+                        <span className="text-xs font-medium bg-gray-100 px-2 py-0.5 rounded text-gray-600">{client.paymentFrequency || 'Mensal'}</span>
+                        {displayBalance > 0 && (
+                          <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded">
+                            Deve: € {displayBalance.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             );
           })
