@@ -87,12 +87,18 @@ const DriverDailyLoad: React.FC = () => {
     }));
   };
 
-  const updateReturnQuantity = (productId: string, returned: number) => {
+  const updateReturnQuantity = (productId: string, value: string) => {
     if (!currentLoad) return;
     
     const loadItem = currentLoad.loadItems.find(i => i.productId === productId);
     const maxReturn = loadItem?.quantity || 0;
-    const actualReturned = Math.min(Math.max(0, returned), maxReturn);
+    
+    // Se valor vazio, definir como 0
+    const numValue = value === '' ? 0 : parseInt(value);
+    if (isNaN(numValue)) return;
+    
+    // Limitar entre 0 e o máximo carregado
+    const actualReturned = Math.min(Math.max(0, numValue), maxReturn);
     
     setReturnItems(prev => prev.map(item => {
       if (item.productId === productId) {
@@ -733,6 +739,14 @@ const DriverDailyLoad: React.FC = () => {
             </h3>
           </div>
           
+          {/* Cabeçalho da tabela */}
+          <div className="grid grid-cols-4 gap-2 px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-500 uppercase">
+            <span>Produto</span>
+            <span className="text-center">Levou</span>
+            <span className="text-center">Devolveu</span>
+            <span className="text-center">Vendeu</span>
+          </div>
+          
           <div className="divide-y divide-gray-100">
             {currentLoad.loadItems.map(loadItem => {
               const returnItem = returnItems.find(r => r.productId === loadItem.productId);
@@ -740,28 +754,28 @@ const DriverDailyLoad: React.FC = () => {
               const sold = loadItem.quantity - returned;
               
               return (
-                <div key={loadItem.productId} className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-gray-800">{getProductName(loadItem.productId)}</span>
-                    <span className="text-sm text-gray-500">Levou: {loadItem.quantity}</span>
+                <div key={loadItem.productId} className="grid grid-cols-4 gap-2 px-4 py-3 items-center hover:bg-gray-50">
+                  <span className="font-medium text-gray-800 text-sm truncate">{getProductName(loadItem.productId)}</span>
+                  <span className="text-center text-gray-600 font-semibold">{loadItem.quantity}</span>
+                  <div className="flex justify-center">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={returned === 0 ? '' : returned.toString()}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '' || /^\d+$/.test(val)) {
+                          updateReturnQuantity(loadItem.productId, val);
+                        }
+                      }}
+                      placeholder="0"
+                      className="w-16 px-2 py-1.5 border border-gray-200 rounded-lg text-center font-semibold text-sm"
+                    />
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1">
-                      <label className="text-xs text-gray-500 block mb-1">Devolveu:</label>
-                      <input
-                        type="number"
-                        min="0"
-                        max={loadItem.quantity}
-                        value={returned}
-                        onChange={(e) => updateReturnQuantity(loadItem.productId, parseInt(e.target.value) || 0)}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-center font-semibold"
-                      />
-                    </div>
-                    <ArrowRight className="text-gray-400" size={20} />
-                    <div className="flex-1 bg-green-50 rounded-lg p-2 text-center">
-                      <label className="text-xs text-green-600 block">Vendeu:</label>
-                      <span className="text-lg font-bold text-green-700">{sold}</span>
-                    </div>
+                  <div className="text-center">
+                    <span className="inline-block px-3 py-1 bg-green-100 text-green-700 font-bold rounded-lg text-sm">
+                      {sold}
+                    </span>
                   </div>
                 </div>
               );
