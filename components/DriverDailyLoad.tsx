@@ -15,6 +15,7 @@ const DriverDailyLoad: React.FC = () => {
     products, 
     createDailyLoad, 
     completeDailyLoad, 
+    updateDailyLoad,
     getDailyLoadByDriver,
     dailyLoads,
     getDynamicLoadSummary,
@@ -26,6 +27,7 @@ const DriverDailyLoad: React.FC = () => {
   const today = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState(today);
   const [currentLoad, setCurrentLoad] = useState<DailyLoad | undefined>(undefined);
+  const [isEditingCompleted, setIsEditingCompleted] = useState(false);
   
   // Estado para criar nova carga
   const [loadItems, setLoadItems] = useState<LoadItem[]>([]);
@@ -146,9 +148,42 @@ const DriverDailyLoad: React.FC = () => {
     try {
       await completeDailyLoad(currentLoad.id, returnItems, returnObservations || undefined);
       setSuccess('Rota finalizada com sucesso! Sobras registradas.');
+      setIsEditingCompleted(false);
     } catch (err) {
       console.error('Erro ao finalizar rota:', err);
       setError('Erro ao registrar sobras. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReopenRoute = async () => {
+    if (!currentLoad) return;
+
+    setLoading(true);
+    setError('');
+
+    try {
+      // Reabrir a rota mudando status para in_route
+      await updateDailyLoad(currentLoad.id, { status: 'in_route' });
+      
+      // Preparar os itens de retorno com os valores já salvos
+      if (currentLoad.returnItems) {
+        setReturnItems(currentLoad.returnItems);
+      } else {
+        const initialReturns: ReturnItem[] = currentLoad.loadItems.map(item => ({
+          productId: item.productId,
+          returned: 0,
+          sold: item.quantity
+        }));
+        setReturnItems(initialReturns);
+      }
+      setReturnObservations(currentLoad.returnObservations || '');
+      setIsEditingCompleted(true);
+      setSuccess('Rota reaberta para edição das sobras.');
+    } catch (err) {
+      console.error('Erro ao reabrir rota:', err);
+      setError('Erro ao reabrir rota. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -924,6 +959,22 @@ const DriverDailyLoad: React.FC = () => {
             </p>
           )}
         </div>
+      )}
+
+      {/* Botão de Editar Sobras */}
+      {selectedDate === today && (
+        <button
+          onClick={handleReopenRoute}
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-amber-500 text-white rounded-xl hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+        >
+          {loading ? (
+            <Loader2 size={20} className="animate-spin" />
+          ) : (
+            <RotateCcw size={20} />
+          )}
+          Editar Sobras/Devoluções
+        </button>
       )}
     </div>
   );
