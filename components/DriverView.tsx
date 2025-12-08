@@ -341,16 +341,58 @@ export const DriverView: React.FC = () => {
     setLocalClientOrder(sorted);
   }, [myClients]);
 
-  // Clientes filtrados e ordenados
-  // No modo de reordenação, mostrar todos os clientes sem filtro
+  // Clientes filtrados (por rota) - usado tanto no modo normal quanto no modo de ordenação
+  const clientsFilteredByRoute = localClientOrder.filter(c => {
+    return selectedRouteFilter === 'all' || c.routeId === selectedRouteFilter;
+  });
+
+  // Clientes filtrados e ordenados (inclui busca apenas fora do modo de ordenação)
   const filteredClients = isReorderMode 
-    ? localClientOrder 
-    : localClientOrder.filter(c => {
+    ? clientsFilteredByRoute  // No modo de ordenação: filtra só por rota
+    : clientsFilteredByRoute.filter(c => {
         const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                               c.address.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesRoute = selectedRouteFilter === 'all' || c.routeId === selectedRouteFilter;
-        return matchesSearch && matchesRoute;
+        return matchesSearch;
       });
+
+  // Funções de mover com botões - movem dentro da lista filtrada visível
+  const handleMoveUp = (clientId: string) => {
+    // Encontrar índice na lista filtrada
+    const filteredIndex = filteredClients.findIndex(c => c.id === clientId);
+    if (filteredIndex <= 0) return;
+    
+    // Encontrar os clientes a trocar
+    const currentClient = filteredClients[filteredIndex];
+    const previousClient = filteredClients[filteredIndex - 1];
+    
+    // Encontrar índices na lista completa
+    const currentIndexInFull = localClientOrder.findIndex(c => c.id === currentClient.id);
+    const previousIndexInFull = localClientOrder.findIndex(c => c.id === previousClient.id);
+    
+    // Trocar na lista completa
+    const newOrder = [...localClientOrder];
+    [newOrder[previousIndexInFull], newOrder[currentIndexInFull]] = [newOrder[currentIndexInFull], newOrder[previousIndexInFull]];
+    setLocalClientOrder(newOrder);
+  };
+
+  const handleMoveDown = (clientId: string) => {
+    // Encontrar índice na lista filtrada
+    const filteredIndex = filteredClients.findIndex(c => c.id === clientId);
+    if (filteredIndex === -1 || filteredIndex >= filteredClients.length - 1) return;
+    
+    // Encontrar os clientes a trocar
+    const currentClient = filteredClients[filteredIndex];
+    const nextClient = filteredClients[filteredIndex + 1];
+    
+    // Encontrar índices na lista completa
+    const currentIndexInFull = localClientOrder.findIndex(c => c.id === currentClient.id);
+    const nextIndexInFull = localClientOrder.findIndex(c => c.id === nextClient.id);
+    
+    // Trocar na lista completa
+    const newOrder = [...localClientOrder];
+    [newOrder[currentIndexInFull], newOrder[nextIndexInFull]] = [newOrder[nextIndexInFull], newOrder[currentIndexInFull]];
+    setLocalClientOrder(newOrder);
+  };
 
   // Funções de Drag & Drop
   const handleDragStart = (e: React.DragEvent, clientId: string) => {
@@ -364,15 +406,24 @@ export const DriverView: React.FC = () => {
     e.dataTransfer.dropEffect = 'move';
     if (!draggedClientId || draggedClientId === targetClientId) return;
     
-    const draggedIndex = localClientOrder.findIndex(c => c.id === draggedClientId);
-    const targetIndex = localClientOrder.findIndex(c => c.id === targetClientId);
+    // Trabalhar com a lista filtrada
+    const draggedFilteredIndex = filteredClients.findIndex(c => c.id === draggedClientId);
+    const targetFilteredIndex = filteredClients.findIndex(c => c.id === targetClientId);
     
-    if (draggedIndex === -1 || targetIndex === -1) return;
+    if (draggedFilteredIndex === -1 || targetFilteredIndex === -1) return;
     
-    // Reordenar lista local
+    // Encontrar os clientes
+    const draggedClient = filteredClients[draggedFilteredIndex];
+    const targetClient = filteredClients[targetFilteredIndex];
+    
+    // Índices na lista completa
+    const draggedFullIndex = localClientOrder.findIndex(c => c.id === draggedClient.id);
+    const targetFullIndex = localClientOrder.findIndex(c => c.id === targetClient.id);
+    
+    // Reordenar lista completa
     const newOrder = [...localClientOrder];
-    const [draggedItem] = newOrder.splice(draggedIndex, 1);
-    newOrder.splice(targetIndex, 0, draggedItem);
+    const [draggedItem] = newOrder.splice(draggedFullIndex, 1);
+    newOrder.splice(targetFullIndex, 0, draggedItem);
     setLocalClientOrder(newOrder);
   };
 
@@ -383,25 +434,6 @@ export const DriverView: React.FC = () => {
 
   const handleDragEnd = () => {
     setDraggedClientId(null);
-  };
-
-  // Funções de mover com botões (alternativa ao drag & drop)
-  const handleMoveUp = (clientId: string) => {
-    const index = localClientOrder.findIndex(c => c.id === clientId);
-    if (index <= 0) return;
-    
-    const newOrder = [...localClientOrder];
-    [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
-    setLocalClientOrder(newOrder);
-  };
-
-  const handleMoveDown = (clientId: string) => {
-    const index = localClientOrder.findIndex(c => c.id === clientId);
-    if (index === -1 || index >= localClientOrder.length - 1) return;
-    
-    const newOrder = [...localClientOrder];
-    [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
-    setLocalClientOrder(newOrder);
   };
 
   const handleSaveOrder = async () => {
@@ -759,7 +791,8 @@ export const DriverView: React.FC = () => {
             // Auto Calculate Debt for display in card (Optional performance hit, but better UX)
             // Ideally we store this, but for now lets calc on fly or use stored
             const displayBalance = client.currentBalance;
-            const clientIndex = localClientOrder.findIndex(c => c.id === client.id);
+            // Índice na lista filtrada (para controle de botões e posição visual)
+            const filteredIndex = index;
 
             return (
               <div 
@@ -783,7 +816,7 @@ export const DriverView: React.FC = () => {
                     <div className="flex flex-col gap-1">
                       <button
                         onClick={(e) => { e.stopPropagation(); handleMoveUp(client.id); }}
-                        disabled={clientIndex === 0}
+                        disabled={filteredIndex === 0}
                         className="p-1.5 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                         title="Mover para cima"
                       >
@@ -791,7 +824,7 @@ export const DriverView: React.FC = () => {
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleMoveDown(client.id); }}
-                        disabled={clientIndex === localClientOrder.length - 1}
+                        disabled={filteredIndex === filteredClients.length - 1}
                         className="p-1.5 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                         title="Mover para baixo"
                       >
@@ -801,7 +834,7 @@ export const DriverView: React.FC = () => {
                     
                     {/* Número da posição */}
                     <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-lg">
-                      {clientIndex + 1}
+                      {filteredIndex + 1}
                     </div>
                     
                     {/* Info do cliente */}
