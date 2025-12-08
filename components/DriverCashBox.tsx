@@ -136,7 +136,7 @@ const DriverCashBox: React.FC = () => {
     setSavingFund(true);
     try {
       await saveDailyCashFund(driverId, selectedDate, amount, fundObservations || undefined);
-      alert('Fundo de caixa salvo com sucesso!');
+      // Sucesso - não mostra alert
     } catch (error) {
       console.error('Erro ao salvar fundo:', error);
       alert('Erro ao salvar fundo de caixa');
@@ -155,7 +155,7 @@ const DriverCashBox: React.FC = () => {
     setSavingClosure(true);
     try {
       await saveDailyDriverClosure(driverId, selectedDate, amount, closureObservations || undefined);
-      alert('Fecho diário salvo com sucesso!');
+      // Sucesso - não mostra alert
     } catch (error) {
       console.error('Erro ao salvar fecho:', error);
       alert('Erro ao salvar fecho diário');
@@ -174,7 +174,7 @@ const DriverCashBox: React.FC = () => {
     setSavingPayment(true);
     try {
       await registerDailyPayment(driverId, selectedClientForPayment, amount, paymentMethod, paidUntilDate);
-      alert('Pagamento registrado com sucesso!');
+      // Sucesso - modal fecha automaticamente
       setShowPaymentModal(false);
       setSelectedClientForPayment('');
       setClientSearchTerm('');

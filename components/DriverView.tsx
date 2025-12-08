@@ -497,7 +497,7 @@ export const DriverView: React.FC = () => {
         sortOrder: index
       }));
       await updateClientsOrder(updates);
-      alert('Ordem de entrega salva com sucesso!');
+      // Sucesso - sai do modo de reordenação automaticamente
       setIsReorderMode(false);
     } catch (error) {
       console.error('Erro ao salvar ordem:', error);
