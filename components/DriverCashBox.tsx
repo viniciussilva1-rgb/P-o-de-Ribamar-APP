@@ -53,19 +53,19 @@ const DriverCashBox: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   
   // Fundo de Caixa States
-  const [fundAmount, setFundAmount] = useState<number>(0);
+  const [fundAmount, setFundAmount] = useState<string>('');
   const [fundObservations, setFundObservations] = useState('');
   const [savingFund, setSavingFund] = useState(false);
   
   // Fecho Diário States
-  const [countedAmount, setCountedAmount] = useState<number>(0);
+  const [countedAmount, setCountedAmount] = useState<string>('');
   const [closureObservations, setClosureObservations] = useState('');
   const [savingClosure, setSavingClosure] = useState(false);
   
   // Payment Registration States
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedClientForPayment, setSelectedClientForPayment] = useState<string>('');
-  const [paymentAmount, setPaymentAmount] = useState<number>(0);
+  const [paymentAmount, setPaymentAmount] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<string>('Dinheiro');
   const [paidUntilDate, setPaidUntilDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [savingPayment, setSavingPayment] = useState(false);
@@ -104,10 +104,10 @@ const DriverCashBox: React.FC = () => {
   // Inicializar valores do fundo se existir
   React.useEffect(() => {
     if (cashFund) {
-      setFundAmount(cashFund.initialAmount);
+      setFundAmount(cashFund.initialAmount.toString());
       setFundObservations(cashFund.observations || '');
     } else {
-      setFundAmount(0);
+      setFundAmount('');
       setFundObservations('');
     }
   }, [cashFund]);
@@ -115,18 +115,24 @@ const DriverCashBox: React.FC = () => {
   // Inicializar valores do fecho se existir
   React.useEffect(() => {
     if (dailyClosure) {
-      setCountedAmount(dailyClosure.countedAmount);
+      setCountedAmount(dailyClosure.countedAmount.toString());
       setClosureObservations(dailyClosure.observations || '');
     } else {
-      setCountedAmount(0);
+      setCountedAmount('');
       setClosureObservations('');
     }
   }, [dailyClosure]);
 
   const handleSaveFund = async () => {
+    const amount = parseFloat(fundAmount) || 0;
+    if (amount < 0) {
+      alert('O valor não pode ser negativo');
+      return;
+    }
+    
     setSavingFund(true);
     try {
-      await saveDailyCashFund(driverId, selectedDate, fundAmount, fundObservations || undefined);
+      await saveDailyCashFund(driverId, selectedDate, amount, fundObservations || undefined);
       alert('Fundo de caixa salvo com sucesso!');
     } catch (error) {
       console.error('Erro ao salvar fundo:', error);
@@ -137,9 +143,15 @@ const DriverCashBox: React.FC = () => {
   };
 
   const handleSaveClosure = async () => {
+    const amount = parseFloat(countedAmount) || 0;
+    if (amount < 0) {
+      alert('O valor não pode ser negativo');
+      return;
+    }
+    
     setSavingClosure(true);
     try {
-      await saveDailyDriverClosure(driverId, selectedDate, countedAmount, closureObservations || undefined);
+      await saveDailyDriverClosure(driverId, selectedDate, amount, closureObservations || undefined);
       alert('Fecho diário salvo com sucesso!');
     } catch (error) {
       console.error('Erro ao salvar fecho:', error);
@@ -150,19 +162,20 @@ const DriverCashBox: React.FC = () => {
   };
 
   const handleRegisterPayment = async () => {
-    if (!selectedClientForPayment || paymentAmount <= 0) {
+    const amount = parseFloat(paymentAmount) || 0;
+    if (!selectedClientForPayment || amount <= 0) {
       alert('Selecione um cliente e informe o valor');
       return;
     }
     
     setSavingPayment(true);
     try {
-      await registerDailyPayment(driverId, selectedClientForPayment, paymentAmount, paymentMethod, paidUntilDate);
+      await registerDailyPayment(driverId, selectedClientForPayment, amount, paymentMethod, paidUntilDate);
       alert('Pagamento registrado com sucesso!');
       setShowPaymentModal(false);
       setSelectedClientForPayment('');
       setClientSearchTerm('');
-      setPaymentAmount(0);
+      setPaymentAmount('');
       setPaidUntilDate(new Date().toISOString().split('T')[0]);
     } catch (error) {
       console.error('Erro ao registrar pagamento:', error);
@@ -199,7 +212,8 @@ const DriverCashBox: React.FC = () => {
 
   // Calcular diferença do fecho
   const expectedCash = (cashFund?.initialAmount || 0) + totalCashToday;
-  const difference = countedAmount - expectedCash;
+  const parsedCountedAmount = parseFloat(countedAmount) || 0;
+  const difference = parsedCountedAmount - expectedCash;
 
   return (
     <div className="space-y-6">
@@ -445,11 +459,16 @@ const DriverCashBox: React.FC = () => {
                     Valor Inicial do Fundo de Caixa (€)
                   </label>
                   <input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                    type="text"
+                    inputMode="decimal"
+                    pattern="[0-9]*[.,]?[0-9]*"
                     value={fundAmount}
-                    onChange={(e) => setFundAmount(parseFloat(e.target.value) || 0)}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(',', '.');
+                      if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                        setFundAmount(val);
+                      }
+                    }}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent text-lg"
                     placeholder="0.00"
                   />
@@ -548,18 +567,23 @@ const DriverCashBox: React.FC = () => {
                   Valor Contado no Caixa (€)
                 </label>
                 <input
-                  type="number"
-                  step="0.01"
-                  min="0"
+                  type="text"
+                  inputMode="decimal"
+                  pattern="[0-9]*[.,]?[0-9]*"
                   value={countedAmount}
-                  onChange={(e) => setCountedAmount(parseFloat(e.target.value) || 0)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(',', '.');
+                    if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                      setCountedAmount(val);
+                    }
+                  }}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent text-lg"
                   placeholder="0.00"
                 />
               </div>
 
               {/* Resultado */}
-              {countedAmount > 0 && (
+              {countedAmount !== '' && parseFloat(countedAmount) > 0 && (
                 <div className={`p-4 rounded-xl border-2 ${
                   Math.abs(difference) < 0.01 
                     ? 'bg-green-50 border-green-300' 
@@ -798,11 +822,16 @@ const DriverCashBox: React.FC = () => {
                   Valor Recebido (€)
                 </label>
                 <input
-                  type="number"
-                  step="0.01"
-                  min="0"
+                  type="text"
+                  inputMode="decimal"
+                  pattern="[0-9]*[.,]?[0-9]*"
                   value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(parseFloat(e.target.value) || 0)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(',', '.');
+                    if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                      setPaymentAmount(val);
+                    }
+                  }}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent text-lg font-semibold"
                   placeholder="0.00"
                 />
