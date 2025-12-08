@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { User, UserRole, Client, Product, Route, DeliverySchedule } from '../types';
-import { ChevronDown, ChevronRight, UserPlus, MapPin, Phone, Truck, Calendar, Package, Pencil, Trash2, Plus, ArrowRightLeft, X, Save, Navigation, Map, Search, User as UserIcon, CreditCard, FileText, RotateCcw, Loader2, AlertCircle, Calculator, CheckCircle, DollarSign, Tag } from 'lucide-react';
+import { ChevronDown, ChevronRight, UserPlus, MapPin, Phone, Truck, Calendar, Package, Pencil, Trash2, Plus, ArrowRightLeft, X, Save, Navigation, Map, Search, User as UserIcon, CreditCard, FileText, RotateCcw, Loader2, AlertCircle, Calculator, CheckCircle, DollarSign, Tag, Check } from 'lucide-react';
 
 // Função utilitária para normalizar texto (remover acentos e converter para minúsculas)
 const normalizeText = (text: string): string => {
@@ -853,6 +853,9 @@ export const ProductionManager: React.FC = () => {
   const { products, updateDailyProduction, getDailyRecord } = useData();
   const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
   const [empeloMode, setEmpeloMode] = useState<Record<string, boolean>>({});
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<string | null>(null);
 
   const toggleEmpelo = (productId: string) => {
     setEmpeloMode(prev => ({
@@ -870,10 +873,22 @@ export const ProductionManager: React.FC = () => {
     const finalUnits = isEmpelo ? numValue * 30 : numValue;
     
     updateDailyProduction(currentDate, productId, { produced: finalUnits });
+    setHasUnsavedChanges(true);
   };
 
   const handleStatUpdate = (productId: string, field: 'delivered' | 'sold' | 'leftovers', value: string) => {
     updateDailyProduction(currentDate, productId, { [field]: parseInt(value) || 0 });
+    setHasUnsavedChanges(true);
+  };
+
+  const handleSaveAll = async () => {
+    setSaving(true);
+    // Os dados já são salvos automaticamente pelo updateDailyProduction
+    // Este botão serve como feedback visual para o usuário
+    await new Promise(resolve => setTimeout(resolve, 500)); // Pequeno delay para feedback visual
+    setSaving(false);
+    setHasUnsavedChanges(false);
+    setLastSaved(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
   };
 
   // Calculate Total Quebra for the day
@@ -960,11 +975,44 @@ export const ProductionManager: React.FC = () => {
             <h3 className="text-lg font-bold text-gray-800">2. Relatório de Quebra</h3>
             <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded">Quebra = Produção - (Vendido + Sobra)</span>
           </div>
-          <div className="text-right">
-            <p className="text-xs text-gray-500 uppercase font-semibold">Quebra Total (€)</p>
-            <p className={`text-xl font-bold ${totalQuebraValue > 0 ? 'text-red-600' : 'text-green-600'}`}>
-              € {totalQuebraValue.toFixed(2)}
-            </p>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-xs text-gray-500 uppercase font-semibold">Quebra Total (€)</p>
+              <p className={`text-xl font-bold ${totalQuebraValue > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                € {totalQuebraValue.toFixed(2)}
+              </p>
+            </div>
+            <div className="flex flex-col items-end gap-1">
+              <button
+                onClick={handleSaveAll}
+                disabled={saving}
+                className={`px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-all ${
+                  hasUnsavedChanges 
+                    ? 'bg-amber-600 text-white hover:bg-amber-700 shadow-sm' 
+                    : 'bg-green-100 text-green-700 cursor-default'
+                }`}
+              >
+                {saving ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Salvando...
+                  </>
+                ) : hasUnsavedChanges ? (
+                  <>
+                    <Save size={16} />
+                    Salvar Alterações
+                  </>
+                ) : (
+                  <>
+                    <Check size={16} />
+                    Salvo
+                  </>
+                )}
+              </button>
+              {lastSaved && !hasUnsavedChanges && (
+                <span className="text-xs text-gray-400">Salvo às {lastSaved}</span>
+              )}
+            </div>
           </div>
         </div>
 
