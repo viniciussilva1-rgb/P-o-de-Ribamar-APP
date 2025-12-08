@@ -906,7 +906,7 @@ export const ProductionManager: React.FC = () => {
   };
 
   // Calculate Total Quebra for the day (usando dados automáticos quando disponíveis)
-  const totalQuebraValue = products.reduce((acc, product) => {
+  const totalQuebraValue = (products || []).reduce((acc, product) => {
     const record = getDailyRecord(currentDate, product.id);
     // Usar dados automáticos das cargas se disponíveis
     const autoSold = soldByProduct.get(product.id) || 0;
@@ -917,6 +917,18 @@ export const ProductionManager: React.FC = () => {
     const quebraUnits = record.produced - (sold + leftovers);
     return acc + (quebraUnits * product.price);
   }, 0);
+
+  // Verificação de segurança - se products não estiver carregado
+  if (!products || products.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <Loader2 className="animate-spin h-8 w-8 text-amber-600 mx-auto mb-2" />
+          <p className="text-gray-500">Carregando produtos...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
