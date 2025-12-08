@@ -850,42 +850,9 @@ export const ProductCatalog: React.FC = () => {
 };
 
 export const ProductionManager: React.FC = () => {
-  const { products, updateDailyProduction, getDailyRecord, getDailyLoadsByDate } = useData();
+  const { products, updateDailyProduction, getDailyRecord } = useData();
   const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
   const [empeloMode, setEmpeloMode] = useState<Record<string, boolean>>({});
-
-  // Calcular totais de carga dos entregadores por produto
-  const loadsForDate = getDailyLoadsByDate(currentDate) || [];
-  const deliveredByProduct = new Map<string, number>();
-  const soldByProduct = new Map<string, number>();
-  const returnedByProduct = new Map<string, number>();
-  
-  loadsForDate.forEach(load => {
-    // Somar cargas (levado) - verificar se loadItems existe
-    if (load.loadItems && Array.isArray(load.loadItems)) {
-      load.loadItems.forEach(item => {
-        if (item && item.productId) {
-          const current = deliveredByProduct.get(item.productId) || 0;
-          deliveredByProduct.set(item.productId, current + (item.quantity || 0));
-        }
-      });
-    }
-    // Somar retornos/sobras - verificar se returnItems existe
-    if (load.returnItems && Array.isArray(load.returnItems)) {
-      load.returnItems.forEach(item => {
-        if (item && item.productId) {
-          const currentReturned = returnedByProduct.get(item.productId) || 0;
-          returnedByProduct.set(item.productId, currentReturned + (item.quantity || 0));
-        }
-      });
-    }
-  });
-  
-  // Calcular vendido = levado - retornado
-  deliveredByProduct.forEach((delivered, productId) => {
-    const returned = returnedByProduct.get(productId) || 0;
-    soldByProduct.set(productId, delivered - returned);
-  });
 
   const toggleEmpelo = (productId: string) => {
     setEmpeloMode(prev => ({
@@ -905,30 +872,16 @@ export const ProductionManager: React.FC = () => {
     updateDailyProduction(currentDate, productId, { produced: finalUnits });
   };
 
-  // Calculate Total Quebra for the day (usando dados automáticos quando disponíveis)
-  const totalQuebraValue = (products || []).reduce((acc, product) => {
+  const handleStatUpdate = (productId: string, field: 'delivered' | 'sold' | 'leftovers', value: string) => {
+    updateDailyProduction(currentDate, productId, { [field]: parseInt(value) || 0 });
+  };
+
+  // Calculate Total Quebra for the day
+  const totalQuebraValue = products.reduce((acc, product) => {
     const record = getDailyRecord(currentDate, product.id);
-    // Usar dados automáticos das cargas se disponíveis
-    const autoSold = soldByProduct.get(product.id) || 0;
-    const autoReturned = returnedByProduct.get(product.id) || 0;
-    const sold = autoSold > 0 ? autoSold : record.sold;
-    const leftovers = autoReturned > 0 ? autoReturned : record.leftovers;
-    
-    const quebraUnits = record.produced - (sold + leftovers);
+    const quebraUnits = record.produced - (record.sold + record.leftovers);
     return acc + (quebraUnits * product.price);
   }, 0);
-
-  // Verificação de segurança - se products não estiver carregado
-  if (!products || products.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <Loader2 className="animate-spin h-8 w-8 text-amber-600 mx-auto mb-2" />
-          <p className="text-gray-500">Carregando produtos...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -1001,15 +954,9 @@ export const ProductionManager: React.FC = () => {
       {/* 2. Relatório de Quebra - Table */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <h3 className="text-lg font-bold text-gray-800">2. Relatório de Quebra</h3>
-              <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded">Quebra = Produção - (Vendido + Sobra)</span>
-            </div>
-            <p className="text-xs text-gray-500 flex items-center gap-1">
-              <Check size={12} className="text-green-500" />
-              Dados automáticos das cargas dos entregadores
-            </p>
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-bold text-gray-800">2. Relatório de Quebra</h3>
+            <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded">Quebra = Produção - (Vendido + Sobra)</span>
           </div>
           <div className="text-right">
             <p className="text-xs text-gray-500 uppercase font-semibold">Quebra Total (€)</p>
@@ -1025,9 +972,9 @@ export const ProductionManager: React.FC = () => {
               <tr>
                 <th className="p-4 border-b min-w-[150px]">Produto</th>
                 <th className="p-4 border-b text-center bg-gray-100/50">Produção<br/><span className="text-xs font-normal text-gray-400">(Unid.)</span></th>
-                <th className="p-4 border-b text-center bg-blue-50/50">Entregue<br/><span className="text-xs font-normal text-blue-500">(Auto)</span></th>
-                <th className="p-4 border-b text-center bg-green-50/50">Vendido<br/><span className="text-xs font-normal text-green-500">(Auto)</span></th>
-                <th className="p-4 border-b text-center bg-orange-50/50">Sobra<br/><span className="text-xs font-normal text-orange-500">(Auto)</span></th>
+                <th className="p-4 border-b text-center">Entregue<br/><span className="text-xs font-normal text-gray-400">(Levado)</span></th>
+                <th className="p-4 border-b text-center">Vendido</th>
+                <th className="p-4 border-b text-center">Sobra<br/><span className="text-xs font-normal text-gray-400">(Retorno)</span></th>
                 <th className="p-4 border-b text-center bg-red-50 text-red-700">Quebra<br/><span className="text-xs font-normal opacity-70">(Unid.)</span></th>
                 <th className="p-4 border-b text-center bg-red-50 text-red-700">Quebra<br/><span className="text-xs font-normal opacity-70">(€)</span></th>
               </tr>
@@ -1035,18 +982,8 @@ export const ProductionManager: React.FC = () => {
             <tbody className="divide-y divide-gray-100">
               {products.map(product => {
                 const record = getDailyRecord(currentDate, product.id);
-                // Buscar dados automáticos das cargas dos entregadores
-                const autoDelivered = deliveredByProduct.get(product.id) || 0;
-                const autoSold = soldByProduct.get(product.id) || 0;
-                const autoReturned = returnedByProduct.get(product.id) || 0;
-                
-                // Usar dados automáticos se disponíveis, senão usar os manuais
-                const delivered = autoDelivered > 0 ? autoDelivered : record.delivered;
-                const sold = autoSold > 0 ? autoSold : record.sold;
-                const leftovers = autoReturned > 0 ? autoReturned : record.leftovers;
-                
                 // Formula: Quebra = Produção - (Vendido + Sobra)
-                const quebraUnits = record.produced - (sold + leftovers);
+                const quebraUnits = record.produced - (record.sold + record.leftovers);
                 const quebraValue = quebraUnits * product.price;
 
                 return (
@@ -1058,28 +995,40 @@ export const ProductionManager: React.FC = () => {
                       {record.produced}
                     </td>
 
-                    {/* Entregue (Automático das cargas dos entregadores) */}
+                    {/* Entregue (Input) */}
                     <td className="p-4 text-center">
-                      <div className={`px-3 py-1.5 rounded font-medium ${autoDelivered > 0 ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
-                        {delivered}
-                        {autoDelivered > 0 && <span className="text-xs ml-1">✓</span>}
-                      </div>
+                      <input 
+                        type="number" 
+                        min="0"
+                        className="w-20 p-1.5 text-center border border-gray-200 rounded focus:ring-1 focus:ring-amber-500 focus:border-amber-500 bg-white text-gray-900"
+                        placeholder="0"
+                        value={record.delivered === 0 ? '' : record.delivered}
+                        onChange={(e) => handleStatUpdate(product.id, 'delivered', e.target.value)}
+                      />
                     </td>
 
-                    {/* Vendido (Automático: Levado - Retorno) */}
+                    {/* Vendido (Input) */}
                     <td className="p-4 text-center">
-                      <div className={`px-3 py-1.5 rounded font-medium ${autoSold > 0 ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                        {sold}
-                        {autoSold > 0 && <span className="text-xs ml-1">✓</span>}
-                      </div>
+                      <input 
+                        type="number" 
+                        min="0"
+                        className="w-20 p-1.5 text-center border border-gray-200 rounded focus:ring-1 focus:ring-green-500 focus:border-green-500 text-green-700 font-medium bg-white"
+                        placeholder="0"
+                        value={record.sold === 0 ? '' : record.sold}
+                        onChange={(e) => handleStatUpdate(product.id, 'sold', e.target.value)}
+                      />
                     </td>
 
-                    {/* Sobra/Retorno (Automático dos entregadores) */}
+                    {/* Sobra (Input) */}
                     <td className="p-4 text-center">
-                      <div className={`px-3 py-1.5 rounded font-medium ${autoReturned > 0 ? 'bg-orange-50 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
-                        {leftovers}
-                        {autoReturned > 0 && <span className="text-xs ml-1">✓</span>}
-                      </div>
+                      <input 
+                        type="number" 
+                        min="0"
+                        className="w-20 p-1.5 text-center border border-gray-200 rounded focus:ring-1 focus:ring-orange-500 focus:border-orange-500 text-orange-700 bg-white"
+                        placeholder="0"
+                        value={record.leftovers === 0 ? '' : record.leftovers}
+                        onChange={(e) => handleStatUpdate(product.id, 'leftovers', e.target.value)}
+                      />
                     </td>
 
                     {/* Quebra Unid (Calc) */}
