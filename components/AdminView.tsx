@@ -1060,6 +1060,7 @@ export const ProductionManager: React.FC = () => {
                   <span className="font-bold text-amber-900 text-sm uppercase truncate pr-2">{product.name}</span>
                   {product.supportsEmpelo && (
                     <button 
+                      onClick={() => toggleEmpelo(product.id)}
                       className={`text-xs px-2 py-1 rounded border transition-colors flex items-center gap-1 ${isEmpelo ? 'bg-amber-200 border-amber-300 text-amber-900' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}
                       title="Alternar entre Unidade e Empelo (30un)"
                     >
