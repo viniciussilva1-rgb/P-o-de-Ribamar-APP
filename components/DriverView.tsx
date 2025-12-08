@@ -297,6 +297,7 @@ export const DriverView: React.FC = () => {
   const [isReorderMode, setIsReorderMode] = useState(false);
   const [draggedClientId, setDraggedClientId] = useState<string | null>(null);
   const [savingOrder, setSavingOrder] = useState(false);
+  const [moveToPosition, setMoveToPosition] = useState<{ clientId: string; position: string } | null>(null);
 
   // Client Form
   const initialClientState: Partial<Client> = {
@@ -348,18 +349,52 @@ export const DriverView: React.FC = () => {
     return selectedRouteFilter === 'all' || c.routeId === selectedRouteFilter;
   });
 
-  // Clientes filtrados e ordenados (inclui busca apenas fora do modo de ordenação)
-  const filteredClients = isReorderMode 
-    ? clientsFilteredByRoute  // No modo de ordenação: filtra só por rota
-    : clientsFilteredByRoute.filter(c => {
-        const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                              c.address.toLowerCase().includes(searchTerm.toLowerCase());
-        return matchesSearch;
-      });
+  // Clientes filtrados por busca também no modo de ordenação
+  const filteredClients = clientsFilteredByRoute.filter(c => {
+    if (!searchTerm) return true;
+    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          c.address.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
+  });
 
   // Funções de mover com botões - movem dentro da lista filtrada visível
+  // Função para mover cliente para uma posição específica
+  const handleMoveToPosition = (clientId: string, targetPosition: number) => {
+    // Trabalhar com a lista filtrada por rota (sem busca)
+    const currentFilteredList = localClientOrder.filter(c => 
+      selectedRouteFilter === 'all' || c.routeId === selectedRouteFilter
+    );
+    
+    // Validar posição (1-based para o usuário)
+    const targetIndex = targetPosition - 1;
+    if (targetIndex < 0 || targetIndex >= currentFilteredList.length) return;
+    
+    // Encontrar índice atual na lista filtrada
+    const currentFilteredIdx = currentFilteredList.findIndex(c => c.id === clientId);
+    if (currentFilteredIdx === -1 || currentFilteredIdx === targetIndex) return;
+    
+    // Cliente a mover
+    const clientToMove = currentFilteredList[currentFilteredIdx];
+    
+    // Cliente que está na posição alvo
+    const targetClient = currentFilteredList[targetIndex];
+    
+    // Índices na lista completa
+    const clientFullIndex = localClientOrder.findIndex(c => c.id === clientToMove.id);
+    const targetFullIndex = localClientOrder.findIndex(c => c.id === targetClient.id);
+    
+    // Reordenar: remover o cliente e inserir na nova posição
+    const newOrder = [...localClientOrder];
+    const [removed] = newOrder.splice(clientFullIndex, 1);
+    newOrder.splice(targetFullIndex, 0, removed);
+    
+    setLocalClientOrder(newOrder);
+    setMoveToPosition(null);
+    setSearchTerm(''); // Limpar busca para ver a nova posição
+  };
+
   const handleMoveUp = (clientId: string) => {
-    // Encontrar índice na lista filtrada atual
+    // Encontrar índice na lista filtrada atual (filtrada por rota, sem busca)
     const currentFilteredList = localClientOrder.filter(c => 
       selectedRouteFilter === 'all' || c.routeId === selectedRouteFilter
     );
@@ -799,17 +834,26 @@ export const DriverView: React.FC = () => {
         </select>
       </div>
 
+      {/* Info sobre busca no modo de ordenação */}
+      {isReorderMode && searchTerm && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-amber-700 text-sm">
+          🔍 Mostrando {filteredClients.length} cliente(s) que correspondem à busca. 
+          Use o botão <strong>"Ir para posição"</strong> para mover o cliente para uma posição específica.
+        </div>
+      )}
+
       {/* Client List */}
       <div className={`grid gap-4 ${isReorderMode ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
         {filteredClients.length > 0 ? (
-          filteredClients.map((client, index) => {
+          filteredClients.map((client) => {
             const routeName = myRoutes.find(r => r.id === client.routeId)?.name || 'Sem Rota';
             
             // Auto Calculate Debt for display in card (Optional performance hit, but better UX)
             // Ideally we store this, but for now lets calc on fly or use stored
             const displayBalance = client.currentBalance;
-            // Índice na lista filtrada (para controle de botões e posição visual)
-            const filteredIndex = index;
+            // Posição real na lista filtrada por rota (sem busca) - essa é a posição de entrega
+            const realPosition = clientsFilteredByRoute.findIndex(c => c.id === client.id) + 1;
+            const totalInRoute = clientsFilteredByRoute.length;
 
             return (
               <div 
@@ -833,7 +877,7 @@ export const DriverView: React.FC = () => {
                     <div className="flex flex-col gap-1">
                       <button
                         onClick={(e) => { e.stopPropagation(); handleMoveUp(client.id); }}
-                        disabled={filteredIndex === 0}
+                        disabled={realPosition === 1}
                         className="p-1.5 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                         title="Mover para cima"
                       >
@@ -841,7 +885,7 @@ export const DriverView: React.FC = () => {
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleMoveDown(client.id); }}
-                        disabled={filteredIndex === filteredClients.length - 1}
+                        disabled={realPosition === totalInRoute}
                         className="p-1.5 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                         title="Mover para baixo"
                       >
@@ -849,10 +893,17 @@ export const DriverView: React.FC = () => {
                       </button>
                     </div>
                     
-                    {/* Número da posição */}
-                    <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-lg">
-                      {filteredIndex + 1}
-                    </div>
+                    {/* Número da posição e botão de ir para posição */}
+                    <button 
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        setMoveToPosition({ clientId: client.id, position: '' }); 
+                      }}
+                      className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-lg hover:bg-blue-700 transition-colors"
+                      title={`Posição ${realPosition} de ${totalInRoute} - Clique para mover para outra posição`}
+                    >
+                      {realPosition}
+                    </button>
                     
                     {/* Info do cliente */}
                     <div className="flex-1">
@@ -927,6 +978,69 @@ export const DriverView: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Modal: Mover para Posição */}
+      {moveToPosition && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => setMoveToPosition(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-xs p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-2">
+                <ArrowUpDown size={20} className="text-blue-600" />
+                <h3 className="text-lg font-bold text-gray-800">Mover para Posição</h3>
+              </div>
+              <button onClick={() => setMoveToPosition(null)}>
+                <X size={20} className="text-gray-400 hover:text-gray-600"/>
+              </button>
+            </div>
+            
+            <p className="text-sm text-gray-500 mb-4">
+              Cliente: <strong>{localClientOrder.find(c => c.id === moveToPosition.clientId)?.name}</strong>
+            </p>
+            <p className="text-sm text-gray-500 mb-4">
+              Posição atual: <strong>{clientsFilteredByRoute.findIndex(c => c.id === moveToPosition.clientId) + 1}</strong> de <strong>{clientsFilteredByRoute.length}</strong>
+            </p>
+            
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-gray-700">
+                Nova posição (1 a {clientsFilteredByRoute.length}):
+              </label>
+              <input 
+                type="number" 
+                min={1}
+                max={clientsFilteredByRoute.length}
+                className="w-full p-3 border border-gray-300 rounded-xl text-center text-lg font-bold bg-white text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                placeholder={`1 - ${clientsFilteredByRoute.length}`}
+                value={moveToPosition.position}
+                onChange={(e) => setMoveToPosition({ ...moveToPosition, position: e.target.value })}
+                autoFocus
+              />
+              
+              <div className="flex gap-2 mt-4">
+                <button 
+                  onClick={() => setMoveToPosition(null)}
+                  className="flex-1 p-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={() => {
+                    const pos = parseInt(moveToPosition.position);
+                    if (pos >= 1 && pos <= clientsFilteredByRoute.length) {
+                      handleMoveToPosition(moveToPosition.clientId, pos);
+                    } else {
+                      alert(`Por favor, insira uma posição entre 1 e ${clientsFilteredByRoute.length}`);
+                    }
+                  }}
+                  disabled={!moveToPosition.position}
+                  className="flex-1 p-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Mover
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal: Gerenciar Rotas */}
       {isRouteModalOpen && (
