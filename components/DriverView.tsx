@@ -330,16 +330,18 @@ export const DriverView: React.FC = () => {
   // Lista local para ordenação durante drag & drop
   const [localClientOrder, setLocalClientOrder] = useState<Client[]>([]);
 
-  // Sincronizar lista local quando myClients mudar
+  // Sincronizar lista local quando myClients mudar OU quando entrar no modo de reordenação
   React.useEffect(() => {
-    // Ordenar por sortOrder (se existir) ou manter ordem original
-    const sorted = [...myClients].sort((a, b) => {
-      const orderA = a.sortOrder ?? 9999;
-      const orderB = b.sortOrder ?? 9999;
-      return orderA - orderB;
-    });
-    setLocalClientOrder(sorted);
-  }, [myClients]);
+    if (!isReorderMode) {
+      // Fora do modo de reordenação: sincroniza com myClients ordenado por sortOrder
+      const sorted = [...myClients].sort((a, b) => {
+        const orderA = a.sortOrder ?? 9999;
+        const orderB = b.sortOrder ?? 9999;
+        return orderA - orderB;
+      });
+      setLocalClientOrder(sorted);
+    }
+  }, [myClients, isReorderMode]);
 
   // Clientes filtrados (por rota) - usado tanto no modo normal quanto no modo de ordenação
   const clientsFilteredByRoute = localClientOrder.filter(c => {
@@ -357,40 +359,52 @@ export const DriverView: React.FC = () => {
 
   // Funções de mover com botões - movem dentro da lista filtrada visível
   const handleMoveUp = (clientId: string) => {
-    // Encontrar índice na lista filtrada
-    const filteredIndex = filteredClients.findIndex(c => c.id === clientId);
-    if (filteredIndex <= 0) return;
+    // Encontrar índice na lista filtrada atual
+    const currentFilteredList = localClientOrder.filter(c => 
+      selectedRouteFilter === 'all' || c.routeId === selectedRouteFilter
+    );
+    const filteredIdx = currentFilteredList.findIndex(c => c.id === clientId);
+    if (filteredIdx <= 0) return;
     
     // Encontrar os clientes a trocar
-    const currentClient = filteredClients[filteredIndex];
-    const previousClient = filteredClients[filteredIndex - 1];
+    const currentClient = currentFilteredList[filteredIdx];
+    const previousClient = currentFilteredList[filteredIdx - 1];
     
     // Encontrar índices na lista completa
     const currentIndexInFull = localClientOrder.findIndex(c => c.id === currentClient.id);
     const previousIndexInFull = localClientOrder.findIndex(c => c.id === previousClient.id);
     
-    // Trocar na lista completa
+    // Criar nova lista com a troca
     const newOrder = [...localClientOrder];
-    [newOrder[previousIndexInFull], newOrder[currentIndexInFull]] = [newOrder[currentIndexInFull], newOrder[previousIndexInFull]];
+    const temp = newOrder[currentIndexInFull];
+    newOrder[currentIndexInFull] = newOrder[previousIndexInFull];
+    newOrder[previousIndexInFull] = temp;
+    
     setLocalClientOrder(newOrder);
   };
 
   const handleMoveDown = (clientId: string) => {
-    // Encontrar índice na lista filtrada
-    const filteredIndex = filteredClients.findIndex(c => c.id === clientId);
-    if (filteredIndex === -1 || filteredIndex >= filteredClients.length - 1) return;
+    // Encontrar índice na lista filtrada atual
+    const currentFilteredList = localClientOrder.filter(c => 
+      selectedRouteFilter === 'all' || c.routeId === selectedRouteFilter
+    );
+    const filteredIdx = currentFilteredList.findIndex(c => c.id === clientId);
+    if (filteredIdx === -1 || filteredIdx >= currentFilteredList.length - 1) return;
     
     // Encontrar os clientes a trocar
-    const currentClient = filteredClients[filteredIndex];
-    const nextClient = filteredClients[filteredIndex + 1];
+    const currentClient = currentFilteredList[filteredIdx];
+    const nextClient = currentFilteredList[filteredIdx + 1];
     
     // Encontrar índices na lista completa
     const currentIndexInFull = localClientOrder.findIndex(c => c.id === currentClient.id);
     const nextIndexInFull = localClientOrder.findIndex(c => c.id === nextClient.id);
     
-    // Trocar na lista completa
+    // Criar nova lista com a troca
     const newOrder = [...localClientOrder];
-    [newOrder[currentIndexInFull], newOrder[nextIndexInFull]] = [newOrder[nextIndexInFull], newOrder[currentIndexInFull]];
+    const temp = newOrder[currentIndexInFull];
+    newOrder[currentIndexInFull] = newOrder[nextIndexInFull];
+    newOrder[nextIndexInFull] = temp;
+    
     setLocalClientOrder(newOrder);
   };
 
@@ -407,14 +421,17 @@ export const DriverView: React.FC = () => {
     if (!draggedClientId || draggedClientId === targetClientId) return;
     
     // Trabalhar com a lista filtrada
-    const draggedFilteredIndex = filteredClients.findIndex(c => c.id === draggedClientId);
-    const targetFilteredIndex = filteredClients.findIndex(c => c.id === targetClientId);
+    const currentFilteredList = localClientOrder.filter(c => 
+      selectedRouteFilter === 'all' || c.routeId === selectedRouteFilter
+    );
+    const draggedFilteredIndex = currentFilteredList.findIndex(c => c.id === draggedClientId);
+    const targetFilteredIndex = currentFilteredList.findIndex(c => c.id === targetClientId);
     
     if (draggedFilteredIndex === -1 || targetFilteredIndex === -1) return;
     
     // Encontrar os clientes
-    const draggedClient = filteredClients[draggedFilteredIndex];
-    const targetClient = filteredClients[targetFilteredIndex];
+    const draggedClient = currentFilteredList[draggedFilteredIndex];
+    const targetClient = currentFilteredList[targetFilteredIndex];
     
     // Índices na lista completa
     const draggedFullIndex = localClientOrder.findIndex(c => c.id === draggedClient.id);
