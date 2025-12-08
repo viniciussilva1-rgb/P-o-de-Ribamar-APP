@@ -46,10 +46,13 @@ const DriverCashBox: React.FC = () => {
     calculateDailyClosureData,
     registerDailyPayment,
     routes,
-    getRoutesByDriver
+    getRoutesByDriver,
+    dailyDriverClosures,
+    dailyCashFunds,
+    dailyPaymentsReceived
   } = useData();
 
-  const [activeSection, setActiveSection] = useState<'payments' | 'fund' | 'closure'>('payments');
+  const [activeSection, setActiveSection] = useState<'payments' | 'fund' | 'closure' | 'history'>('payments');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   
   // Fundo de Caixa States
@@ -334,6 +337,19 @@ const DriverCashBox: React.FC = () => {
             <div className="flex items-center justify-center gap-2">
               <Calculator size={18} />
               <span>Fecho Diário</span>
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveSection('history')}
+            className={`flex-1 py-4 px-6 text-sm font-medium transition-colors ${
+              activeSection === 'history'
+                ? 'bg-amber-50 text-amber-700 border-b-2 border-amber-500'
+                : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <Clock size={18} />
+              <span>Histórico</span>
             </div>
           </button>
         </div>
@@ -668,6 +684,107 @@ const DriverCashBox: React.FC = () => {
                   Não interfere no fecho semanal oficial com o administrador.
                 </p>
               </div>
+            </div>
+          )}
+
+          {/* ===== HISTÓRICO ===== */}
+          {activeSection === 'history' && (
+            <div className="space-y-6">
+              <h3 className="text-lg font-semibold text-gray-800">Histórico de Caixa</h3>
+              
+              {/* Lista de Histórico */}
+              {(() => {
+                // Filtrar fechos deste entregador e ordenar por data decrescente
+                const myClosures = dailyDriverClosures
+                  .filter(c => c.driverId === driverId)
+                  .sort((a, b) => b.date.localeCompare(a.date))
+                  .slice(0, 30); // Últimos 30 dias
+                
+                if (myClosures.length === 0) {
+                  return (
+                    <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                      <Clock size={48} className="mx-auto text-gray-300 mb-3" />
+                      <p className="text-gray-500">Nenhum fecho registrado ainda</p>
+                      <p className="text-sm text-gray-400">Os registros aparecerão aqui após salvar um fecho diário</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-3">
+                    {myClosures.map(closure => {
+                      // Buscar fundo de caixa do mesmo dia
+                      const fundOfDay = dailyCashFunds.find(f => f.driverId === driverId && f.date === closure.date);
+                      // Buscar pagamentos do dia
+                      const paymentsOfDay = dailyPaymentsReceived.filter(p => p.driverId === driverId && p.date === closure.date);
+                      const totalReceived = paymentsOfDay.reduce((sum, p) => sum + p.amount, 0);
+                      const cashReceived = paymentsOfDay.filter(p => p.method === 'Dinheiro').reduce((sum, p) => sum + p.amount, 0);
+                      
+                      const expectedCash = (fundOfDay?.initialAmount || 0) + cashReceived;
+                      const diff = closure.countedAmount - expectedCash;
+                      
+                      const formattedDate = new Date(closure.date + 'T12:00:00').toLocaleDateString('pt-PT', {
+                        weekday: 'short',
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric'
+                      });
+
+                      return (
+                        <div key={closure.id} className="bg-white border border-gray-200 rounded-xl p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <Calendar size={18} className="text-amber-600" />
+                              <span className="font-semibold text-gray-800">{formattedDate}</span>
+                            </div>
+                            <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                              diff === 0 
+                                ? 'bg-green-100 text-green-700' 
+                                : diff > 0 
+                                  ? 'bg-blue-100 text-blue-700'
+                                  : 'bg-red-100 text-red-700'
+                            }`}>
+                              {diff === 0 ? 'OK' : diff > 0 ? `+${formatCurrency(diff)}` : formatCurrency(diff)}
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                            <div className="bg-gray-50 rounded-lg p-2">
+                              <span className="text-gray-500 block text-xs">Fundo</span>
+                              <span className="font-semibold text-gray-800">{formatCurrency(fundOfDay?.initialAmount || 0)}</span>
+                            </div>
+                            <div className="bg-green-50 rounded-lg p-2">
+                              <span className="text-green-600 block text-xs">Recebido (Din.)</span>
+                              <span className="font-semibold text-green-700">{formatCurrency(cashReceived)}</span>
+                            </div>
+                            <div className="bg-blue-50 rounded-lg p-2">
+                              <span className="text-blue-600 block text-xs">Esperado</span>
+                              <span className="font-semibold text-blue-700">{formatCurrency(expectedCash)}</span>
+                            </div>
+                            <div className="bg-amber-50 rounded-lg p-2">
+                              <span className="text-amber-600 block text-xs">Contado</span>
+                              <span className="font-semibold text-amber-700">{formatCurrency(closure.countedAmount)}</span>
+                            </div>
+                          </div>
+                          
+                          {closure.observations && (
+                            <p className="mt-3 text-sm text-gray-600 italic border-t border-gray-100 pt-2">
+                              📝 {closure.observations}
+                            </p>
+                          )}
+                          
+                          {/* Total recebido no dia (todos os métodos) */}
+                          {totalReceived > 0 && totalReceived !== cashReceived && (
+                            <p className="mt-2 text-xs text-gray-500">
+                              Total recebido (todos os métodos): {formatCurrency(totalReceived)}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
