@@ -65,40 +65,7 @@ export const DriversOverview: React.FC = () => {
   const { getDrivers, getClientsByDriver, getRoutesByDriver, routes, products, calculateClientDebt, addUser } = useData();
   const { register } = useAuth(); // Fallback para quando Cloud Function não está disponível
 
-  // Função para garantir que entregador registrado no Auth também tenha documento correto no Firestore
-  const syncDriverToFirestore = async () => {
-    try {
-      const email = prompt("Digite o email do entregador já registrado no Auth:");
-      if (!email) return;
-      const uid = prompt("Digite o UID do entregador (veja no Firebase Console > Authentication):");
-      if (!uid) return;
-      
-      const name = prompt("Digite o nome do entregador:", email.split("@")[0]);
-      if (!name) return;
-      
-      const userDocRef = doc(db, "users", uid);
-      // Sempre cria/atualiza documento com role DRIVER (string)
-      await setDoc(userDocRef, {
-        id: uid,
-        name: name,
-        email: email,
-        role: "DRIVER"  // Usando string diretamente para evitar problemas
-      });
-      alert(`Entregador "${name}" sincronizado com sucesso!\n\nUID: ${uid}\nEmail: ${email}`);
-    } catch (err: unknown) {
-      console.error("Erro ao sincronizar:", err);
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      alert(`Erro ao sincronizar entregador:\n${errorMsg}\n\nVerifique se o UID está correto.`);
-    }
-  };
   const drivers = getDrivers();
-  // Debug helpers: count and invalid roles
-  const totalDrivers = drivers.length;
-  const [invalidUsersCount, setInvalidUsersCount] = useState<number>(0);
-  const [connectionStatus, setConnectionStatus] = useState<string>('');
-  const [manualCheckResult, setManualCheckResult] = useState<string>('');
-  const [usersDebugInfo, setUsersDebugInfo] = useState<string>('');
-  const TEST_UID = 'NB3hLfp3gtfnXNjW9alglW5FK4D2';
   const [expandedDriverId, setExpandedDriverId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newDriverName, setNewDriverName] = useState('');
@@ -200,85 +167,7 @@ export const DriversOverview: React.FC = () => {
     }
   };
 
-  // Compute invalid users count from full users list via a quick fetch in DataContext scope
-  // As we only have drivers here, invalid roles won't be present; provide a manual check utility.
-  const checkInvalidRoles = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      // Manual scan: read all users and count invalid roles
-      // Import Firestore helpers locally to avoid changing DataContext
-      const { collection, getDocs } = await import('firebase/firestore');
-      const { db } = await import('../firebaseConfig');
-      const snap = await getDocs(collection(db, 'users'));
-      let invalid = 0;
-      snap.forEach(docSnap => {
-        const data = docSnap.data() as any;
-        const roleStr = String(data.role || '').toUpperCase();
-        if (roleStr !== 'DRIVER' && roleStr !== 'ADMIN') invalid++;
-      });
-      setInvalidUsersCount(invalid);
-    } catch (e) {
-      setError('Falha ao verificar roles dos usuários.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const validateFirebaseConnection = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      setConnectionStatus('');
-      const { auth, db } = await import('../firebaseConfig');
-      const config = (auth.app.options || {}) as any;
-      setConnectionStatus(`projectId=${config.projectId} | apiKey=${config.apiKey?.slice(0,6)}... | authDomain=${config.authDomain} | appId=${config.appId?.slice(0,8)}... | storageBucket=${config.storageBucket}`);
-      // Manual read from users: known UID if provided
-      const { doc, getDoc } = await import('firebase/firestore');
-      const ref = doc(db, 'users', TEST_UID);
-      const userDoc = await getDoc(ref);
-      if (userDoc.exists()) {
-        const u = userDoc.data() as any;
-        setManualCheckResult(`Encontrado: name=${u.name} | email=${u.email} | role=${u.role}`);
-      } else {
-        setManualCheckResult('Documento não encontrado neste projeto.');
-      }
-    } catch (e) {
-      setError('Erro ao validar conexão/ler documento.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const debugListUsers = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      setUsersDebugInfo('');
-      const { collection, getDocs } = await import('firebase/firestore');
-      const { db } = await import('../firebaseConfig');
-      const snap = await getDocs(collection(db, 'users'));
-      const count = snap.size;
-      let example = '';
-      snap.forEach(docSnap => {
-        if (!example) {
-          const d = docSnap.data() as any;
-          example = `exemplo -> id=${docSnap.id} | name=${d.name} | email=${d.email} | role=${d.role}`;
-        }
-      });
-      setUsersDebugInfo(`users=${count} ${example ? '| ' + example : ''}`);
-    } catch (e) {
-      setError('Falha ao listar usuários.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Execução automática: valida conexão e tenta ler o documento do Natan
-  React.useEffect(() => {
-    validateFirebaseConnection();
-    checkInvalidRoles();
-  }, []);
 
   // Sincronizar entregadores do Auth para Firestore
   const handleSyncDrivers = async () => {
@@ -444,36 +333,6 @@ export const DriversOverview: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      <div className="flex justify-between items-center mb-2">
-        <div className="text-sm text-gray-600">
-          <span className="font-semibold">{totalDrivers}</span> entregadores carregados
-          {invalidUsersCount > 0 && (
-            <span className="ml-2 inline-flex items-center gap-1 text-red-700 bg-red-100 px-2 py-0.5 rounded text-xs">
-              <AlertCircle size={14} /> {invalidUsersCount} usuário(s) com role inválido
-            </span>
-          )}
-          {connectionStatus && (
-            <div className="mt-1 text-xs text-gray-500">Conexão: {connectionStatus}</div>
-          )}
-          {manualCheckResult && (
-            <div className="mt-1 text-xs text-gray-700">Checagem: {manualCheckResult}</div>
-          )}
-        </div>
-        <button
-          onClick={syncDriverToFirestore}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-blue-700 transition-colors shadow"
-        >
-          <span>Sincronizar entregador do Auth</span>
-        </button>
-      </div>
-      <div className="flex gap-2">
-        <button onClick={validateFirebaseConnection} className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded border">Validar Conexão</button>
-        <button onClick={checkInvalidRoles} className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded border">Verificar Roles</button>
-        <button onClick={debugListUsers} className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded border">Listar Users</button>
-      </div>
-      {usersDebugInfo && (
-        <div className="mt-2 text-xs text-gray-700">Diag users: {usersDebugInfo}</div>
-      )}
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">Entregadores</h2>
