@@ -6,7 +6,7 @@ import {
   Package, Truck, CheckCircle, XCircle, Clock, MapPin, Phone, 
   User, AlertCircle, Loader2, Calendar, ChevronDown, ChevronRight,
   DollarSign, ClipboardList, RefreshCw, Send, Filter, Users,
-  Sparkles, Edit3, Plus, Minus, Save
+  Sparkles, Edit3, Plus, Minus, Save, CreditCard, Banknote, X
 } from 'lucide-react';
 
 // Helper: formatar dia da semana
@@ -35,7 +35,9 @@ const DriverDailyDeliveries: React.FC = () => {
     getDynamicClientsForDriver,
     getDynamicClientPrediction,
     getDynamicClientHistory,
-    recordDynamicDelivery
+    recordDynamicDelivery,
+    registerDailyPayment,
+    calculateClientDebt
   } = useData();
   
   const today = new Date().toISOString().split('T')[0];
@@ -54,6 +56,16 @@ const DriverDailyDeliveries: React.FC = () => {
   const [dynamicDeliveryItems, setDynamicDeliveryItems] = useState<{ productId: string; quantity: number; price: number }[]>([]);
   const [selectedProductToAdd, setSelectedProductToAdd] = useState<string>('');
   const [quantityToAdd, setQuantityToAdd] = useState<number>(1);
+
+  // Estados para modal de pagamento
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentClientId, setPaymentClientId] = useState<string>('');
+  const [paymentClientName, setPaymentClientName] = useState<string>('');
+  const [paymentAmount, setPaymentAmount] = useState<string>('');
+  const [paymentMethod, setPaymentMethod] = useState<string>('Dinheiro');
+  const [paidUntilDate, setPaidUntilDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [savingPayment, setSavingPayment] = useState(false);
+  const [clientDebt, setClientDebt] = useState<number>(0);
 
   // Clientes dinâmicos
   const dynamicClients = currentUser?.id ? getDynamicClientsForDriver(currentUser.id) : [];
@@ -228,6 +240,47 @@ const DriverDailyDeliveries: React.FC = () => {
       setError('Erro ao registrar entrega dinâmica.');
     } finally {
       setProcessingId(null);
+    }
+  };
+
+  // Abrir modal de pagamento
+  const handleOpenPaymentModal = (clientId: string, clientName: string) => {
+    const client = clients.find(c => c.id === clientId);
+    if (client) {
+      const debt = calculateClientDebt(client);
+      setClientDebt(debt.total);
+      setPaymentAmount(debt.total > 0 ? debt.total.toFixed(2) : '');
+    }
+    setPaymentClientId(clientId);
+    setPaymentClientName(clientName);
+    setPaidUntilDate(new Date().toISOString().split('T')[0]);
+    setPaymentMethod('Dinheiro');
+    setShowPaymentModal(true);
+  };
+
+  // Registrar pagamento
+  const handleRegisterPayment = async () => {
+    if (!currentUser?.id || !paymentClientId) return;
+    
+    const amount = parseFloat(paymentAmount) || 0;
+    if (amount <= 0) {
+      setError('Informe um valor válido');
+      return;
+    }
+    
+    setSavingPayment(true);
+    try {
+      await registerDailyPayment(currentUser.id, paymentClientId, amount, paymentMethod, paidUntilDate);
+      setShowPaymentModal(false);
+      setPaymentClientId('');
+      setPaymentClientName('');
+      setPaymentAmount('');
+      setClientDebt(0);
+    } catch (err) {
+      console.error('Erro ao registrar pagamento:', err);
+      setError('Erro ao registrar pagamento');
+    } finally {
+      setSavingPayment(false);
     }
   };
 
@@ -898,15 +951,35 @@ const DriverDailyDeliveries: React.FC = () => {
                               <XCircle size={14} />
                               Não Entregue
                             </button>
+                            {/* Botão Receber Pagamento */}
+                            <button
+                              onClick={() => handleOpenPaymentModal(delivery.clientId, delivery.clientName)}
+                              className="flex items-center gap-1 px-3 py-2 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 text-sm"
+                            >
+                              <Banknote size={14} />
+                              Receber €
+                            </button>
                           </div>
                         )}
                         
                         {delivery.status !== 'pending' && (
-                          <div className="ml-4">
-                            {delivery.status === 'delivered' && delivery.deliveredAt && (
-                              <span className="text-xs text-gray-400">
-                                {new Date(delivery.deliveredAt).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}
-                              </span>
+                          <div className="ml-4 flex flex-col gap-2 items-end">
+                            {delivery.status === 'delivered' && (
+                              <>
+                                {delivery.deliveredAt && (
+                                  <span className="text-xs text-gray-400">
+                                    {new Date(delivery.deliveredAt).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                )}
+                                {/* Botão Receber Pagamento também para entregas confirmadas */}
+                                <button
+                                  onClick={() => handleOpenPaymentModal(delivery.clientId, delivery.clientName)}
+                                  className="flex items-center gap-1 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 text-xs"
+                                >
+                                  <Banknote size={12} />
+                                  Receber €
+                                </button>
+                              </>
                             )}
                           </div>
                         )}
@@ -948,6 +1021,136 @@ const DriverDailyDeliveries: React.FC = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Modal de Pagamento */}
+      {showPaymentModal && paymentClientId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-xl">
+            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <Banknote className="text-amber-600" size={20} />
+              Receber Pagamento
+            </h3>
+            
+            <div className="mb-4">
+              <p className="text-gray-600 text-sm mb-1">Cliente:</p>
+              <p className="font-semibold text-gray-800">{paymentClientName}</p>
+            </div>
+
+            {/* Mostrar dívida atual */}
+            {clientDebt > 0 ? (
+              <div className="mb-4 p-3 bg-red-50 rounded-lg border border-red-200">
+                <p className="text-sm text-red-700">
+                  <strong>Dívida atual:</strong> €{clientDebt.toFixed(2)}
+                </p>
+              </div>
+            ) : (
+              <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
+                <p className="text-sm text-green-700">
+                  Cliente sem dívida pendente
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              {/* Valor */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Valor Recebido (€)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                />
+              </div>
+
+              {/* Método de Pagamento */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Método de Pagamento
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setPaymentMethod('Dinheiro')}
+                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
+                      paymentMethod === 'Dinheiro'
+                        ? 'border-green-500 bg-green-50 text-green-700'
+                        : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    <Banknote size={18} />
+                    Dinheiro
+                  </button>
+                  <button
+                    onClick={() => setPaymentMethod('MB Way')}
+                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
+                      paymentMethod === 'MB Way'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    <CreditCard size={18} />
+                    MB Way
+                  </button>
+                </div>
+              </div>
+
+              {/* Data até quando fica pago */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Pago até (data)
+                </label>
+                <input
+                  type="date"
+                  value={paidUntilDate}
+                  onChange={(e) => setPaidUntilDate(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Deixe em branco se não souber a data exata
+                </p>
+              </div>
+            </div>
+
+            {/* Botões */}
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowPaymentModal(false);
+                  setPaymentClientId('');
+                  setPaymentClientName('');
+                  setPaymentAmount('');
+                  setClientDebt(0);
+                }}
+                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleRegisterPayment}
+                disabled={savingPayment || !paymentAmount || parseFloat(paymentAmount) <= 0}
+                className="flex-1 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {savingPayment ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle size={16} />
+                    Registrar
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
