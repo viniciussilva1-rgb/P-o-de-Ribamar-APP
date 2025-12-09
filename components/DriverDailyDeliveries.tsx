@@ -55,14 +55,10 @@ const DriverDailyDeliveries: React.FC = () => {
     if (!client) return 0;
 
     let total = 0;
-    let daysCount = 0;
     const startDate = new Date(dateFrom);
     const endDate = new Date(dateTo);
 
-    // Primeiro, calcular o valor diário baseado no cronograma
-    const dailyValue = calculateDailyValue(client);
-
-    // Agora contar quantos dias úteis no período
+    // Para cada dia no período, calcular o valor baseado no cronograma
     const currentDate = new Date(startDate);
 
     while (currentDate <= endDate) {
@@ -81,31 +77,9 @@ const DriverDailyDeliveries: React.FC = () => {
 
       const scheduledItems = client.deliverySchedule?.[dayKey];
 
-      // Se tem itens programados para este dia, contar como dia válido
-      if (scheduledItems && scheduledItems.length > 0) {
-        daysCount++;
-      }
-
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-
-    total = dailyValue * daysCount;
-    return total;
-  };
-
-  // Função auxiliar para calcular o valor diário do cliente
-  const calculateDailyValue = (client: Client) => {
-    let maxDailyValue = 0;
-
-    // Verificar todos os dias da semana para encontrar o maior valor diário
-    const mapKeys = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
-
-    mapKeys.forEach(dayKey => {
-      const scheduledItems = client.deliverySchedule?.[dayKey as keyof typeof client.deliverySchedule];
-
+      // Se tem itens programados para este dia, calcular o valor
       if (scheduledItems && scheduledItems.length > 0) {
         let dayTotal = 0;
-
         scheduledItems.forEach(item => {
           const product = products.find(p => p.id === item.productId);
           if (product) {
@@ -113,15 +87,13 @@ const DriverDailyDeliveries: React.FC = () => {
             dayTotal += (item.quantity * effectivePrice);
           }
         });
-
-        // Usar o maior valor diário encontrado
-        if (dayTotal > maxDailyValue) {
-          maxDailyValue = dayTotal;
-        }
+        total += dayTotal;
       }
-    });
 
-    return maxDailyValue;
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    return total;
   };
 
   // Função para abrir modal de papel
