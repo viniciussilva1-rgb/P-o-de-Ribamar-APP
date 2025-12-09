@@ -919,17 +919,30 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     if (status === 'delivered') {
       updates.deliveredAt = now;
+      
+      // Se estava como "não entregue" antes, remover da lista de skippedDates
+      const client = clients.find(c => c.id === delivery.clientId);
+      if (client && client.skippedDates?.includes(delivery.date)) {
+        const newSkipped = client.skippedDates.filter(d => d !== delivery.date);
+        await updateDoc(doc(db, 'clients', client.id), {
+          skippedDates: newSkipped
+        });
+      }
     } else if (status === 'not_delivered') {
       updates.notDeliveredReason = reason || 'Não informado';
       updates.valueAdjustment = delivery.totalValue;
       
-      // Abater do saldo do cliente
+      // Adicionar a data aos skippedDates do cliente para não contabilizar na dívida
       const client = clients.find(c => c.id === delivery.clientId);
       if (client) {
-        const newBalance = Math.max(0, (client.currentBalance || 0) - delivery.totalValue);
-        await updateDoc(doc(db, 'clients', client.id), {
-          currentBalance: newBalance
-        });
+        const currentSkipped = client.skippedDates || [];
+        // Só adiciona se ainda não estiver na lista
+        if (!currentSkipped.includes(delivery.date)) {
+          const newSkipped = [...currentSkipped, delivery.date];
+          await updateDoc(doc(db, 'clients', client.id), {
+            skippedDates: newSkipped
+          });
+        }
       }
     }
     
