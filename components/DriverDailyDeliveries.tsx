@@ -55,24 +55,53 @@ const DriverDailyDeliveries: React.FC = () => {
     if (!client) return 0;
 
     let total = 0;
+    let daysCount = 0;
     const startDate = new Date(dateFrom);
     const endDate = new Date(dateTo);
+
+    // Primeiro, calcular o valor diário baseado no cronograma
+    const dailyValue = calculateDailyValue(client);
+
+    // Agora contar quantos dias úteis no período
     const currentDate = new Date(startDate);
 
     while (currentDate <= endDate) {
       const dateStr = currentDate.toISOString().split('T')[0];
 
-      // Verificar se a data foi pulada
+      // Verificar se a data foi pulada (cliente não ficou com pão)
       if (client.skippedDates && client.skippedDates.includes(dateStr)) {
         currentDate.setDate(currentDate.getDate() + 1);
         continue;
       }
 
+      // Verificar se este dia da semana tem entrega programada
       const dayIndex = currentDate.getDay();
       const mapKeys = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
       const dayKey = mapKeys[dayIndex] as keyof typeof client.deliverySchedule;
 
       const scheduledItems = client.deliverySchedule?.[dayKey];
+
+      // Se tem itens programados para este dia, contar como dia válido
+      if (scheduledItems && scheduledItems.length > 0) {
+        daysCount++;
+      }
+
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    total = dailyValue * daysCount;
+    return total;
+  };
+
+  // Função auxiliar para calcular o valor diário do cliente
+  const calculateDailyValue = (client: Client) => {
+    let maxDailyValue = 0;
+
+    // Verificar todos os dias da semana para encontrar o maior valor diário
+    const mapKeys = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
+
+    mapKeys.forEach(dayKey => {
+      const scheduledItems = client.deliverySchedule?.[dayKey as keyof typeof client.deliverySchedule];
 
       if (scheduledItems && scheduledItems.length > 0) {
         let dayTotal = 0;
@@ -85,13 +114,14 @@ const DriverDailyDeliveries: React.FC = () => {
           }
         });
 
-        total += dayTotal;
+        // Usar o maior valor diário encontrado
+        if (dayTotal > maxDailyValue) {
+          maxDailyValue = dayTotal;
+        }
       }
+    });
 
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-
-    return total;
+    return maxDailyValue;
   };
 
   // Função para abrir modal de papel
