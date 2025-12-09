@@ -828,8 +828,15 @@ const DriverDailyDeliveries: React.FC = () => {
                                 <input
                                   type="number"
                                   min="1"
-                                  value={quantityToAdd}
-                                  onChange={(e) => setQuantityToAdd(Math.max(1, parseInt(e.target.value) || 1))}
+                                  value={quantityToAdd === 0 ? '' : quantityToAdd}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (val === '' || isNaN(Number(val))) {
+                                      setQuantityToAdd(0);
+                                    } else {
+                                      setQuantityToAdd(Number(val));
+                                    }
+                                  }}
                                   className="w-20 px-3 py-2 border border-purple-200 rounded-lg text-sm text-center font-bold"
                                 />
                                 <button
