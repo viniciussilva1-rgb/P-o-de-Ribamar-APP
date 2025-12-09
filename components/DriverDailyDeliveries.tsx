@@ -56,47 +56,6 @@ const DriverDailyDeliveries: React.FC = () => {
     setLeaveReceiptValue(value);
     setShowLeaveReceiptModal(true);
   };
-import React, { useState, useEffect } from 'react';
-import { useData } from '../context/DataContext';
-import { useAuth } from '../context/AuthContext';
-import { ClientDelivery, DeliveryStatus, Client, DynamicClientPrediction } from '../types';
-import { 
-  Package, Truck, CheckCircle, XCircle, Clock, MapPin, Phone, 
-  User, AlertCircle, Loader2, Calendar, ChevronDown, ChevronRight,
-  DollarSign, ClipboardList, RefreshCw, Send, Filter, Users,
-  Sparkles, Edit3, Plus, Minus, Save, CreditCard, Banknote, X
-} from 'lucide-react';
-
-// Helper: formatar dia da semana
-const getDayName = (date: string): string => {
-  const days = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
-  return days[new Date(date).getDay()];
-};
-
-const getDayKey = (date: string): 'dom' | 'seg' | 'ter' | 'qua' | 'qui' | 'sex' | 'sab' => {
-  const mapKeys: ('dom' | 'seg' | 'ter' | 'qua' | 'qui' | 'sex' | 'sab')[] = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
-  return mapKeys[new Date(date).getDay()];
-};
-
-const DriverDailyDeliveries: React.FC = () => {
-  const { currentUser } = useAuth();
-  const { 
-    products, 
-    routes,
-    clients,
-    generateDailyDeliveries,
-    updateDeliveryStatus,
-    getDeliveriesByDriver,
-    getDriverDailySummary,
-    getScheduledClientsForDay,
-    clientDeliveries,
-    getDynamicClientsForDriver,
-    getDynamicClientPrediction,
-    getDynamicClientHistory,
-    recordDynamicDelivery,
-    registerDailyPayment,
-    calculateClientDebt
-  } = useData();
   
   const today = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState(today);
