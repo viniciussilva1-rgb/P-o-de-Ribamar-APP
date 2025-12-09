@@ -47,6 +47,7 @@ const DriverDailyDeliveries: React.FC = () => {
   const [leaveReceiptDateFrom, setLeaveReceiptDateFrom] = useState('');
   const [leaveReceiptDateTo, setLeaveReceiptDateTo] = useState(new Date().toISOString().split('T')[0]);
   const [leaveReceiptValue, setLeaveReceiptValue] = useState(0);
+  const [expandedReceiptDelivery, setExpandedReceiptDelivery] = useState<string | null>(null);
 
   // Função para calcular valor do período específico
   const calculatePeriodValue = (clientId: string, dateFrom: string, dateTo: string) => {
@@ -94,21 +95,32 @@ const DriverDailyDeliveries: React.FC = () => {
   };
 
   // Função para abrir modal de papel
-  const handleOpenLeaveReceiptModal = (clientId: string, clientName: string) => {
-    setLeaveReceiptClientId(clientId);
-    setLeaveReceiptClientName(clientName);
+  const handleOpenLeaveReceiptModal = (clientId: string, clientName: string, deliveryId: string) => {
+    if (expandedReceiptDelivery === deliveryId) {
+      // Se já está expandido, fecha
+      setExpandedReceiptDelivery(null);
+      setLeaveReceiptClientId('');
+      setLeaveReceiptClientName('');
+      setLeaveReceiptDateFrom('');
+      setLeaveReceiptDateTo(new Date().toISOString().split('T')[0]);
+      setLeaveReceiptValue(0);
+    } else {
+      // Abre para este delivery
+      setExpandedReceiptDelivery(deliveryId);
+      setLeaveReceiptClientId(clientId);
+      setLeaveReceiptClientName(clientName);
 
-    // Definir período padrão: último mês
-    const today = new Date();
-    const lastMonth = new Date(today);
-    lastMonth.setMonth(lastMonth.getMonth() - 1);
+      // Definir período padrão: último mês
+      const today = new Date();
+      const lastMonth = new Date(today);
+      lastMonth.setMonth(lastMonth.getMonth() - 1);
 
-    setLeaveReceiptDateFrom(lastMonth.toISOString().split('T')[0]);
-    setLeaveReceiptDateTo(today.toISOString().split('T')[0]);
+      setLeaveReceiptDateFrom(lastMonth.toISOString().split('T')[0]);
+      setLeaveReceiptDateTo(today.toISOString().split('T')[0]);
 
-    const value = calculatePeriodValue(clientId, lastMonth.toISOString().split('T')[0], today.toISOString().split('T')[0]);
-    setLeaveReceiptValue(value);
-    setShowLeaveReceiptModal(true);
+      const value = calculatePeriodValue(clientId, lastMonth.toISOString().split('T')[0], today.toISOString().split('T')[0]);
+      setLeaveReceiptValue(value);
+    }
   };
 
   // Função para atualizar valor quando datas mudarem
@@ -1051,7 +1063,7 @@ const DriverDailyDeliveries: React.FC = () => {
                               if (client?.leaveReceipt) {
                                 return (
                                   <button
-                                    onClick={() => handleOpenLeaveReceiptModal(delivery.clientId, delivery.clientName)}
+                                    onClick={() => handleOpenLeaveReceiptModal(delivery.clientId, delivery.clientName, delivery.id)}
                                     className="flex items-center gap-1 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 text-sm"
                                   >
                                     <ClipboardList size={14} />
@@ -1061,70 +1073,6 @@ const DriverDailyDeliveries: React.FC = () => {
                               }
                               return null;
                             })()}
-                                {/* Modal Deixar Papel */}
-                                {showLeaveReceiptModal && leaveReceiptClientId && (
-                                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                                    <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-xl">
-                                      <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                        <ClipboardList className="text-blue-600" size={20} />
-                                        Deixar Papel para Cliente
-                                      </h3>
-                                      <div className="mb-4">
-                                        <p className="text-gray-600 text-sm mb-1">Cliente:</p>
-                                        <p className="font-semibold text-gray-800">{leaveReceiptClientName}</p>
-                                      </div>
-                                      <div className="mb-4 space-y-3">
-                                        <div>
-                                          <label className="block text-sm font-medium text-gray-700 mb-1">De (data inicial):</label>
-                                          <input
-                                            type="date"
-                                            value={leaveReceiptDateFrom}
-                                            onChange={e => {
-                                              setLeaveReceiptDateFrom(e.target.value);
-                                              setTimeout(updateLeaveReceiptValue, 100);
-                                            }}
-                                            className="w-full px-4 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                          />
-                                        </div>
-                                        <div>
-                                          <label className="block text-sm font-medium text-gray-700 mb-1">Até (data final):</label>
-                                          <input
-                                            type="date"
-                                            value={leaveReceiptDateTo}
-                                            onChange={e => {
-                                              setLeaveReceiptDateTo(e.target.value);
-                                              setTimeout(updateLeaveReceiptValue, 100);
-                                            }}
-                                            className="w-full px-4 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                          />
-                                        </div>
-                                      </div>
-                                      <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                                        <p className="text-sm text-blue-700">
-                                          <strong>Valor a apontar no papel:</strong> €{leaveReceiptValue.toFixed(2)}
-                                        </p>
-                                        <p className="text-xs text-blue-600 mt-1">
-                                          Período: {leaveReceiptDateFrom} até {leaveReceiptDateTo}
-                                        </p>
-                                      </div>
-                                      <div className="flex gap-3 mt-6">
-                                        <button
-                                          onClick={() => {
-                                            setShowLeaveReceiptModal(false);
-                                            setLeaveReceiptClientId('');
-                                            setLeaveReceiptClientName('');
-                                            setLeaveReceiptDateFrom('');
-                                            setLeaveReceiptDateTo(new Date().toISOString().split('T')[0]);
-                                            setLeaveReceiptValue(0);
-                                          }}
-                                          className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-                                        >
-                                          Fechar
-                                        </button>
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
                           </div>
                         )}
                         
@@ -1150,7 +1098,70 @@ const DriverDailyDeliveries: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      
+
+                      {/* Seção Deixar Papel (inline) */}
+                      {expandedReceiptDelivery === delivery.id && (
+                        <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="text-sm font-semibold text-blue-800 flex items-center gap-2">
+                              <ClipboardList size={16} />
+                              Deixar Papel para Cliente
+                            </h4>
+                            <button
+                              onClick={() => handleOpenLeaveReceiptModal(delivery.clientId, delivery.clientName, delivery.id)}
+                              className="text-blue-600 hover:text-blue-800 text-sm"
+                            >
+                              ✕
+                            </button>
+                          </div>
+
+                          <div className="mb-3">
+                            <p className="text-sm text-blue-700">
+                              <strong>Cliente:</strong> {leaveReceiptClientName}
+                            </p>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3 mb-3">
+                            <div>
+                              <label className="block text-xs font-medium text-blue-700 mb-1">De:</label>
+                              <input
+                                type="date"
+                                value={leaveReceiptDateFrom}
+                                onChange={e => {
+                                  setLeaveReceiptDateFrom(e.target.value);
+                                  setTimeout(updateLeaveReceiptValue, 100);
+                                }}
+                                className="w-full px-3 py-2 text-sm border border-blue-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-blue-700 mb-1">Até:</label>
+                              <input
+                                type="date"
+                                value={leaveReceiptDateTo}
+                                onChange={e => {
+                                  setLeaveReceiptDateTo(e.target.value);
+                                  setTimeout(updateLeaveReceiptValue, 100);
+                                }}
+                                className="w-full px-3 py-2 text-sm border border-blue-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="p-3 bg-white rounded border border-blue-300">
+                            <p className="text-sm text-blue-800">
+                              <strong>Valor a apontar no papel:</strong>
+                            </p>
+                            <p className="text-lg font-bold text-blue-900">
+                              €{leaveReceiptValue.toFixed(2)}
+                            </p>
+                            <p className="text-xs text-blue-600 mt-1">
+                              Período: {leaveReceiptDateFrom} até {leaveReceiptDateTo}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Formulário de motivo para não entrega */}
                       {isExpanded && delivery.status === 'pending' && (
                         <div className="mt-4 p-3 bg-red-50 rounded-lg border border-red-200">
