@@ -136,30 +136,20 @@ const AdminWeeklySettlement: React.FC = () => {
   }, [driversSettlements]);
 
   const handleConfirmSettlement = async (driverId: string) => {
-    console.log('Iniciando handleConfirmSettlement para driver:', driverId);
-    console.log('Current user:', currentUser);
-
     if (!currentUser || !currentUser.id) {
-      console.error('Usuário não autenticado ou sem ID');
       alert('Erro: Usuário não autenticado. Faça login novamente.');
       return;
     }
 
-    console.log('Selected week start:', selectedWeekStart);
-
     setLoading(true);
     try {
       const settlementId = `settlement-${driverId}-${selectedWeekStart}`;
-      console.log('Settlement ID gerado:', settlementId);
-
       await confirmWeeklySettlement(settlementId, currentUser.id, settlementObservations || undefined);
-      console.log('confirmWeeklySettlement executado com sucesso');
-
       setConfirmingSettlement(null);
       setSettlementObservations('');
       alert('Fecho semanal confirmado com sucesso!');
     } catch (error) {
-      console.error('Erro completo ao confirmar fecho:', error);
+      console.error('Erro ao confirmar fecho:', error);
       alert('Erro ao confirmar fecho semanal: ' + (error.message || 'Erro desconhecido'));
     } finally {
       setLoading(false);

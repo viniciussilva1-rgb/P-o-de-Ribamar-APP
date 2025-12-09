@@ -1644,64 +1644,44 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Confirmar Fecho Semanal (Admin)
   const confirmWeeklySettlement = async (settlementId: string, adminId: string, observations?: string): Promise<void> => {
-    console.log('Iniciando confirmWeeklySettlement:', { settlementId, adminId, observations });
-
     const settlement = weeklySettlements.find(s => s.id === settlementId);
-    console.log('Settlement encontrado:', settlement);
-
     if (!settlement) {
       // Criar novo settlement
       const parts = settlementId.split('-');
-      console.log('Parts do settlementId:', parts);
-
       const driverId = parts[1];
       const weekStartDate = parts.slice(2).join('-');
-
-      console.log('DriverId:', driverId, 'WeekStartDate:', weekStartDate);
-
+      
       const calculatedData = calculateWeeklySettlement(driverId, weekStartDate);
-      console.log('Dados calculados:', calculatedData);
-
       const now = new Date().toISOString();
-
+      
       const newSettlement: WeeklyDriverSettlement = {
         id: settlementId,
         ...calculatedData,
         status: 'confirmed',
         confirmedAt: now,
         confirmedBy: adminId,
-        observations,
         createdAt: now,
-        updatedAt: now
+        updatedAt: now,
+        ...(observations && observations.trim() !== '' ? { observations } : {})
       };
-
-      console.log('Novo settlement a ser criado:', newSettlement);
-
-      try {
-        await setDoc(doc(db, 'weekly_settlements', settlementId), newSettlement);
-        console.log('Settlement criado com sucesso');
-      } catch (error) {
-        console.error('Erro ao criar settlement:', error);
-        throw error;
-      }
+      
+      await setDoc(doc(db, 'weekly_settlements', settlementId), newSettlement);
     } else {
       // Atualizar existente
       const now = new Date().toISOString();
-      console.log('Atualizando settlement existente');
+      
+      const updateData: any = {
+        status: 'confirmed',
+        confirmedAt: now,
+        confirmedBy: adminId,
+        updatedAt: now
+      };
 
-      try {
-        await updateDoc(doc(db, 'weekly_settlements', settlementId), {
-          status: 'confirmed',
-          confirmedAt: now,
-          confirmedBy: adminId,
-          observations,
-          updatedAt: now
-        });
-        console.log('Settlement atualizado com sucesso');
-      } catch (error) {
-        console.error('Erro ao atualizar settlement:', error);
-        throw error;
+      if (observations && observations.trim() !== '') {
+        updateData.observations = observations;
       }
+
+      await updateDoc(doc(db, 'weekly_settlements', settlementId), updateData);
     }
   };
 
