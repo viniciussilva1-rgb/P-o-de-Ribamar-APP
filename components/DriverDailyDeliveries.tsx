@@ -1,3 +1,20 @@
+
+  // Estados para modal de papel
+  const [showLeaveReceiptModal, setShowLeaveReceiptModal] = useState(false);
+  const [leaveReceiptClientId, setLeaveReceiptClientId] = useState('');
+  const [leaveReceiptClientName, setLeaveReceiptClientName] = useState('');
+  const [leaveReceiptDate, setLeaveReceiptDate] = useState(new Date().toISOString().split('T')[0]);
+  const [leaveReceiptValue, setLeaveReceiptValue] = useState(0);
+
+  // Função para abrir modal de papel
+  const handleOpenLeaveReceiptModal = (clientId: string, clientName: string) => {
+    setLeaveReceiptClientId(clientId);
+    setLeaveReceiptClientName(clientName);
+    setLeaveReceiptDate(new Date().toISOString().split('T')[0]);
+    const value = calculateClientDebt(clientId);
+    setLeaveReceiptValue(value);
+    setShowLeaveReceiptModal(true);
+  };
 import React, { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
@@ -966,6 +983,65 @@ const DriverDailyDeliveries: React.FC = () => {
                               <Banknote size={14} />
                               Receber €
                             </button>
+                            {/* Botão Deixar Papel */}
+                            {(() => {
+                              const client = clients.find(c => c.id === delivery.clientId);
+                              if (client?.leaveReceipt) {
+                                return (
+                                  <button
+                                    onClick={() => handleOpenLeaveReceiptModal(delivery.clientId, delivery.clientName)}
+                                    className="flex items-center gap-1 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 text-sm"
+                                  >
+                                    <ClipboardList size={14} />
+                                    Deixar Papel
+                                  </button>
+                                );
+                              }
+                              return null;
+                            })()}
+                                {/* Modal Deixar Papel */}
+                                {showLeaveReceiptModal && leaveReceiptClientId && (
+                                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                                    <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-xl">
+                                      <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                        <ClipboardList className="text-blue-600" size={20} />
+                                        Deixar Papel para Cliente
+                                      </h3>
+                                      <div className="mb-4">
+                                        <p className="text-gray-600 text-sm mb-1">Cliente:</p>
+                                        <p className="font-semibold text-gray-800">{leaveReceiptClientName}</p>
+                                      </div>
+                                      <div className="mb-4">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Pago até (data):</label>
+                                        <input
+                                          type="date"
+                                          value={leaveReceiptDate}
+                                          onChange={e => setLeaveReceiptDate(e.target.value)}
+                                          className="w-full px-4 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        />
+                                      </div>
+                                      <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                        <p className="text-sm text-blue-700">
+                                          <strong>Valor a apontar no papel:</strong> €{leaveReceiptValue.toFixed(2)}
+                                        </p>
+                                      </div>
+                                      <div className="flex gap-3 mt-6">
+                                        <button
+                                          onClick={() => {
+                                            setShowLeaveReceiptModal(false);
+                                            setLeaveReceiptClientId('');
+                                            setLeaveReceiptClientName('');
+                                            setLeaveReceiptDate(new Date().toISOString().split('T')[0]);
+                                            setLeaveReceiptValue(0);
+                                          }}
+                                          className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                                        >
+                                          Fechar
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
                           </div>
                         )}
                         
