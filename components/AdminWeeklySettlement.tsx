@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
+import { WeeklyDriverSettlement } from '../types';
 import { 
   Calculator,
   Users,
@@ -41,7 +42,7 @@ const AdminWeeklySettlement: React.FC = () => {
   const [expandedDriver, setExpandedDriver] = useState<string | null>(null);
   const [confirmingSettlement, setConfirmingSettlement] = useState<string | null>(null);
   const [showingHistory, setShowingHistory] = useState<string | null>(null);
-  const [viewingSettlement, setViewingSettlement] = useState<string | null>(null);
+  const [selectedSettlement, setSelectedSettlement] = useState<WeeklyDriverSettlement | null>(null);
   const [settlementObservations, setSettlementObservations] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -377,26 +378,38 @@ const AdminWeeklySettlement: React.FC = () => {
                   <History size={16} />
                   Histórico de Fechos
                 </h4>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
+                <div className="space-y-2 max-h-64 overflow-y-auto">
                   {history.map((settlement, index) => (
                     <div 
                       key={settlement.id} 
-                      className="bg-white p-3 rounded-lg border border-blue-200 flex items-center justify-between"
+                      className="bg-white p-3 rounded-lg border border-blue-200"
                     >
-                      <div>
-                        <p className="text-sm font-medium text-gray-800">
-                          {formatDateTime(settlement.confirmedAt || settlement.createdAt || '')}
-                        </p>
-                        {settlement.observations && (
-                          <p className="text-xs text-gray-500 italic mt-1">"{settlement.observations}"</p>
-                        )}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-gray-800">
+                            {formatDateTime(settlement.confirmedAt || settlement.createdAt || '')}
+                          </p>
+                          {settlement.observations && (
+                            <p className="text-xs text-gray-500 italic mt-1">"{settlement.observations}"</p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-green-600">{formatCurrency(settlement.totalReceived)}</p>
+                          <p className="text-xs text-gray-500">
+                            {formatCurrency(settlement.cashTotal)} em dinheiro
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-green-600">{formatCurrency(settlement.totalReceived)}</p>
-                        <p className="text-xs text-gray-500">
-                          {formatCurrency(settlement.cashTotal)} em dinheiro
-                        </p>
-                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedSettlement(settlement);
+                        }}
+                        className="w-full mt-2 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors flex items-center justify-center gap-1"
+                      >
+                        <Eye size={14} />
+                        Ver Detalhes do Fecho
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -580,17 +593,194 @@ const AdminWeeklySettlement: React.FC = () => {
         <div className="flex items-start gap-3">
           <AlertCircle size={20} className="text-blue-600 mt-0.5" />
           <div className="text-sm text-blue-700">
-            <p className="font-medium mb-1">Como funciona o Fecho Semanal:</p>
+            <p className="font-medium mb-1">Como funciona o Fecho:</p>
             <ul className="list-disc list-inside space-y-1 text-blue-600">
               <li>O sistema calcula automaticamente os totais de cada entregador</li>
               <li>O valor "A Entregar" considera apenas <strong>dinheiro em espécie</strong></li>
               <li>MBWay e Transferências já vão direto para a conta da empresa</li>
-              <li>O fundo de caixa <strong>não</strong> entra no cálculo</li>
-              <li>Confirme o fecho após receber o dinheiro do entregador</li>
+              <li>Após confirmar o fecho, os valores zeram e começa novo período</li>
+              <li>Clique no histórico para ver detalhes de fechos anteriores</li>
             </ul>
           </div>
         </div>
       </div>
+
+      {/* Modal de Detalhes do Fecho */}
+      {selectedSettlement && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+            {/* Header do Modal */}
+            <div className="p-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold flex items-center gap-2">
+                    <FileText size={20} />
+                    Detalhes do Fecho
+                  </h3>
+                  <p className="text-blue-100 text-sm">
+                    {selectedSettlement.driverName} - {formatDateTime(selectedSettlement.confirmedAt || '')}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedSettlement(null)}
+                  className="p-2 hover:bg-blue-500 rounded-lg transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Conteúdo do Modal */}
+            <div className="p-4 overflow-y-auto max-h-[calc(90vh-120px)] space-y-4">
+              {/* Resumo Geral */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="bg-gray-50 p-3 rounded-lg text-center">
+                  <p className="text-xs text-gray-500 uppercase">Total Entregue</p>
+                  <p className="text-lg font-bold text-gray-800">{formatCurrency(selectedSettlement.totalDelivered)}</p>
+                </div>
+                <div className="bg-green-50 p-3 rounded-lg text-center">
+                  <p className="text-xs text-gray-500 uppercase">Total Recebido</p>
+                  <p className="text-lg font-bold text-green-600">{formatCurrency(selectedSettlement.totalReceived)}</p>
+                </div>
+                <div className="bg-amber-50 p-3 rounded-lg text-center">
+                  <p className="text-xs text-gray-500 uppercase">Dinheiro</p>
+                  <p className="text-lg font-bold text-amber-600">{formatCurrency(selectedSettlement.cashTotal)}</p>
+                </div>
+                <div className="bg-blue-50 p-3 rounded-lg text-center">
+                  <p className="text-xs text-gray-500 uppercase">MBWay/Transf.</p>
+                  <p className="text-lg font-bold text-blue-600">
+                    {formatCurrency(selectedSettlement.mbwayTotal + selectedSettlement.transferTotal)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Detalhes por Método */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="text-sm font-medium text-gray-700 mb-3">Por Método de Pagamento</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-green-100 rounded">
+                      <Banknote className="text-green-600" size={14} />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Dinheiro</p>
+                      <p className="font-semibold text-sm">{formatCurrency(selectedSettlement.cashTotal)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-blue-100 rounded">
+                      <Smartphone className="text-blue-600" size={14} />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">MBWay</p>
+                      <p className="font-semibold text-sm">{formatCurrency(selectedSettlement.mbwayTotal)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-purple-100 rounded">
+                      <ArrowRightLeft className="text-purple-600" size={14} />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Transferência</p>
+                      <p className="font-semibold text-sm">{formatCurrency(selectedSettlement.transferTotal)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-gray-100 rounded">
+                      <Calculator className="text-gray-600" size={14} />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Outros</p>
+                      <p className="font-semibold text-sm">{formatCurrency(selectedSettlement.otherTotal)}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Por Rota */}
+              {selectedSettlement.routeTotals && selectedSettlement.routeTotals.length > 0 && (
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">Por Rota</h4>
+                  <div className="space-y-2">
+                    {selectedSettlement.routeTotals.map((rt) => (
+                      <div key={rt.routeId} className="bg-white p-3 rounded-lg flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <MapPin size={16} className="text-amber-500" />
+                          <span className="font-medium">{rt.routeName}</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold">{formatCurrency(rt.totalReceived)}</p>
+                          <p className="text-xs text-gray-500">{rt.clientsPaid} cliente(s)</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Clientes que Pagaram */}
+              {selectedSettlement.clientPayments && selectedSettlement.clientPayments.length > 0 && (
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">
+                    Clientes que Pagaram ({selectedSettlement.clientPayments.length})
+                  </h4>
+                  <div className="bg-white rounded-lg overflow-hidden border border-gray-200">
+                    <div className="max-h-64 overflow-y-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-100 sticky top-0">
+                          <tr>
+                            <th className="text-left p-2 font-medium text-gray-600">Cliente</th>
+                            <th className="text-left p-2 font-medium text-gray-600">Rota</th>
+                            <th className="text-left p-2 font-medium text-gray-600">Método</th>
+                            <th className="text-right p-2 font-medium text-gray-600">Valor</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {selectedSettlement.clientPayments.map((cp) => (
+                            <tr key={cp.clientId} className="hover:bg-gray-50">
+                              <td className="p-2 font-medium">{cp.clientName}</td>
+                              <td className="p-2 text-gray-500">{cp.routeName || '-'}</td>
+                              <td className="p-2">
+                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                  cp.method === 'Dinheiro' ? 'bg-green-100 text-green-700' :
+                                  cp.method === 'MBWay' ? 'bg-blue-100 text-blue-700' :
+                                  cp.method === 'Transferência' ? 'bg-purple-100 text-purple-700' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {cp.method}
+                                </span>
+                              </td>
+                              <td className="p-2 text-right font-semibold">{formatCurrency(cp.totalPaid)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Observações */}
+              {selectedSettlement.observations && (
+                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                  <h4 className="text-sm font-medium text-yellow-800 mb-2">Observações</h4>
+                  <p className="text-sm text-yellow-700 italic">"{selectedSettlement.observations}"</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer do Modal */}
+            <div className="p-4 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => setSelectedSettlement(null)}
+                className="w-full py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
