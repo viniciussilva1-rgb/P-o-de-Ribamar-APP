@@ -707,11 +707,21 @@ export const DriverView: React.FC = () => {
           createdAt: baseClient?.createdAt || new Date().toISOString()
       } as Client;
 
+      // DEBUG: Ver o que está sendo calculado
+      console.log('=== DEBUG CALCULAR PAPEL ===');
+      console.log('Cliente:', tempClient.name);
+      console.log('deliverySchedule:', JSON.stringify(tempClient.deliverySchedule, null, 2));
+      console.log('customPrices:', JSON.stringify(tempClient.customPrices, null, 2));
+      console.log('Produtos disponíveis:', products.map(p => ({ id: p.id, name: p.name, price: p.price })));
+
       // Usar datas personalizadas se fornecidas, senão usar padrão
       const dateFrom = calcDateFrom || tempClient.lastPaymentDate || tempClient.createdAt?.split('T')[0];
       const dateTo = calcDateTo || formatDateLocal(new Date());
 
       const result = calculatePeriodDebt(tempClient, dateFrom, dateTo);
+      console.log('Resultado:', result);
+      console.log('=== FIM DEBUG ===');
+      
       setCalculatedTotal(result.total);
       setCalculatedDays(result.daysCount);
       setCalcDailyValue(result.dailyValue);
@@ -1539,13 +1549,16 @@ export const DriverView: React.FC = () => {
                        )}
 
                        <div className="flex gap-2 items-center">
-                            <input 
-                                type="number"
-                                step="0.01"
-                                className="flex-1 p-3 border-2 border-gray-300 rounded-lg bg-white text-gray-900 text-2xl font-bold tracking-tight"
-                                value={clientForm.currentBalance}
-                                onChange={e => setClientForm({...clientForm, currentBalance: parseFloat(e.target.value)})}
-                            />
+                            <div className="flex-1 relative">
+                                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-xl font-bold">€</span>
+                                <input 
+                                    type="number"
+                                    step="0.01"
+                                    className="w-full p-3 pl-8 border-2 border-gray-300 rounded-lg bg-white text-gray-900 text-2xl font-bold tracking-tight"
+                                    value={clientForm.currentBalance}
+                                    onChange={e => setClientForm({...clientForm, currentBalance: parseFloat(e.target.value)})}
+                                />
+                            </div>
                             {clientForm.leaveReceipt && (
                                 <button
                                     type="button"
