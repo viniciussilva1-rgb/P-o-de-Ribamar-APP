@@ -35,21 +35,9 @@ const AdminWeeklySettlement: React.FC = () => {
     routes
   } = useData();
 
-  // Calcular semana atual (segunda a domingo)
-  const getWeekDates = (date: Date) => {
-    const day = date.getDay();
-    const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Ajustar para segunda
-    const monday = new Date(date.setDate(diff));
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    
-    return {
-      start: monday.toISOString().split('T')[0],
-      end: sunday.toISOString().split('T')[0]
-    };
-  };
+  // Hoje
+  const today = new Date().toISOString().split('T')[0];
 
-  const [selectedWeekStart, setSelectedWeekStart] = useState(() => getWeekDates(new Date()).start);
   const [expandedDriver, setExpandedDriver] = useState<string | null>(null);
   const [confirmingSettlement, setConfirmingSettlement] = useState<string | null>(null);
   const [showingHistory, setShowingHistory] = useState<string | null>(null);
@@ -60,28 +48,6 @@ const AdminWeeklySettlement: React.FC = () => {
   if (!currentUser) return null;
 
   const drivers = getDrivers();
-  const weekEnd = (() => {
-    const start = new Date(selectedWeekStart);
-    start.setDate(start.getDate() + 6);
-    return start.toISOString().split('T')[0];
-  })();
-
-  // Navegar entre semanas
-  const goToPreviousWeek = () => {
-    const start = new Date(selectedWeekStart);
-    start.setDate(start.getDate() - 7);
-    setSelectedWeekStart(start.toISOString().split('T')[0]);
-  };
-
-  const goToNextWeek = () => {
-    const start = new Date(selectedWeekStart);
-    start.setDate(start.getDate() + 7);
-    setSelectedWeekStart(start.toISOString().split('T')[0]);
-  };
-
-  const goToCurrentWeek = () => {
-    setSelectedWeekStart(getWeekDates(new Date()).start);
-  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(value);
@@ -91,6 +57,13 @@ const AdminWeeklySettlement: React.FC = () => {
     return new Date(dateStr).toLocaleDateString('pt-PT', { 
       day: '2-digit', 
       month: 'short' 
+    });
+  };
+
+  const formatDateShort = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('pt-PT', { 
+      day: '2-digit', 
+      month: '2-digit' 
     });
   };
 
@@ -116,19 +89,53 @@ const AdminWeeklySettlement: React.FC = () => {
   // Calcular dados de todos os entregadores
   const driversSettlements = useMemo(() => {
     return drivers.map(driver => {
-      const calculated = calculateWeeklySettlement(driver.id, selectedWeekStart);
+      const calculated = calculateWeeklySettlement(driver.id, today);
       const lastSettlement = getLastConfirmedSettlement(driver.id);
       const history = getSettlementHistory(driver.id);
+      
+      // Calcular período atual: dia após o último fecho até hoje + 6 dias
+      let periodStart = today;
+      if (lastSettlement?.confirmedAt) {
+        const lastFechoDate = new Date(lastSettlement.confirmedAt);
+        lastFechoDate.setDate(lastFechoDate.getDate() + 1); // Dia seguinte ao fecho
+        periodStart = lastFechoDate.toISOString().split('T')[0];
+      }
+      
+      // Período termina 6 dias após o início (próximo fecho previsto)
+      const periodEndDate = new Date(periodStart);
+      periodEndDate.setDate(periodEndDate.getDate() + 6);
+      const periodEnd = periodEndDate.toISOString().split('T')[0];
       
       return {
         driver,
         calculated,
         lastSettlement,
         history,
-        hasNewValues: calculated.totalReceived > 0
+        hasNewValues: calculated.totalReceived > 0,
+        periodStart,
+        periodEnd
       };
     });
-  }, [drivers, selectedWeekStart, calculateWeeklySettlement, getLastConfirmedSettlement, getSettlementHistory]);
+  }, [drivers, today, calculateWeeklySettlement, getLastConfirmedSettlement, getSettlementHistory]);
+
+  // Calcular período geral (do mais antigo ao mais recente entre todos os entregadores)
+  const generalPeriod = useMemo(() => {
+    if (driversSettlements.length === 0) {
+      const endDate = new Date(today);
+      endDate.setDate(endDate.getDate() + 6);
+      return { start: today, end: endDate.toISOString().split('T')[0] };
+    }
+    
+    // Encontrar o período mais antigo (inicio) entre todos
+    const starts = driversSettlements.map(ds => ds.periodStart).sort();
+    const start = starts[0];
+    
+    // Fim é sempre 6 dias após o início
+    const endDate = new Date(start);
+    endDate.setDate(endDate.getDate() + 6);
+    
+    return { start, end: endDate.toISOString().split('T')[0] };
+  }, [driversSettlements, today]);
 
   // Totais gerais (valores pendentes a receber)
   const totalStats = useMemo(() => {
@@ -182,44 +189,23 @@ const AdminWeeklySettlement: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
             <Calculator className="text-amber-600" />
-            Fecho Semanal dos Entregadores
+            Fecho dos Entregadores
           </h2>
-          <p className="text-gray-500">Confirme os fechos semanais de cada entregador</p>
+          <p className="text-gray-500">Confirme os fechos e receba o dinheiro dos entregadores</p>
         </div>
       </div>
 
-      {/* Navegação de Semanas */}
+      {/* Período Atual */}
       <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={goToPreviousWeek}
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            ← Semana Anterior
-          </button>
-          
+        <div className="flex items-center justify-center">
           <div className="text-center">
-            <p className="text-lg font-semibold text-gray-800">
-              {formatDate(selectedWeekStart)} - {formatDate(weekEnd)}
+            <p className="text-sm text-gray-500 mb-1">Período Atual de Cobrança</p>
+            <p className="text-xl font-bold text-amber-600">
+              {formatDateShort(generalPeriod.start)} - {formatDateShort(generalPeriod.end)}
             </p>
-            <p className="text-sm text-gray-500">
-              {formatFullDate(selectedWeekStart).split(',')[0]}
+            <p className="text-xs text-gray-400 mt-1">
+              Os valores abaixo são desde o último fecho de cada entregador
             </p>
-          </div>
-          
-          <div className="flex gap-2">
-            <button
-              onClick={goToCurrentWeek}
-              className="px-4 py-2 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-colors"
-            >
-              Semana Atual
-            </button>
-            <button
-              onClick={goToNextWeek}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Próxima Semana →
-            </button>
           </div>
         </div>
       </div>
@@ -318,7 +304,7 @@ const AdminWeeklySettlement: React.FC = () => {
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-800">Entregadores - Valores Pendentes</h3>
         
-        {driversSettlements.map(({ driver, calculated, lastSettlement, history, hasNewValues }) => (
+        {driversSettlements.map(({ driver, calculated, lastSettlement, history, hasNewValues, periodStart, periodEnd }) => (
           <div 
             key={driver.id} 
             className={`bg-white rounded-xl shadow-sm border overflow-hidden ${
@@ -339,11 +325,14 @@ const AdminWeeklySettlement: React.FC = () => {
                   </div>
                   <div>
                     <p className="font-medium text-gray-800">{driver.name}</p>
-                    <div className="flex items-center gap-2 text-sm">
+                    <div className="flex items-center gap-2 text-sm flex-wrap">
+                      <span className="text-gray-500">
+                        {formatDateShort(periodStart)} - {formatDateShort(periodEnd)}
+                      </span>
                       {hasNewValues ? (
                         <span className="flex items-center gap-1 text-amber-600">
                           <Clock size={14} />
-                          Valores pendentes
+                          Pendente
                         </span>
                       ) : (
                         <span className="flex items-center gap-1 text-green-600">
@@ -357,7 +346,7 @@ const AdminWeeklySettlement: React.FC = () => {
                             e.stopPropagation();
                             setShowingHistory(showingHistory === driver.id ? null : driver.id);
                           }}
-                          className="flex items-center gap-1 text-blue-600 hover:text-blue-700 ml-2"
+                          className="flex items-center gap-1 text-blue-600 hover:text-blue-700"
                         >
                           <History size={14} />
                           {history.length} fecho(s)
