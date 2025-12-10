@@ -1563,14 +1563,59 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     endDate.setDate(endDate.getDate() + 6);
     const weekEndDate = endDate.toISOString().split('T')[0];
     
+    // Buscar o último fecho confirmado deste entregador ANTES desta semana
+    // Isso garante que os valores já confirmados não sejam contados novamente
+    const lastConfirmedSettlement = weeklySettlements
+      .filter(s => s.driverId === driverId && s.status === 'confirmed' && s.weekStartDate <= weekStartDate)
+      .sort((a, b) => {
+        // Ordenar por data de confirmação (mais recente primeiro)
+        const dateA = a.confirmedAt || a.createdAt || '';
+        const dateB = b.confirmedAt || b.createdAt || '';
+        return dateB.localeCompare(dateA);
+      })[0];
+    
+    // Se existe um fecho confirmado para ESTA semana, ignorar (já foi fechado)
+    const thisWeekSettlement = weeklySettlements.find(
+      s => s.driverId === driverId && s.weekStartDate === weekStartDate && s.status === 'confirmed'
+    );
+    
+    // Data de início efetiva: se houver fecho confirmado desta semana, usar a data de confirmação
+    // Caso contrário, usar a data de início da semana
+    let effectiveStartDate = weekStartDate;
+    let effectiveStartTimestamp: string | null = null;
+    
+    if (thisWeekSettlement?.confirmedAt) {
+      // Se já foi confirmado esta semana, calcular apenas APÓS a confirmação
+      effectiveStartTimestamp = thisWeekSettlement.confirmedAt;
+    }
+    
     // Buscar todos os pagamentos da semana
     const weekPayments = dailyPaymentsReceived.filter(p => {
-      return p.driverId === driverId && p.date >= weekStartDate && p.date <= weekEndDate;
+      const matchesDriver = p.driverId === driverId;
+      const inDateRange = p.date >= effectiveStartDate && p.date <= weekEndDate;
+      
+      // Se há um fecho confirmado desta semana, só contar pagamentos APÓS a confirmação
+      if (effectiveStartTimestamp) {
+        const paymentTimestamp = p.timestamp || p.createdAt || '';
+        return matchesDriver && inDateRange && paymentTimestamp > effectiveStartTimestamp;
+      }
+      
+      return matchesDriver && inDateRange;
     });
     
     // Buscar todas as entregas da semana
     const weekDeliveries = clientDeliveries.filter(d => {
-      return d.driverId === driverId && d.date >= weekStartDate && d.date <= weekEndDate && d.status === 'delivered';
+      const matchesDriver = d.driverId === driverId;
+      const inDateRange = d.date >= effectiveStartDate && d.date <= weekEndDate;
+      const isDelivered = d.status === 'delivered';
+      
+      // Se há um fecho confirmado desta semana, só contar entregas APÓS a confirmação
+      if (effectiveStartTimestamp) {
+        const deliveryTimestamp = d.deliveredAt || d.createdAt || '';
+        return matchesDriver && inDateRange && isDelivered && deliveryTimestamp > effectiveStartTimestamp;
+      }
+      
+      return matchesDriver && inDateRange && isDelivered;
     });
     
     // Totais gerais
@@ -1657,23 +1702,53 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   };
 
-  // Obter Fecho Semanal existente
+  // Obter Fecho Semanal existente (retorna o mais recente confirmado)
   const getWeeklySettlement = (driverId: string, weekStartDate: string): WeeklyDriverSettlement | undefined => {
-    return weeklySettlements.find(s => s.driverId === driverId && s.weekStartDate === weekStartDate);
+    // Buscar todos os fechos desta semana para este entregador
+    const weekSettlements = weeklySettlements
+      .filter(s => s.driverId === driverId && s.weekStartDate === weekStartDate && s.status === 'confirmed')
+      .sort((a, b) => {
+        const dateA = a.confirmedAt || a.createdAt || '';
+        const dateB = b.confirmedAt || b.createdAt || '';
+        return dateB.localeCompare(dateA); // Mais recente primeiro
+      });
+    
+    return weekSettlements[0];
   };
 
   // Confirmar Fecho Semanal (Admin)
   const confirmWeeklySettlement = async (settlementId: string, adminId: string, observations?: string): Promise<void> => {
-    const settlement = weeklySettlements.find(s => s.id === settlementId);
-    if (!settlement) {
-      // Criar novo settlement
-      const parts = settlementId.split('-');
-      const driverId = parts[1];
-      const weekStartDate = parts.slice(2).join('-');
+    const parts = settlementId.split('-');
+    const driverId = parts[1];
+    const weekStartDate = parts.slice(2).join('-');
+    
+    // Verificar se já existe um fecho confirmado para esta semana
+    const existingConfirmed = weeklySettlements.find(
+      s => s.driverId === driverId && s.weekStartDate === weekStartDate && s.status === 'confirmed'
+    );
+    
+    const calculatedData = calculateWeeklySettlement(driverId, weekStartDate);
+    const now = new Date().toISOString();
+    
+    if (existingConfirmed) {
+      // Já existe um fecho confirmado - criar um NOVO fecho parcial
+      // Usa timestamp para garantir ID único
+      const newSettlementId = `settlement-${driverId}-${weekStartDate}-${Date.now()}`;
       
-      const calculatedData = calculateWeeklySettlement(driverId, weekStartDate);
-      const now = new Date().toISOString();
+      const newSettlement: WeeklyDriverSettlement = {
+        id: newSettlementId,
+        ...calculatedData,
+        status: 'confirmed',
+        confirmedAt: now,
+        confirmedBy: adminId,
+        createdAt: now,
+        updatedAt: now,
+        ...(observations && observations.trim() !== '' ? { observations } : {})
+      };
       
+      await setDoc(doc(db, 'weekly_settlements', newSettlementId), newSettlement);
+    } else {
+      // Primeiro fecho da semana - usar ID original
       const newSettlement: WeeklyDriverSettlement = {
         id: settlementId,
         ...calculatedData,
@@ -1686,22 +1761,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       };
       
       await setDoc(doc(db, 'weekly_settlements', settlementId), newSettlement);
-    } else {
-      // Atualizar existente
-      const now = new Date().toISOString();
-      
-      const updateData: any = {
-        status: 'confirmed',
-        confirmedAt: now,
-        confirmedBy: adminId,
-        updatedAt: now
-      };
-
-      if (observations && observations.trim() !== '') {
-        updateData.observations = observations;
-      }
-
-      await updateDoc(doc(db, 'weekly_settlements', settlementId), updateData);
     }
   };
 

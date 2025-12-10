@@ -483,7 +483,7 @@ const AdminWeeklySettlement: React.FC = () => {
                 )}
 
                 {isConfirmed && existing && (
-                  <div className="pt-4 border-t border-gray-200">
+                  <div className="pt-4 border-t border-gray-200 space-y-3">
                     <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
                       <div className="flex items-center gap-2 text-green-700">
                         <CheckCircle size={18} />
@@ -496,6 +496,62 @@ const AdminWeeklySettlement: React.FC = () => {
                         <p className="text-sm text-gray-600 mt-2 italic">"{existing.observations}"</p>
                       )}
                     </div>
+                    
+                    {/* Se há novos valores após o fecho, permitir fazer novo fecho */}
+                    {calculated.totalReceived > 0 && (
+                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-amber-700">Novos recebimentos desde o último fecho</p>
+                            <p className="text-xs text-amber-600 mt-1">
+                              {formatCurrency(calculated.totalReceived)} a receber ({formatCurrency(calculated.cashTotal)} em dinheiro)
+                            </p>
+                          </div>
+                        </div>
+                        {confirmingSettlement === driver.id ? (
+                          <div className="space-y-3 mt-3">
+                            <textarea
+                              value={settlementObservations}
+                              onChange={(e) => setSettlementObservations(e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                              rows={2}
+                              placeholder="Observações do fecho (opcional)..."
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => {
+                                  setConfirmingSettlement(null);
+                                  setSettlementObservations('');
+                                }}
+                                className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100"
+                              >
+                                Cancelar
+                              </button>
+                              <button
+                                onClick={() => handleConfirmSettlement(driver.id)}
+                                disabled={loading}
+                                className="flex-1 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                              >
+                                {loading ? (
+                                  <RefreshCw size={18} className="animate-spin" />
+                                ) : (
+                                  <Check size={18} />
+                                )}
+                                Confirmar Novo Fecho
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmingSettlement(driver.id)}
+                            className="w-full mt-3 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors flex items-center justify-center gap-2"
+                          >
+                            <Calculator size={18} />
+                            Fazer Novo Fecho
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
