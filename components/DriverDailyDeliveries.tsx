@@ -45,24 +45,36 @@ const DriverDailyDeliveries: React.FC = () => {
   const [leaveReceiptClientId, setLeaveReceiptClientId] = useState('');
   const [leaveReceiptClientName, setLeaveReceiptClientName] = useState('');
   const [leaveReceiptDateFrom, setLeaveReceiptDateFrom] = useState('');
-  const [leaveReceiptDateTo, setLeaveReceiptDateTo] = useState(new Date().toISOString().split('T')[0]);
+  const [leaveReceiptDateTo, setLeaveReceiptDateTo] = useState('');
   const [leaveReceiptValue, setLeaveReceiptValue] = useState(0);
+  const [leaveReceiptDays, setLeaveReceiptDays] = useState(0);
+  const [leaveReceiptDailyValue, setLeaveReceiptDailyValue] = useState(0);
   const [expandedReceiptDelivery, setExpandedReceiptDelivery] = useState<string | null>(null);
 
   // Função para calcular valor do período específico
-  const calculatePeriodValue = (clientId: string, dateFrom: string, dateTo: string) => {
+  const calculatePeriodValue = (clientId: string, dateFrom: string, dateTo: string): number => {
     const client = clients.find(c => c.id === clientId);
     if (!client) return 0;
 
     let total = 0;
-    const startDate = new Date(dateFrom);
-    const endDate = new Date(dateTo);
+    let daysWithDelivery = 0;
+    
+    // Criar datas corretamente para evitar problemas de fuso horário
+    const [startYear, startMonth, startDay] = dateFrom.split('-').map(Number);
+    const [endYear, endMonth, endDay] = dateTo.split('-').map(Number);
+    
+    const startDate = new Date(startYear, startMonth - 1, startDay);
+    const endDate = new Date(endYear, endMonth - 1, endDay);
 
     // Para cada dia no período, calcular o valor baseado no cronograma
     const currentDate = new Date(startDate);
 
     while (currentDate <= endDate) {
-      const dateStr = currentDate.toISOString().split('T')[0];
+      // Formatar a data manualmente para evitar problemas de fuso horário
+      const year = currentDate.getFullYear();
+      const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+      const day = String(currentDate.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
 
       // Verificar se a data foi pulada (cliente não ficou com pão)
       if (client.skippedDates && client.skippedDates.includes(dateStr)) {
@@ -88,12 +100,77 @@ const DriverDailyDeliveries: React.FC = () => {
           }
         });
         total += dayTotal;
+        daysWithDelivery++;
       }
 
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
     return total;
+  };
+
+  // Função para calcular detalhes do período (dias e valor)
+  const calculatePeriodDetails = (clientId: string, dateFrom: string, dateTo: string): { total: number; days: number; dailyValue: number } => {
+    const client = clients.find(c => c.id === clientId);
+    if (!client) return { total: 0, days: 0, dailyValue: 0 };
+
+    let total = 0;
+    let daysWithDelivery = 0;
+    let dailyValue = 0;
+    
+    // Criar datas corretamente para evitar problemas de fuso horário
+    const [startYear, startMonth, startDay] = dateFrom.split('-').map(Number);
+    const [endYear, endMonth, endDay] = dateTo.split('-').map(Number);
+    
+    const startDate = new Date(startYear, startMonth - 1, startDay);
+    const endDate = new Date(endYear, endMonth - 1, endDay);
+
+    // Primeiro, calcular o valor diário baseado no primeiro dia com entrega
+    const mapKeys = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
+    
+    // Para cada dia no período, calcular o valor baseado no cronograma
+    const currentDate = new Date(startDate);
+
+    while (currentDate <= endDate) {
+      // Formatar a data manualmente para evitar problemas de fuso horário
+      const year = currentDate.getFullYear();
+      const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+      const day = String(currentDate.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+
+      // Verificar se a data foi pulada (cliente não ficou com pão)
+      if (client.skippedDates && client.skippedDates.includes(dateStr)) {
+        currentDate.setDate(currentDate.getDate() + 1);
+        continue;
+      }
+
+      // Verificar se este dia da semana tem entrega programada
+      const dayIndex = currentDate.getDay();
+      const dayKey = mapKeys[dayIndex] as keyof typeof client.deliverySchedule;
+
+      const scheduledItems = client.deliverySchedule?.[dayKey];
+
+      // Se tem itens programados para este dia, calcular o valor
+      if (scheduledItems && scheduledItems.length > 0) {
+        let dayTotal = 0;
+        scheduledItems.forEach(item => {
+          const product = products.find(p => p.id === item.productId);
+          if (product) {
+            const effectivePrice = client.customPrices?.[product.id] ?? product.price;
+            dayTotal += (item.quantity * effectivePrice);
+          }
+        });
+        total += dayTotal;
+        daysWithDelivery++;
+        
+        // Guardar o valor diário (assumindo que é igual todos os dias)
+        if (dailyValue === 0) dailyValue = dayTotal;
+      }
+
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    return { total, days: daysWithDelivery, dailyValue };
   };
 
   // Função para abrir modal de papel
@@ -106,6 +183,8 @@ const DriverDailyDeliveries: React.FC = () => {
       setLeaveReceiptDateFrom('');
       setLeaveReceiptDateTo(new Date().toISOString().split('T')[0]);
       setLeaveReceiptValue(0);
+      setLeaveReceiptDays(0);
+      setLeaveReceiptDailyValue(0);
     } else {
       // Abre para este delivery
       setExpandedReceiptDelivery(deliveryId);
@@ -117,19 +196,34 @@ const DriverDailyDeliveries: React.FC = () => {
       const lastMonth = new Date(today);
       lastMonth.setMonth(lastMonth.getMonth() - 1);
 
-      setLeaveReceiptDateFrom(lastMonth.toISOString().split('T')[0]);
-      setLeaveReceiptDateTo(today.toISOString().split('T')[0]);
+      // Formatar datas corretamente para evitar problemas de fuso horário
+      const formatDateLocal = (d: Date) => {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
 
-      const value = calculatePeriodValue(clientId, lastMonth.toISOString().split('T')[0], today.toISOString().split('T')[0]);
-      setLeaveReceiptValue(value);
+      const dateFromStr = formatDateLocal(lastMonth);
+      const dateToStr = formatDateLocal(today);
+
+      setLeaveReceiptDateFrom(dateFromStr);
+      setLeaveReceiptDateTo(dateToStr);
+
+      const details = calculatePeriodDetails(clientId, dateFromStr, dateToStr);
+      setLeaveReceiptValue(details.total);
+      setLeaveReceiptDays(details.days);
+      setLeaveReceiptDailyValue(details.dailyValue);
     }
   };
 
   // Função para atualizar valor quando datas mudarem
   const updateLeaveReceiptValue = () => {
     if (leaveReceiptClientId && leaveReceiptDateFrom && leaveReceiptDateTo) {
-      const value = calculatePeriodValue(leaveReceiptClientId, leaveReceiptDateFrom, leaveReceiptDateTo);
-      setLeaveReceiptValue(value);
+      const details = calculatePeriodDetails(leaveReceiptClientId, leaveReceiptDateFrom, leaveReceiptDateTo);
+      setLeaveReceiptValue(details.total);
+      setLeaveReceiptDays(details.days);
+      setLeaveReceiptDailyValue(details.dailyValue);
     }
   };
   
@@ -1157,9 +1251,14 @@ const DriverDailyDeliveries: React.FC = () => {
                             <p className="text-lg font-bold text-blue-900">
                               €{leaveReceiptValue.toFixed(2)}
                             </p>
-                            <p className="text-xs text-blue-600 mt-1">
-                              Período: {leaveReceiptDateFrom} até {leaveReceiptDateTo}
-                            </p>
+                            <div className="mt-2 pt-2 border-t border-blue-200">
+                              <p className="text-xs text-blue-600">
+                                <strong>Detalhes:</strong> {leaveReceiptDays} dias × €{leaveReceiptDailyValue.toFixed(2)}/dia
+                              </p>
+                              <p className="text-xs text-blue-500 mt-1">
+                                Período: {leaveReceiptDateFrom} até {leaveReceiptDateTo}
+                              </p>
+                            </div>
                           </div>
                         </div>
                       )}
