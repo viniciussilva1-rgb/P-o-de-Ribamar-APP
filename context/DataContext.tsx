@@ -84,6 +84,8 @@ interface DataContextType {
   calculateWeeklySettlement: (driverId: string, weekStartDate: string) => Omit<WeeklyDriverSettlement, 'id' | 'status' | 'confirmedAt' | 'confirmedBy' | 'observations' | 'createdAt' | 'updatedAt'>;
   confirmWeeklySettlement: (settlementId: string, adminId: string, observations?: string) => Promise<void>;
   getAllPendingSettlements: () => WeeklyDriverSettlement[];
+  getSettlementHistory: (driverId: string) => WeeklyDriverSettlement[];
+  getLastConfirmedSettlement: (driverId: string) => WeeklyDriverSettlement | undefined;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -1554,6 +1556,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   // Calcular dados do Fecho Semanal
+  // Considera apenas valores recebidos APÓS o último fecho confirmado
   const calculateWeeklySettlement = (driverId: string, weekStartDate: string) => {
     const driver = users.find(u => u.id === driverId);
     
@@ -1563,10 +1566,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     endDate.setDate(endDate.getDate() + 6);
     const weekEndDate = endDate.toISOString().split('T')[0];
     
-    // Buscar o último fecho confirmado deste entregador ANTES desta semana
-    // Isso garante que os valores já confirmados não sejam contados novamente
+    // Buscar o ÚLTIMO fecho confirmado deste entregador (independente da semana)
+    // Isso garante que após um fecho, os valores sempre começam do zero
     const lastConfirmedSettlement = weeklySettlements
-      .filter(s => s.driverId === driverId && s.status === 'confirmed' && s.weekStartDate <= weekStartDate)
+      .filter(s => s.driverId === driverId && s.status === 'confirmed')
       .sort((a, b) => {
         // Ordenar por data de confirmação (mais recente primeiro)
         const dateA = a.confirmedAt || a.createdAt || '';
@@ -1574,47 +1577,37 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return dateB.localeCompare(dateA);
       })[0];
     
-    // Se existe um fecho confirmado para ESTA semana, ignorar (já foi fechado)
-    const thisWeekSettlement = weeklySettlements.find(
-      s => s.driverId === driverId && s.weekStartDate === weekStartDate && s.status === 'confirmed'
-    );
+    // Timestamp do último fecho - só contar valores APÓS este momento
+    const lastSettlementTimestamp = lastConfirmedSettlement?.confirmedAt || null;
     
-    // Data de início efetiva: se houver fecho confirmado desta semana, usar a data de confirmação
-    // Caso contrário, usar a data de início da semana
-    let effectiveStartDate = weekStartDate;
-    let effectiveStartTimestamp: string | null = null;
-    
-    if (thisWeekSettlement?.confirmedAt) {
-      // Se já foi confirmado esta semana, calcular apenas APÓS a confirmação
-      effectiveStartTimestamp = thisWeekSettlement.confirmedAt;
-    }
-    
-    // Buscar todos os pagamentos da semana
+    // Buscar todos os pagamentos APÓS o último fecho (sem limite de semana para o período atual)
     const weekPayments = dailyPaymentsReceived.filter(p => {
       const matchesDriver = p.driverId === driverId;
-      const inDateRange = p.date >= effectiveStartDate && p.date <= weekEndDate;
       
-      // Se há um fecho confirmado desta semana, só contar pagamentos APÓS a confirmação
-      if (effectiveStartTimestamp) {
-        const paymentTimestamp = p.timestamp || p.createdAt || '';
-        return matchesDriver && inDateRange && paymentTimestamp > effectiveStartTimestamp;
+      // Se há um fecho confirmado, só contar pagamentos APÓS a confirmação
+      if (lastSettlementTimestamp) {
+        const paymentTimestamp = p.createdAt || '';
+        return matchesDriver && paymentTimestamp > lastSettlementTimestamp;
       }
       
+      // Se não há fecho anterior, considerar toda a semana atual
+      const inDateRange = p.date >= weekStartDate && p.date <= weekEndDate;
       return matchesDriver && inDateRange;
     });
     
-    // Buscar todas as entregas da semana
+    // Buscar todas as entregas APÓS o último fecho
     const weekDeliveries = clientDeliveries.filter(d => {
       const matchesDriver = d.driverId === driverId;
-      const inDateRange = d.date >= effectiveStartDate && d.date <= weekEndDate;
       const isDelivered = d.status === 'delivered';
       
-      // Se há um fecho confirmado desta semana, só contar entregas APÓS a confirmação
-      if (effectiveStartTimestamp) {
+      // Se há um fecho confirmado, só contar entregas APÓS a confirmação
+      if (lastSettlementTimestamp) {
         const deliveryTimestamp = d.deliveredAt || d.createdAt || '';
-        return matchesDriver && inDateRange && isDelivered && deliveryTimestamp > effectiveStartTimestamp;
+        return matchesDriver && isDelivered && deliveryTimestamp > lastSettlementTimestamp;
       }
       
+      // Se não há fecho anterior, considerar toda a semana atual
+      const inDateRange = d.date >= weekStartDate && d.date <= weekEndDate;
       return matchesDriver && inDateRange && isDelivered;
     });
     
@@ -1769,6 +1762,22 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return weeklySettlements.filter(s => s.status === 'pending');
   };
 
+  // Obter histórico de fechos de um entregador (ordenado do mais recente ao mais antigo)
+  const getSettlementHistory = (driverId: string): WeeklyDriverSettlement[] => {
+    return weeklySettlements
+      .filter(s => s.driverId === driverId && s.status === 'confirmed')
+      .sort((a, b) => {
+        const dateA = a.confirmedAt || a.createdAt || '';
+        const dateB = b.confirmedAt || b.createdAt || '';
+        return dateB.localeCompare(dateA);
+      });
+  };
+
+  // Obter o último fecho confirmado de um entregador
+  const getLastConfirmedSettlement = (driverId: string): WeeklyDriverSettlement | undefined => {
+    return getSettlementHistory(driverId)[0];
+  };
+
   return (
     <DataContext.Provider value={{ 
       users, clients, products, productionData, routes, dailyLoads, clientDeliveries, dynamicConsumptionRecords,
@@ -1782,7 +1791,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       recordDynamicDelivery, getDynamicClientHistory, getDynamicClientPrediction, getDynamicLoadSummary, getDynamicClientsForDriver,
       saveDailyCashFund, getDailyCashFund, registerDailyPayment, getDailyPaymentsByDriver, getClientPaymentSummaries,
       saveDailyDriverClosure, getDailyDriverClosure, calculateDailyClosureData,
-      getWeeklySettlement, calculateWeeklySettlement, confirmWeeklySettlement, getAllPendingSettlements
+      getWeeklySettlement, calculateWeeklySettlement, confirmWeeklySettlement, getAllPendingSettlements, getSettlementHistory, getLastConfirmedSettlement
     }}>
       {children}
     </DataContext.Provider>

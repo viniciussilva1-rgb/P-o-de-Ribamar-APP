@@ -18,7 +18,9 @@ import {
   AlertCircle,
   RefreshCw,
   Check,
-  X
+  X,
+  History,
+  Eye
 } from 'lucide-react';
 
 const AdminWeeklySettlement: React.FC = () => {
@@ -28,6 +30,8 @@ const AdminWeeklySettlement: React.FC = () => {
     calculateWeeklySettlement,
     getWeeklySettlement,
     confirmWeeklySettlement,
+    getSettlementHistory,
+    getLastConfirmedSettlement,
     routes
   } = useData();
 
@@ -48,6 +52,8 @@ const AdminWeeklySettlement: React.FC = () => {
   const [selectedWeekStart, setSelectedWeekStart] = useState(() => getWeekDates(new Date()).start);
   const [expandedDriver, setExpandedDriver] = useState<string | null>(null);
   const [confirmingSettlement, setConfirmingSettlement] = useState<string | null>(null);
+  const [showingHistory, setShowingHistory] = useState<string | null>(null);
+  const [viewingSettlement, setViewingSettlement] = useState<string | null>(null);
   const [settlementObservations, setSettlementObservations] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -97,22 +103,34 @@ const AdminWeeklySettlement: React.FC = () => {
     });
   };
 
+  const formatDateTime = (dateStr: string) => {
+    return new Date(dateStr).toLocaleString('pt-PT', { 
+      day: '2-digit', 
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   // Calcular dados de todos os entregadores
   const driversSettlements = useMemo(() => {
     return drivers.map(driver => {
       const calculated = calculateWeeklySettlement(driver.id, selectedWeekStart);
-      const existing = getWeeklySettlement(driver.id, selectedWeekStart);
+      const lastSettlement = getLastConfirmedSettlement(driver.id);
+      const history = getSettlementHistory(driver.id);
       
       return {
         driver,
         calculated,
-        existing,
-        isConfirmed: existing?.status === 'confirmed'
+        lastSettlement,
+        history,
+        hasNewValues: calculated.totalReceived > 0
       };
     });
-  }, [drivers, selectedWeekStart, calculateWeeklySettlement, getWeeklySettlement]);
+  }, [drivers, selectedWeekStart, calculateWeeklySettlement, getLastConfirmedSettlement, getSettlementHistory]);
 
-  // Totais gerais
+  // Totais gerais (valores pendentes a receber)
   const totalStats = useMemo(() => {
     return driversSettlements.reduce((acc, ds) => ({
       totalDelivered: acc.totalDelivered + ds.calculated.totalDelivered,
@@ -121,8 +139,8 @@ const AdminWeeklySettlement: React.FC = () => {
       cashTotal: acc.cashTotal + ds.calculated.cashTotal,
       mbwayTotal: acc.mbwayTotal + ds.calculated.mbwayTotal,
       transferTotal: acc.transferTotal + ds.calculated.transferTotal,
-      confirmed: acc.confirmed + (ds.isConfirmed ? 1 : 0),
-      pending: acc.pending + (ds.isConfirmed ? 0 : 1)
+      withPendingValues: acc.withPendingValues + (ds.hasNewValues ? 1 : 0),
+      upToDate: acc.upToDate + (ds.hasNewValues ? 0 : 1)
     }), {
       totalDelivered: 0,
       totalReceived: 0,
@@ -130,8 +148,8 @@ const AdminWeeklySettlement: React.FC = () => {
       cashTotal: 0,
       mbwayTotal: 0,
       transferTotal: 0,
-      confirmed: 0,
-      pending: 0
+      withPendingValues: 0,
+      upToDate: 0
     });
   }, [driversSettlements]);
 
@@ -143,14 +161,15 @@ const AdminWeeklySettlement: React.FC = () => {
 
     setLoading(true);
     try {
-      const settlementId = `settlement-${driverId}-${selectedWeekStart}`;
+      // Usar timestamp para criar ID único, permitindo múltiplos fechos
+      const settlementId = `settlement-${driverId}-${Date.now()}`;
       await confirmWeeklySettlement(settlementId, currentUser.id, settlementObservations || undefined);
       setConfirmingSettlement(null);
       setSettlementObservations('');
-      alert('Fecho semanal confirmado com sucesso!');
+      alert('Fecho confirmado com sucesso! Os valores foram zerados.');
     } catch (error) {
       console.error('Erro ao confirmar fecho:', error);
-      alert('Erro ao confirmar fecho semanal: ' + (error.message || 'Erro desconhecido'));
+      alert('Erro ao confirmar fecho: ' + (error.message || 'Erro desconhecido'));
     } finally {
       setLoading(false);
     }
@@ -248,11 +267,11 @@ const AdminWeeklySettlement: React.FC = () => {
             <div>
               <p className="text-xs text-gray-500 uppercase">Status</p>
               <p className="text-xl font-bold">
-                <span className="text-green-600">{totalStats.confirmed}</span>
+                <span className="text-amber-600">{totalStats.withPendingValues}</span>
                 <span className="text-gray-400"> / </span>
-                <span className="text-amber-600">{totalStats.pending}</span>
+                <span className="text-green-600">{totalStats.upToDate}</span>
               </p>
-              <p className="text-xs text-gray-400">Confirmados / Pendentes</p>
+              <p className="text-xs text-gray-400">Com valores / Em dia</p>
             </div>
             <div className="p-2 bg-gray-100 rounded-lg">
               <Users className="text-gray-600" size={20} />
@@ -297,13 +316,13 @@ const AdminWeeklySettlement: React.FC = () => {
 
       {/* Lista de Entregadores */}
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-800">Entregadores</h3>
+        <h3 className="text-lg font-semibold text-gray-800">Entregadores - Valores Pendentes</h3>
         
-        {driversSettlements.map(({ driver, calculated, existing, isConfirmed }) => (
+        {driversSettlements.map(({ driver, calculated, lastSettlement, history, hasNewValues }) => (
           <div 
             key={driver.id} 
             className={`bg-white rounded-xl shadow-sm border overflow-hidden ${
-              isConfirmed ? 'border-green-200' : 'border-gray-100'
+              hasNewValues ? 'border-amber-200' : 'border-green-200'
             }`}
           >
             {/* Header do Entregador */}
@@ -314,23 +333,35 @@ const AdminWeeklySettlement: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
-                    isConfirmed ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                    hasNewValues ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
                   }`}>
                     {driver.name.charAt(0)}
                   </div>
                   <div>
                     <p className="font-medium text-gray-800">{driver.name}</p>
                     <div className="flex items-center gap-2 text-sm">
-                      {isConfirmed ? (
-                        <span className="flex items-center gap-1 text-green-600">
-                          <CheckCircle size={14} />
-                          Confirmado
-                        </span>
-                      ) : (
+                      {hasNewValues ? (
                         <span className="flex items-center gap-1 text-amber-600">
                           <Clock size={14} />
-                          Pendente
+                          Valores pendentes
                         </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-green-600">
+                          <CheckCircle size={14} />
+                          Em dia
+                        </span>
+                      )}
+                      {history.length > 0 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowingHistory(showingHistory === driver.id ? null : driver.id);
+                          }}
+                          className="flex items-center gap-1 text-blue-600 hover:text-blue-700 ml-2"
+                        >
+                          <History size={14} />
+                          {history.length} fecho(s)
+                        </button>
                       )}
                     </div>
                   </div>
@@ -350,9 +381,55 @@ const AdminWeeklySettlement: React.FC = () => {
               </div>
             </div>
 
+            {/* Histórico de Fechos */}
+            {showingHistory === driver.id && history.length > 0 && (
+              <div className="border-t border-blue-100 p-4 bg-blue-50">
+                <h4 className="text-sm font-medium text-blue-800 mb-3 flex items-center gap-2">
+                  <History size={16} />
+                  Histórico de Fechos
+                </h4>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {history.map((settlement, index) => (
+                    <div 
+                      key={settlement.id} 
+                      className="bg-white p-3 rounded-lg border border-blue-200 flex items-center justify-between"
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">
+                          {formatDateTime(settlement.confirmedAt || settlement.createdAt || '')}
+                        </p>
+                        {settlement.observations && (
+                          <p className="text-xs text-gray-500 italic mt-1">"{settlement.observations}"</p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-green-600">{formatCurrency(settlement.totalReceived)}</p>
+                        <p className="text-xs text-gray-500">
+                          {formatCurrency(settlement.cashTotal)} em dinheiro
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Detalhes Expandidos */}
             {expandedDriver === driver.id && (
               <div className="border-t border-gray-100 p-4 bg-gray-50 space-y-4">
+                {/* Info do último fecho */}
+                {lastSettlement && (
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-700">
+                      <strong>Último fecho:</strong> {formatDateTime(lastSettlement.confirmedAt || '')} 
+                      <span className="ml-2">({formatCurrency(lastSettlement.totalReceived)})</span>
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Os valores abaixo são apenas do período APÓS este fecho
+                    </p>
+                  </div>
+                )}
+
                 {/* Resumo por Método */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <div className="bg-white p-3 rounded-lg">
@@ -434,8 +511,8 @@ const AdminWeeklySettlement: React.FC = () => {
                   </div>
                 )}
 
-                {/* Ações */}
-                {!isConfirmed && (
+                {/* Ações - Mostrar botão de fecho se houver valores pendentes */}
+                {hasNewValues && (
                   <div className="pt-4 border-t border-gray-200">
                     {confirmingSettlement === driver.id ? (
                       <div className="space-y-3">
@@ -476,82 +553,24 @@ const AdminWeeklySettlement: React.FC = () => {
                         className="w-full py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors flex items-center justify-center gap-2"
                       >
                         <CheckCircle size={18} />
-                        Confirmar Fecho Semanal
+                        Confirmar Fecho (Receber {formatCurrency(calculated.cashTotal)} em dinheiro)
                       </button>
                     )}
                   </div>
                 )}
 
-                {isConfirmed && existing && (
-                  <div className="pt-4 border-t border-gray-200 space-y-3">
+                {/* Se não houver valores pendentes */}
+                {!hasNewValues && (
+                  <div className="pt-4 border-t border-gray-200">
                     <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
                       <div className="flex items-center gap-2 text-green-700">
                         <CheckCircle size={18} />
-                        <span className="font-medium">Fecho confirmado</span>
+                        <span className="font-medium">Sem valores pendentes</span>
                       </div>
                       <p className="text-sm text-green-600 mt-1">
-                        Em {new Date(existing.confirmedAt || '').toLocaleString('pt-PT')}
+                        Todos os valores foram acertados no último fecho
                       </p>
-                      {existing.observations && (
-                        <p className="text-sm text-gray-600 mt-2 italic">"{existing.observations}"</p>
-                      )}
                     </div>
-                    
-                    {/* Se há novos valores após o fecho, permitir fazer novo fecho */}
-                    {calculated.totalReceived > 0 && (
-                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-amber-700">Novos recebimentos desde o último fecho</p>
-                            <p className="text-xs text-amber-600 mt-1">
-                              {formatCurrency(calculated.totalReceived)} a receber ({formatCurrency(calculated.cashTotal)} em dinheiro)
-                            </p>
-                          </div>
-                        </div>
-                        {confirmingSettlement === driver.id ? (
-                          <div className="space-y-3 mt-3">
-                            <textarea
-                              value={settlementObservations}
-                              onChange={(e) => setSettlementObservations(e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
-                              rows={2}
-                              placeholder="Observações do fecho (opcional)..."
-                            />
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => {
-                                  setConfirmingSettlement(null);
-                                  setSettlementObservations('');
-                                }}
-                                className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100"
-                              >
-                                Cancelar
-                              </button>
-                              <button
-                                onClick={() => handleConfirmSettlement(driver.id)}
-                                disabled={loading}
-                                className="flex-1 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
-                              >
-                                {loading ? (
-                                  <RefreshCw size={18} className="animate-spin" />
-                                ) : (
-                                  <Check size={18} />
-                                )}
-                                Confirmar Novo Fecho
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setConfirmingSettlement(driver.id)}
-                            className="w-full mt-3 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors flex items-center justify-center gap-2"
-                          >
-                            <Calculator size={18} />
-                            Fazer Novo Fecho
-                          </button>
-                        )}
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
