@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { Plus, User, MapPin, Phone, Search, Map, Save, X, Navigation, CreditCard, Loader2, Calendar, AlertCircle, Tag, FileText, RotateCcw, Calculator, CheckCircle, Sparkles, Copy, Check, GripVertical, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
 import { Client, Route, DeliverySchedule, Product } from '../types';
+import SmartDeliveryMap from './SmartDeliveryMap';
 
 // Componente auxiliar para isolar o estado de adição por linha
 const AddScheduleItemRow: React.FC<{ products: Product[], onAdd: (productId: string, quantity: number) => void }> = ({ products, onAdd }) => {
@@ -919,6 +920,14 @@ export const DriverView: React.FC = () => {
             Arraste os clientes para reorganizar a ordem de entrega. A ordem será usada ao gerar as "Entregas do Dia".
           </p>
         </div>
+      )}
+
+      {/* Smart Delivery Map - Entrega Inteligente */}
+      {!isReorderMode && (
+        <SmartDeliveryMap 
+          clients={myClients} 
+          driverName={currentUser?.name}
+        />
       )}
 
       {/* Filters */}
