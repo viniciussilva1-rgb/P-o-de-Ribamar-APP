@@ -58,7 +58,7 @@ const QuickScheduleSetup: React.FC<{
   const [selectedProducts, setSelectedProducts] = useState<{ productId: string, quantity: number }[]>([]);
   const [selectedDays, setSelectedDays] = useState<Set<string>>(new Set());
   const [newProductId, setNewProductId] = useState('');
-  const [newQuantity, setNewQuantity] = useState(1);
+  const [newQuantity, setNewQuantity] = useState<number | ''>('');
 
   const daysOptions = [
     { key: 'seg', label: 'Seg', fullLabel: 'Segunda' },
@@ -71,7 +71,7 @@ const QuickScheduleSetup: React.FC<{
   ];
 
   const handleAddProduct = () => {
-    if (newProductId && newQuantity > 0) {
+    if (newProductId && newQuantity && newQuantity > 0) {
       const exists = selectedProducts.find(p => p.productId === newProductId);
       if (exists) {
         setSelectedProducts(prev => prev.map(p => 
@@ -81,7 +81,7 @@ const QuickScheduleSetup: React.FC<{
         setSelectedProducts(prev => [...prev, { productId: newProductId, quantity: newQuantity }]);
       }
       setNewProductId('');
-      setNewQuantity(1);
+      setNewQuantity('');
     }
   };
 
@@ -173,7 +173,7 @@ const QuickScheduleSetup: React.FC<{
             type="number"
             min="1"
             value={newQuantity}
-            onChange={(e) => setNewQuantity(parseInt(e.target.value) || 1)}
+            onChange={(e) => setNewQuantity(e.target.value === '' ? '' : parseInt(e.target.value) || '')}
             className="w-20 p-2 text-sm border border-amber-300 rounded-lg text-center font-bold"
             placeholder="Qtd"
           />
@@ -707,20 +707,11 @@ export const DriverView: React.FC = () => {
           createdAt: baseClient?.createdAt || new Date().toISOString()
       } as Client;
 
-      // DEBUG: Ver o que está sendo calculado
-      console.log('=== DEBUG CALCULAR PAPEL ===');
-      console.log('Cliente:', tempClient.name);
-      console.log('deliverySchedule:', JSON.stringify(tempClient.deliverySchedule, null, 2));
-      console.log('customPrices:', JSON.stringify(tempClient.customPrices, null, 2));
-      console.log('Produtos disponíveis:', products.map(p => ({ id: p.id, name: p.name, price: p.price })));
-
       // Usar datas personalizadas se fornecidas, senão usar padrão
       const dateFrom = calcDateFrom || tempClient.lastPaymentDate || tempClient.createdAt?.split('T')[0];
       const dateTo = calcDateTo || formatDateLocal(new Date());
 
       const result = calculatePeriodDebt(tempClient, dateFrom, dateTo);
-      console.log('Resultado:', result);
-      console.log('=== FIM DEBUG ===');
       
       setCalculatedTotal(result.total);
       setCalculatedDays(result.daysCount);
@@ -736,64 +727,88 @@ export const DriverView: React.FC = () => {
     return `${year}-${month}-${day}`;
   };
 
-  // Função SIMPLES para calcular dívida de um período
-  // 1. Pega o valor diário do cliente (baseado no agendamento)
-  // 2. Conta quantos dias de entrega existem no período
-  // 3. Multiplica: dias × valor diário = total
+  // Função para calcular dívida de um período
+  // Considera o histórico de alterações do agendamento para usar os valores corretos de cada período
   const calculatePeriodDebt = (client: Client, dateFromStr: string, dateToStr: string) => {
-    // Primeiro: calcular o valor diário do cliente
-    // O cliente tem um agendamento (ex: seg-sab com 4 bolinhas de €0.40 = €1.60/dia)
-    let dailyValue = 0;
     const mapKeys = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
-    const deliveryDays: number[] = []; // Quais dias da semana tem entrega (0=dom, 1=seg, etc)
     
-    // Percorrer todos os dias da semana para ver quais têm entrega
-    mapKeys.forEach((dayKey, dayIndex) => {
-      const items = client.deliverySchedule?.[dayKey as keyof DeliverySchedule];
-      if (items && items.length > 0) {
-        deliveryDays.push(dayIndex);
-        
-        // Calcular valor deste dia
-        let dayTotal = 0;
-        items.forEach(item => {
-          const product = products.find(p => p.id === item.productId);
-          if (product) {
-            const price = client.customPrices?.[product.id] ?? product.price;
-            dayTotal += item.quantity * price;
-          }
-        });
-        
-        // Se ainda não temos valor diário, usar este (assumindo mesmo valor todos os dias)
-        if (dailyValue === 0) {
-          dailyValue = dayTotal;
+    // Função para obter o agendamento válido em uma data específica
+    const getScheduleForDate = (dateStr: string): DeliverySchedule | undefined => {
+      // Se não tem histórico, usar o agendamento atual
+      if (!client.scheduleHistory || client.scheduleHistory.length === 0) {
+        return client.deliverySchedule;
+      }
+      
+      // Ordenar histórico por data (mais recente primeiro)
+      const sortedHistory = [...client.scheduleHistory].sort((a, b) => 
+        b.date.localeCompare(a.date)
+      );
+      
+      // Encontrar o agendamento que era válido nessa data
+      // (o primeiro no histórico cuja data seja <= a data em questão)
+      for (const entry of sortedHistory) {
+        if (entry.date <= dateStr) {
+          return entry.schedule;
         }
       }
-    });
+      
+      // Se a data é anterior a qualquer entrada do histórico, usar o primeiro agendamento
+      // ou o agendamento atual como fallback
+      return sortedHistory[sortedHistory.length - 1]?.schedule || client.deliverySchedule;
+    };
+    
+    // Função para calcular o valor de um dia específico com um agendamento específico
+    const getDayValue = (schedule: DeliverySchedule | undefined, dayOfWeek: number) => {
+      if (!schedule) return 0;
+      const dayKey = mapKeys[dayOfWeek];
+      const items = schedule[dayKey as keyof DeliverySchedule];
+      if (!items || items.length === 0) return 0;
+      
+      let dayTotal = 0;
+      items.forEach(item => {
+        const product = products.find(p => p.id === item.productId);
+        if (product) {
+          const price = client.customPrices?.[product.id] ?? product.price;
+          dayTotal += item.quantity * price;
+        }
+      });
+      return dayTotal;
+    };
+    
+    // Função para verificar se um dia da semana tem entrega em um agendamento
+    const hasDeliveryOnDay = (schedule: DeliverySchedule | undefined, dayOfWeek: number) => {
+      if (!schedule) return false;
+      const dayKey = mapKeys[dayOfWeek];
+      const items = schedule[dayKey as keyof DeliverySchedule];
+      return items && items.length > 0;
+    };
 
-    // Se não tem entregas programadas, retorna zero
-    if (deliveryDays.length === 0 || dailyValue === 0) {
-      return { total: 0, daysCount: 0, dailyValue: 0 };
-    }
-
-    // Segundo: contar quantos dias de entrega existem no período selecionado
+    // Parsear datas
     const [y1, m1, d1] = dateFromStr.split('-').map(Number);
     const [y2, m2, d2] = dateToStr.split('-').map(Number);
     const startDate = new Date(y1, m1 - 1, d1);
     const endDate = new Date(y2, m2 - 1, d2);
 
+    let total = 0;
     let daysCount = 0;
     const current = new Date(startDate);
 
     while (current <= endDate) {
-      const dayOfWeek = current.getDay(); // 0=dom, 1=seg, etc
+      const dateStr = formatDateLocal(current);
+      const dayOfWeek = current.getDay();
+      
+      // Obter o agendamento válido para esta data
+      const scheduleForDate = getScheduleForDate(dateStr);
       
       // Este dia da semana tem entrega?
-      if (deliveryDays.includes(dayOfWeek)) {
+      if (hasDeliveryOnDay(scheduleForDate, dayOfWeek)) {
         // Verificar se não foi marcado como falha
-        const dateStr = formatDateLocal(current);
         const isSkipped = client.skippedDates?.includes(dateStr);
         
         if (!isSkipped) {
+          // Somar o valor do dia
+          const dayValue = getDayValue(scheduleForDate, dayOfWeek);
+          total += dayValue;
           daysCount++;
         }
       }
@@ -801,8 +816,8 @@ export const DriverView: React.FC = () => {
       current.setDate(current.getDate() + 1);
     }
 
-    // Terceiro: calcular total
-    const total = daysCount * dailyValue;
+    // Calcular valor médio diário para exibição
+    const dailyValue = daysCount > 0 ? total / daysCount : 0;
 
     return { total, daysCount, dailyValue };
   };

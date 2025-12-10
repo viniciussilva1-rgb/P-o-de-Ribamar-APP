@@ -23,6 +23,12 @@ export interface DeliveryItem {
   quantity: number;
 }
 
+// Histórico de alterações do agendamento
+export interface ScheduleChange {
+  date: string;  // Data da alteração (YYYY-MM-DD)
+  schedule: DeliverySchedule;  // O agendamento que passou a valer a partir dessa data
+}
+
 export interface DeliverySchedule {
   seg?: DeliveryItem[];
   ter?: DeliveryItem[];
@@ -79,6 +85,9 @@ export interface Client {
 
   // Delivery Schedule (para clientes normais)
   deliverySchedule?: DeliverySchedule;
+  
+  // Histórico de alterações do agendamento (para calcular papel de períodos antigos corretamente)
+  scheduleHistory?: ScheduleChange[];
 
   notes?: string;
   deliveryObs?: string;

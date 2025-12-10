@@ -284,6 +284,26 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const updateClient = async (id: string, updates: Partial<Client>) => {
+    // Se o deliverySchedule foi alterado, guardar no histórico
+    if (updates.deliverySchedule !== undefined) {
+      const client = clients.find(c => c.id === id);
+      if (client) {
+        const today = new Date().toISOString().split('T')[0];
+        
+        // Criar entrada no histórico com o novo agendamento
+        const newHistoryEntry = {
+          date: today,
+          schedule: updates.deliverySchedule
+        };
+        
+        // Adicionar ao histórico existente
+        const existingHistory = client.scheduleHistory || [];
+        updates.scheduleHistory = [...existingHistory, newHistoryEntry];
+        
+        console.log(`[updateClient] Guardando histórico de agendamento para cliente ${id}:`, newHistoryEntry);
+      }
+    }
+    
     await updateDoc(doc(db, 'clients', id), updates);
     
     // Se o deliverySchedule foi alterado, atualizar entregas pendentes de hoje

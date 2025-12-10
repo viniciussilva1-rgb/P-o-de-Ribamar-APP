@@ -1311,64 +1311,88 @@ export const ClientManager: React.FC = () => {
     return `${year}-${month}-${day}`;
   };
 
-  // Função SIMPLES para calcular dívida de um período
-  // 1. Pega o valor diário do cliente (baseado no agendamento)
-  // 2. Conta quantos dias de entrega existem no período
-  // 3. Multiplica: dias × valor diário = total
+  // Função para calcular dívida de um período
+  // Considera o histórico de alterações do agendamento para usar os valores corretos de cada período
   const calculatePeriodDebt = (client: Client, dateFromStr: string, dateToStr: string) => {
-    // Primeiro: calcular o valor diário do cliente
-    // O cliente tem um agendamento (ex: seg-sab com 4 bolinhas de €0.40 = €1.60/dia)
-    let dailyValue = 0;
     const mapKeys = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
-    const deliveryDays: number[] = []; // Quais dias da semana tem entrega (0=dom, 1=seg, etc)
     
-    // Percorrer todos os dias da semana para ver quais têm entrega
-    mapKeys.forEach((dayKey, dayIndex) => {
-      const items = client.deliverySchedule?.[dayKey as keyof DeliverySchedule];
-      if (items && items.length > 0) {
-        deliveryDays.push(dayIndex);
-        
-        // Calcular valor deste dia
-        let dayTotal = 0;
-        items.forEach(item => {
-          const product = products.find(p => p.id === item.productId);
-          if (product) {
-            const price = client.customPrices?.[product.id] ?? product.price;
-            dayTotal += item.quantity * price;
-          }
-        });
-        
-        // Se ainda não temos valor diário, usar este (assumindo mesmo valor todos os dias)
-        if (dailyValue === 0) {
-          dailyValue = dayTotal;
+    // Função para obter o agendamento válido em uma data específica
+    const getScheduleForDate = (dateStr: string): DeliverySchedule | undefined => {
+      // Se não tem histórico, usar o agendamento atual
+      if (!client.scheduleHistory || client.scheduleHistory.length === 0) {
+        return client.deliverySchedule;
+      }
+      
+      // Ordenar histórico por data (mais recente primeiro)
+      const sortedHistory = [...client.scheduleHistory].sort((a, b) => 
+        b.date.localeCompare(a.date)
+      );
+      
+      // Encontrar o agendamento que era válido nessa data
+      // (o primeiro no histórico cuja data seja <= a data em questão)
+      for (const entry of sortedHistory) {
+        if (entry.date <= dateStr) {
+          return entry.schedule;
         }
       }
-    });
+      
+      // Se a data é anterior a qualquer entrada do histórico, usar o primeiro agendamento
+      // ou o agendamento atual como fallback
+      return sortedHistory[sortedHistory.length - 1]?.schedule || client.deliverySchedule;
+    };
+    
+    // Função para calcular o valor de um dia específico com um agendamento específico
+    const getDayValue = (schedule: DeliverySchedule | undefined, dayOfWeek: number) => {
+      if (!schedule) return 0;
+      const dayKey = mapKeys[dayOfWeek];
+      const items = schedule[dayKey as keyof DeliverySchedule];
+      if (!items || items.length === 0) return 0;
+      
+      let dayTotal = 0;
+      items.forEach(item => {
+        const product = products.find(p => p.id === item.productId);
+        if (product) {
+          const price = client.customPrices?.[product.id] ?? product.price;
+          dayTotal += item.quantity * price;
+        }
+      });
+      return dayTotal;
+    };
+    
+    // Função para verificar se um dia da semana tem entrega em um agendamento
+    const hasDeliveryOnDay = (schedule: DeliverySchedule | undefined, dayOfWeek: number) => {
+      if (!schedule) return false;
+      const dayKey = mapKeys[dayOfWeek];
+      const items = schedule[dayKey as keyof DeliverySchedule];
+      return items && items.length > 0;
+    };
 
-    // Se não tem entregas programadas, retorna zero
-    if (deliveryDays.length === 0 || dailyValue === 0) {
-      return { total: 0, daysCount: 0, dailyValue: 0 };
-    }
-
-    // Segundo: contar quantos dias de entrega existem no período selecionado
+    // Parsear datas
     const [y1, m1, d1] = dateFromStr.split('-').map(Number);
     const [y2, m2, d2] = dateToStr.split('-').map(Number);
     const startDate = new Date(y1, m1 - 1, d1);
     const endDate = new Date(y2, m2 - 1, d2);
 
+    let total = 0;
     let daysCount = 0;
     const current = new Date(startDate);
 
     while (current <= endDate) {
-      const dayOfWeek = current.getDay(); // 0=dom, 1=seg, etc
+      const dateStr = formatDateLocal(current);
+      const dayOfWeek = current.getDay();
+      
+      // Obter o agendamento válido para esta data
+      const scheduleForDate = getScheduleForDate(dateStr);
       
       // Este dia da semana tem entrega?
-      if (deliveryDays.includes(dayOfWeek)) {
+      if (hasDeliveryOnDay(scheduleForDate, dayOfWeek)) {
         // Verificar se não foi marcado como falha
-        const dateStr = formatDateLocal(current);
         const isSkipped = client.skippedDates?.includes(dateStr);
         
         if (!isSkipped) {
+          // Somar o valor do dia
+          const dayValue = getDayValue(scheduleForDate, dayOfWeek);
+          total += dayValue;
           daysCount++;
         }
       }
@@ -1376,8 +1400,8 @@ export const ClientManager: React.FC = () => {
       current.setDate(current.getDate() + 1);
     }
 
-    // Terceiro: calcular total
-    const total = daysCount * dailyValue;
+    // Calcular valor médio diário para exibição
+    const dailyValue = daysCount > 0 ? total / daysCount : 0;
 
     return { total, daysCount, dailyValue };
   };
@@ -1869,13 +1893,16 @@ export const ClientManager: React.FC = () => {
                        )}
                        
                        <div className="flex gap-2 items-center">
-                            <input 
-                                type="number"
-                                step="0.01"
-                                className="flex-1 p-3 border-2 border-gray-300 rounded-lg bg-white text-gray-900 text-2xl font-bold tracking-tight"
-                                value={clientForm.currentBalance}
-                                onChange={e => setClientForm({...clientForm, currentBalance: parseFloat(e.target.value)})}
-                            />
+                            <div className="flex-1 relative">
+                                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-xl font-bold">€</span>
+                                <input 
+                                    type="number"
+                                    step="0.01"
+                                    className="w-full p-3 pl-8 border-2 border-gray-300 rounded-lg bg-white text-gray-900 text-2xl font-bold tracking-tight"
+                                    value={clientForm.currentBalance}
+                                    onChange={e => setClientForm({...clientForm, currentBalance: parseFloat(e.target.value)})}
+                                />
+                            </div>
                        </div>
 
                        {/* Calculation Breakdown Preview */}
