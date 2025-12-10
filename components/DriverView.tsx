@@ -289,6 +289,9 @@ export const DriverView: React.FC = () => {
   // States for Payment Calculation
   const [calculatedTotal, setCalculatedTotal] = useState<number | null>(null);
   const [calculatedDays, setCalculatedDays] = useState<number>(0);
+  const [calcDateFrom, setCalcDateFrom] = useState<string>('');
+  const [calcDateTo, setCalcDateTo] = useState<string>('');
+  const [calcDailyValue, setCalcDailyValue] = useState<number>(0);
   
   // Route Form
   const [newRouteName, setNewRouteName] = useState('');
@@ -509,6 +512,10 @@ export const DriverView: React.FC = () => {
 
   const handleOpenClientModal = (client?: Client) => {
     setCalculatedTotal(null); // Reset calc
+    setCalcDateFrom('');
+    setCalcDateTo('');
+    setCalcDailyValue(0);
+    setCalculatedDays(0);
     if (client) {
       setEditingClientId(client.id);
       setClientForm({ ...client, deliverySchedule: client.deliverySchedule || {}, customPrices: client.customPrices || {} });
@@ -692,21 +699,97 @@ export const DriverView: React.FC = () => {
   };
 
     const handleCalculateDebt = () => {
-      // Create a temporary client object with form data to calculate
-      // We need to merge with existing client data (like skippedDates) if editing
       const baseClient = editingClientId ? myClients.find(c => c.id === editingClientId) : undefined;
       
       const tempClient = {
           ...(baseClient || {}),
           ...clientForm,
-          createdAt: baseClient?.createdAt || new Date().toISOString() // Ensure start date
+          createdAt: baseClient?.createdAt || new Date().toISOString()
       } as Client;
 
-      const { total, daysCount } = calculateClientDebt(tempClient);
-      setCalculatedTotal(total);
-      setCalculatedDays(daysCount);
-      // Update form visual only
-      setClientForm(prev => ({ ...prev, currentBalance: parseFloat(total.toFixed(2)) }));
+      // Usar datas personalizadas se fornecidas, senão usar padrão
+      const dateFrom = calcDateFrom || tempClient.lastPaymentDate || tempClient.createdAt?.split('T')[0];
+      const dateTo = calcDateTo || formatDateLocal(new Date());
+
+      const result = calculatePeriodDebt(tempClient, dateFrom, dateTo);
+      setCalculatedTotal(result.total);
+      setCalculatedDays(result.daysCount);
+      setCalcDailyValue(result.dailyValue);
+      setClientForm(prev => ({ ...prev, currentBalance: parseFloat(result.total.toFixed(2)) }));
+  };
+
+  // Função para formatar data local sem problemas de fuso horário
+  const formatDateLocal = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Função para calcular dívida de um período específico
+  const calculatePeriodDebt = (client: Client, dateFromStr: string, dateToStr: string) => {
+    let total = 0;
+    let daysCount = 0;
+    let dailyValue = 0;
+
+    // Parsear datas corretamente para evitar problemas de fuso horário
+    const [startYear, startMonth, startDay] = dateFromStr.split('-').map(Number);
+    const [endYear, endMonth, endDay] = dateToStr.split('-').map(Number);
+    
+    const startDate = new Date(startYear, startMonth - 1, startDay);
+    const endDate = new Date(endYear, endMonth - 1, endDay);
+
+    // Descobrir o valor diário baseado no cronograma
+    const mapKeys = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
+    const daysWithSchedule = new Set<number>();
+    
+    mapKeys.forEach((dayKey, index) => {
+      const scheduledItems = client.deliverySchedule?.[dayKey as keyof DeliverySchedule];
+      if (scheduledItems && scheduledItems.length > 0) {
+        daysWithSchedule.add(index);
+        if (dailyValue === 0) {
+          scheduledItems.forEach(item => {
+            const product = products.find(p => p.id === item.productId);
+            if (product) {
+              const effectivePrice = client.customPrices?.[product.id] ?? product.price;
+              dailyValue += (item.quantity * effectivePrice);
+            }
+          });
+        }
+      }
+    });
+
+    if (dailyValue === 0 || daysWithSchedule.size === 0) {
+      return { total: 0, daysCount: 0, dailyValue: 0 };
+    }
+
+    // Contar os dias no período
+    const currentDate = new Date(startDate);
+
+    while (currentDate <= endDate) {
+      const dayOfWeek = currentDate.getDay();
+      
+      // Verificar se este dia da semana tem entrega programada
+      if (!daysWithSchedule.has(dayOfWeek)) {
+        currentDate.setDate(currentDate.getDate() + 1);
+        continue;
+      }
+
+      // Formatar a data para verificar skippedDates
+      const dateStr = formatDateLocal(currentDate);
+
+      // Verificar se a data foi pulada
+      if (client.skippedDates && client.skippedDates.includes(dateStr)) {
+        currentDate.setDate(currentDate.getDate() + 1);
+        continue;
+      }
+
+      total += dailyValue;
+      daysCount++;
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    return { total, daysCount, dailyValue };
   };
 
   const handleConfirmPayment = () => {
@@ -1423,6 +1506,33 @@ export const DriverView: React.FC = () => {
                            <span className="text-xs text-gray-400">Último Pagamento: {clientForm.lastPaymentDate ? new Date(clientForm.lastPaymentDate).toLocaleDateString() : 'Nunca'}</span>
                        </div>
                        
+                       {/* Campos de data para cálculo do papel */}
+                       {clientForm.leaveReceipt && (
+                         <div className="mb-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                           <p className="text-xs font-semibold text-amber-700 mb-2">📋 Período para o Papel:</p>
+                           <div className="grid grid-cols-2 gap-3">
+                             <div>
+                               <label className="block text-xs text-amber-600 mb-1">De:</label>
+                               <input 
+                                 type="date"
+                                 className="w-full p-2 border border-amber-300 rounded-lg bg-white text-gray-900 text-sm"
+                                 value={calcDateFrom}
+                                 onChange={e => setCalcDateFrom(e.target.value)}
+                               />
+                             </div>
+                             <div>
+                               <label className="block text-xs text-amber-600 mb-1">Até:</label>
+                               <input 
+                                 type="date"
+                                 className="w-full p-2 border border-amber-300 rounded-lg bg-white text-gray-900 text-sm"
+                                 value={calcDateTo}
+                                 onChange={e => setCalcDateTo(e.target.value)}
+                               />
+                             </div>
+                           </div>
+                         </div>
+                       )}
+
                        <div className="flex gap-2 items-center">
                             <input 
                                 type="number"
@@ -1452,10 +1562,13 @@ export const DriverView: React.FC = () => {
                                    Cálculo Realizado com Sucesso
                                </p>
                                <p className="text-green-700">
-                                   Período: <span className="font-bold">{clientForm.lastPaymentDate ? new Date(clientForm.lastPaymentDate).toLocaleDateString() : 'Início'}</span> até <span className="font-bold">Hoje</span>
+                                   Período: <span className="font-bold">{calcDateFrom || 'Início'}</span> até <span className="font-bold">{calcDateTo || 'Hoje'}</span>
                                </p>
                                <p className="text-green-700">
-                                   Dias de entrega: <span className="font-bold">{calculatedDays}</span> (descontando falhas)
+                                   Dias de entrega: <span className="font-bold">{calculatedDays}</span> × €{calcDailyValue.toFixed(2)}/dia
+                               </p>
+                               <p className="text-green-800 font-bold mt-1">
+                                   Total: €{calculatedTotal.toFixed(2)}
                                </p>
                            </div>
                        )}
