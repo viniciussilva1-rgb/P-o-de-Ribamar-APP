@@ -730,7 +730,6 @@ export const DriverView: React.FC = () => {
   const calculatePeriodDebt = (client: Client, dateFromStr: string, dateToStr: string) => {
     let total = 0;
     let daysCount = 0;
-    let dailyValue = 0;
 
     // Parsear datas corretamente para evitar problemas de fuso horário
     const [startYear, startMonth, startDay] = dateFromStr.split('-').map(Number);
@@ -739,31 +738,39 @@ export const DriverView: React.FC = () => {
     const startDate = new Date(startYear, startMonth - 1, startDay);
     const endDate = new Date(endYear, endMonth - 1, endDay);
 
-    // Descobrir o valor diário baseado no cronograma
+    // Mapa de dia da semana para chave do cronograma
     const mapKeys = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
-    const daysWithSchedule = new Set<number>();
     
+    // Função para calcular valor de um dia específico
+    const getDayValue = (dayKey: string) => {
+      const scheduledItems = client.deliverySchedule?.[dayKey as keyof DeliverySchedule];
+      if (!scheduledItems || scheduledItems.length === 0) return 0;
+      
+      let dayTotal = 0;
+      scheduledItems.forEach(item => {
+        const product = products.find(p => p.id === item.productId);
+        if (product) {
+          const effectivePrice = client.customPrices?.[product.id] ?? product.price;
+          dayTotal += (item.quantity * effectivePrice);
+        }
+      });
+      return dayTotal;
+    };
+
+    // Descobrir quais dias têm entregas programadas
+    const daysWithSchedule = new Set<number>();
     mapKeys.forEach((dayKey, index) => {
       const scheduledItems = client.deliverySchedule?.[dayKey as keyof DeliverySchedule];
       if (scheduledItems && scheduledItems.length > 0) {
         daysWithSchedule.add(index);
-        if (dailyValue === 0) {
-          scheduledItems.forEach(item => {
-            const product = products.find(p => p.id === item.productId);
-            if (product) {
-              const effectivePrice = client.customPrices?.[product.id] ?? product.price;
-              dailyValue += (item.quantity * effectivePrice);
-            }
-          });
-        }
       }
     });
 
-    if (dailyValue === 0 || daysWithSchedule.size === 0) {
+    if (daysWithSchedule.size === 0) {
       return { total: 0, daysCount: 0, dailyValue: 0 };
     }
 
-    // Contar os dias no período
+    // Contar os dias no período e somar valores
     const currentDate = new Date(startDate);
 
     while (currentDate <= endDate) {
@@ -784,12 +791,19 @@ export const DriverView: React.FC = () => {
         continue;
       }
 
-      total += dailyValue;
+      // Calcular o valor específico deste dia da semana
+      const dayKey = mapKeys[dayOfWeek];
+      const dayValue = getDayValue(dayKey);
+      
+      total += dayValue;
       daysCount++;
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    return { total, daysCount, dailyValue };
+    // Calcular valor médio diário para exibição
+    const avgDailyValue = daysCount > 0 ? total / daysCount : 0;
+
+    return { total, daysCount, dailyValue: avgDailyValue };
   };
 
   const handleConfirmPayment = () => {
@@ -1565,9 +1579,9 @@ export const DriverView: React.FC = () => {
                                    Período: <span className="font-bold">{calcDateFrom || 'Início'}</span> até <span className="font-bold">{calcDateTo || 'Hoje'}</span>
                                </p>
                                <p className="text-green-700">
-                                   Dias de entrega: <span className="font-bold">{calculatedDays}</span> × €{calcDailyValue.toFixed(2)}/dia
+                                   Dias de entrega: <span className="font-bold">{calculatedDays}</span> {calcDailyValue > 0 && <span className="text-gray-500">(média €{calcDailyValue.toFixed(2)}/dia)</span>}
                                </p>
-                               <p className="text-green-800 font-bold mt-1">
+                               <p className="text-green-800 font-bold mt-1 text-lg">
                                    Total: €{calculatedTotal.toFixed(2)}
                                </p>
                            </div>
