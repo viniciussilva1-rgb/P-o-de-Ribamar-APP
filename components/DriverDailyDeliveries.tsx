@@ -59,50 +59,63 @@ const DriverDailyDeliveries: React.FC = () => {
     let total = 0;
     
     // Criar datas corretamente para evitar problemas de fuso horário
+    // O input date do HTML sempre retorna no formato YYYY-MM-DD
     const [startYear, startMonth, startDay] = dateFrom.split('-').map(Number);
     const [endYear, endMonth, endDay] = dateTo.split('-').map(Number);
+    
+    // Validar se as datas foram parseadas corretamente
+    if (isNaN(startYear) || isNaN(startMonth) || isNaN(startDay) ||
+        isNaN(endYear) || isNaN(endMonth) || isNaN(endDay)) {
+      console.error('Erro ao parsear datas:', dateFrom, dateTo);
+      return 0;
+    }
     
     const startDate = new Date(startYear, startMonth - 1, startDay);
     const endDate = new Date(endYear, endMonth - 1, endDay);
 
     // Calcular o valor diário do cliente baseado no cronograma
-    // Pega o primeiro dia da semana que tem itens configurados para determinar o valor diário
+    // Usa os dias que o cliente realmente tem configurado (seg-sex, seg-sab, etc)
     const mapKeys = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
     let dailyValue = 0;
+    const daysWithSchedule = new Set<number>(); // 0=dom, 1=seg, ..., 6=sab
     
-    for (const dayKey of mapKeys) {
+    mapKeys.forEach((dayKey, index) => {
       const scheduledItems = client.deliverySchedule?.[dayKey as keyof typeof client.deliverySchedule];
       if (scheduledItems && scheduledItems.length > 0) {
-        scheduledItems.forEach(item => {
-          const product = products.find(p => p.id === item.productId);
-          if (product) {
-            const effectivePrice = client.customPrices?.[product.id] ?? product.price;
-            dailyValue += (item.quantity * effectivePrice);
-          }
-        });
-        break; // Usa o primeiro dia que encontrar com itens
+        daysWithSchedule.add(index);
+        // Calcular valor diário apenas uma vez (assumindo mesmo valor todos os dias)
+        if (dailyValue === 0) {
+          scheduledItems.forEach(item => {
+            const product = products.find(p => p.id === item.productId);
+            if (product) {
+              const effectivePrice = client.customPrices?.[product.id] ?? product.price;
+              dailyValue += (item.quantity * effectivePrice);
+            }
+          });
+        }
       }
-    }
+    });
 
     // Se não tem cronograma configurado, não há como calcular
-    if (dailyValue === 0) return 0;
+    if (dailyValue === 0 || daysWithSchedule.size === 0) return 0;
 
-    // Para cada dia no período (exceto domingos), calcular o valor
+    // Para cada dia no período, verificar se é um dia com entrega programada
     const currentDate = new Date(startDate);
 
     while (currentDate <= endDate) {
-      // Formatar a data manualmente para evitar problemas de fuso horário
+      const dayOfWeek = currentDate.getDay();
+      
+      // Verificar se este dia da semana tem entrega programada
+      if (!daysWithSchedule.has(dayOfWeek)) {
+        currentDate.setDate(currentDate.getDate() + 1);
+        continue;
+      }
+
+      // Formatar a data para verificar skippedDates
       const year = currentDate.getFullYear();
       const month = String(currentDate.getMonth() + 1).padStart(2, '0');
       const day = String(currentDate.getDate()).padStart(2, '0');
       const dateStr = `${year}-${month}-${day}`;
-
-      // Pular domingos (dia 0)
-      const dayOfWeek = currentDate.getDay();
-      if (dayOfWeek === 0) {
-        currentDate.setDate(currentDate.getDate() + 1);
-        continue;
-      }
 
       // Verificar se a data foi pulada (cliente não ficou com pão)
       if (client.skippedDates && client.skippedDates.includes(dateStr)) {
@@ -126,60 +139,69 @@ const DriverDailyDeliveries: React.FC = () => {
 
     let daysWithDelivery = 0;
     
-    // Criar datas corretamente para evitar problemas de fuso horário
+    // Criar datas corretamente
     const [startYear, startMonth, startDay] = dateFrom.split('-').map(Number);
     const [endYear, endMonth, endDay] = dateTo.split('-').map(Number);
+    
+    // Validar se as datas foram parseadas corretamente
+    if (isNaN(startYear) || isNaN(startMonth) || isNaN(startDay) ||
+        isNaN(endYear) || isNaN(endMonth) || isNaN(endDay)) {
+      console.error('Erro ao parsear datas:', dateFrom, dateTo);
+      return { total: 0, days: 0, dailyValue: 0 };
+    }
     
     const startDate = new Date(startYear, startMonth - 1, startDay);
     const endDate = new Date(endYear, endMonth - 1, endDay);
 
-    // Calcular o valor diário do cliente baseado no cronograma
+    // Calcular o valor diário e descobrir quais dias da semana tem entrega
     const mapKeys = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
     let dailyValue = 0;
+    const daysWithSchedule = new Set<number>();
     
-    for (const dayKey of mapKeys) {
+    mapKeys.forEach((dayKey, index) => {
       const scheduledItems = client.deliverySchedule?.[dayKey as keyof typeof client.deliverySchedule];
       if (scheduledItems && scheduledItems.length > 0) {
-        scheduledItems.forEach(item => {
-          const product = products.find(p => p.id === item.productId);
-          if (product) {
-            const effectivePrice = client.customPrices?.[product.id] ?? product.price;
-            dailyValue += (item.quantity * effectivePrice);
-          }
-        });
-        break; // Usa o primeiro dia que encontrar com itens
+        daysWithSchedule.add(index);
+        if (dailyValue === 0) {
+          scheduledItems.forEach(item => {
+            const product = products.find(p => p.id === item.productId);
+            if (product) {
+              const effectivePrice = client.customPrices?.[product.id] ?? product.price;
+              dailyValue += (item.quantity * effectivePrice);
+            }
+          });
+        }
       }
-    }
+    });
 
     // Se não tem cronograma configurado, não há como calcular
-    if (dailyValue === 0) return { total: 0, days: 0, dailyValue: 0 };
+    if (dailyValue === 0 || daysWithSchedule.size === 0) return { total: 0, days: 0, dailyValue: 0 };
 
-    // Para cada dia no período (exceto domingos), contar os dias
+    // Para cada dia no período, contar os dias com entrega
     const currentDate = new Date(startDate);
 
     while (currentDate <= endDate) {
-      // Formatar a data manualmente para evitar problemas de fuso horário
+      const dayOfWeek = currentDate.getDay();
+      
+      // Verificar se este dia da semana tem entrega programada
+      if (!daysWithSchedule.has(dayOfWeek)) {
+        currentDate.setDate(currentDate.getDate() + 1);
+        continue;
+      }
+
+      // Formatar a data para verificar skippedDates
       const year = currentDate.getFullYear();
       const month = String(currentDate.getMonth() + 1).padStart(2, '0');
       const day = String(currentDate.getDate()).padStart(2, '0');
       const dateStr = `${year}-${month}-${day}`;
 
-      // Pular domingos (dia 0)
-      const dayOfWeek = currentDate.getDay();
-      if (dayOfWeek === 0) {
-        currentDate.setDate(currentDate.getDate() + 1);
-        continue;
-      }
-
-      // Verificar se a data foi pulada (cliente não ficou com pão)
+      // Verificar se a data foi pulada
       if (client.skippedDates && client.skippedDates.includes(dateStr)) {
         currentDate.setDate(currentDate.getDate() + 1);
         continue;
       }
 
-      // Contar o dia
       daysWithDelivery++;
-
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
