@@ -1311,83 +1311,75 @@ export const ClientManager: React.FC = () => {
     return `${year}-${month}-${day}`;
   };
 
-  // Função para calcular dívida de um período específico
+  // Função SIMPLES para calcular dívida de um período
+  // 1. Pega o valor diário do cliente (baseado no agendamento)
+  // 2. Conta quantos dias de entrega existem no período
+  // 3. Multiplica: dias × valor diário = total
   const calculatePeriodDebt = (client: Client, dateFromStr: string, dateToStr: string) => {
-    let total = 0;
-    let daysCount = 0;
-
-    const [startYear, startMonth, startDay] = dateFromStr.split('-').map(Number);
-    const [endYear, endMonth, endDay] = dateToStr.split('-').map(Number);
-    
-    const startDate = new Date(startYear, startMonth - 1, startDay);
-    const endDate = new Date(endYear, endMonth - 1, endDay);
-
-    // Mapa de dia da semana para chave do cronograma
+    // Primeiro: calcular o valor diário do cliente
+    // O cliente tem um agendamento (ex: seg-sab com 4 bolinhas de €0.40 = €1.60/dia)
+    let dailyValue = 0;
     const mapKeys = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
+    const deliveryDays: number[] = []; // Quais dias da semana tem entrega (0=dom, 1=seg, etc)
     
-    // Função para calcular valor de um dia específico
-    const getDayValue = (dayKey: string) => {
-      const scheduledItems = client.deliverySchedule?.[dayKey as keyof DeliverySchedule];
-      if (!scheduledItems || scheduledItems.length === 0) return 0;
-      
-      let dayTotal = 0;
-      scheduledItems.forEach(item => {
-        const product = products.find(p => p.id === item.productId);
-        if (product) {
-          const effectivePrice = client.customPrices?.[product.id] ?? product.price;
-          dayTotal += (item.quantity * effectivePrice);
+    // Percorrer todos os dias da semana para ver quais têm entrega
+    mapKeys.forEach((dayKey, dayIndex) => {
+      const items = client.deliverySchedule?.[dayKey as keyof DeliverySchedule];
+      if (items && items.length > 0) {
+        deliveryDays.push(dayIndex);
+        
+        // Calcular valor deste dia
+        let dayTotal = 0;
+        items.forEach(item => {
+          const product = products.find(p => p.id === item.productId);
+          if (product) {
+            const price = client.customPrices?.[product.id] ?? product.price;
+            dayTotal += item.quantity * price;
+          }
+        });
+        
+        // Se ainda não temos valor diário, usar este (assumindo mesmo valor todos os dias)
+        if (dailyValue === 0) {
+          dailyValue = dayTotal;
         }
-      });
-      return dayTotal;
-    };
-
-    // Descobrir quais dias têm entregas programadas
-    const daysWithSchedule = new Set<number>();
-    mapKeys.forEach((dayKey, index) => {
-      const scheduledItems = client.deliverySchedule?.[dayKey as keyof DeliverySchedule];
-      if (scheduledItems && scheduledItems.length > 0) {
-        daysWithSchedule.add(index);
       }
     });
 
-    if (daysWithSchedule.size === 0) {
+    // Se não tem entregas programadas, retorna zero
+    if (deliveryDays.length === 0 || dailyValue === 0) {
       return { total: 0, daysCount: 0, dailyValue: 0 };
     }
 
-    // Contar os dias no período e somar valores
-    const currentDate = new Date(startDate);
+    // Segundo: contar quantos dias de entrega existem no período selecionado
+    const [y1, m1, d1] = dateFromStr.split('-').map(Number);
+    const [y2, m2, d2] = dateToStr.split('-').map(Number);
+    const startDate = new Date(y1, m1 - 1, d1);
+    const endDate = new Date(y2, m2 - 1, d2);
 
-    while (currentDate <= endDate) {
-      const dayOfWeek = currentDate.getDay();
+    let daysCount = 0;
+    const current = new Date(startDate);
+
+    while (current <= endDate) {
+      const dayOfWeek = current.getDay(); // 0=dom, 1=seg, etc
       
-      // Verificar se este dia da semana tem entrega programada
-      if (!daysWithSchedule.has(dayOfWeek)) {
-        currentDate.setDate(currentDate.getDate() + 1);
-        continue;
+      // Este dia da semana tem entrega?
+      if (deliveryDays.includes(dayOfWeek)) {
+        // Verificar se não foi marcado como falha
+        const dateStr = formatDateLocal(current);
+        const isSkipped = client.skippedDates?.includes(dateStr);
+        
+        if (!isSkipped) {
+          daysCount++;
+        }
       }
-
-      // Formatar a data para verificar skippedDates
-      const dateStr = formatDateLocal(currentDate);
-
-      // Verificar se a data foi pulada
-      if (client.skippedDates && client.skippedDates.includes(dateStr)) {
-        currentDate.setDate(currentDate.getDate() + 1);
-        continue;
-      }
-
-      // Calcular o valor específico deste dia da semana
-      const dayKey = mapKeys[dayOfWeek];
-      const dayValue = getDayValue(dayKey);
       
-      total += dayValue;
-      daysCount++;
-      currentDate.setDate(currentDate.getDate() + 1);
+      current.setDate(current.getDate() + 1);
     }
 
-    // Calcular valor médio diário para exibição
-    const avgDailyValue = daysCount > 0 ? total / daysCount : 0;
+    // Terceiro: calcular total
+    const total = daysCount * dailyValue;
 
-    return { total, daysCount, dailyValue: avgDailyValue };
+    return { total, daysCount, dailyValue };
   };
 
   const handleConfirmPayment = () => {
@@ -1896,11 +1888,8 @@ export const ClientManager: React.FC = () => {
                                <p className="text-green-700">
                                    Período: <span className="font-bold">{calcDateFrom}</span> até <span className="font-bold">{calcDateTo}</span>
                                </p>
-                               <p className="text-green-700">
-                                   Dias de entrega: <span className="font-bold">{calculatedDays}</span> {calcDailyValue > 0 && <span className="text-gray-500">(média €{calcDailyValue.toFixed(2)}/dia)</span>}
-                               </p>
                                <p className="text-green-800 font-bold mt-1 text-lg">
-                                   Total: €{calculatedTotal.toFixed(2)}
+                                   {calculatedDays} dias × €{calcDailyValue.toFixed(2)}/dia = €{calculatedTotal.toFixed(2)}
                                </p>
                            </div>
                        )}
