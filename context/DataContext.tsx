@@ -903,8 +903,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         items = scheduledItems.map(item => {
           const product = products.find(p => p.id === item.productId);
           const price = client.customPrices?.[item.productId] ?? product?.price ?? 0;
-          totalValue += price * item.quantity;
-          return { productId: item.productId, quantity: item.quantity };
+          const itemTotal = price * item.quantity;
+          totalValue += itemTotal;
+          return { 
+            productId: item.productId, 
+            quantity: item.quantity,
+            productName: product?.name || 'Produto',
+            unitPrice: price,
+            totalPrice: parseFloat(itemTotal.toFixed(2))
+          };
         });
       }
       
@@ -1184,7 +1191,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (itemIndex === -1) return;
     
     const item = delivery.items[itemIndex] as any;
-    const unitPrice = item.unitPrice || 0;
+    
+    // Obter o preço unitário - tentar do item, depois do cliente, depois do produto
+    const client = clients.find(c => c.id === delivery.clientId);
+    const product = products.find(p => p.id === productId);
+    const unitPrice = item.unitPrice || client?.customPrices?.[productId] || product?.price || 0;
+    
     const oldQuantity = item.quantity;
     const oldValue = item.totalPrice || (oldQuantity * unitPrice);
     
@@ -1210,7 +1222,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       updatedItems[itemIndex] = {
         ...item,
         quantity: newQuantity,
+        unitPrice: unitPrice, // Garantir que unitPrice está salvo
         totalPrice: newValue,
+        productName: item.productName || product?.name || 'Produto',
         originalQuantity: originalQuantity, // Guardar quantidade original do registo
         isAdjusted: newQuantity !== originalQuantity // Marcar se foi ajustado
       };
