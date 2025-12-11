@@ -75,7 +75,7 @@ const DriverDailyDeliveries: React.FC = () => {
   const [extraClientName, setExtraClientName] = useState<string>('');
   const [extraItems, setExtraItems] = useState<{ productId: string; productName: string; quantity: number; unitPrice: number }[]>([]);
   const [extraProductId, setExtraProductId] = useState<string>('');
-  const [extraQuantity, setExtraQuantity] = useState<number>(1);
+  const [extraQuantity, setExtraQuantity] = useState<string>('');
   const [savingExtra, setSavingExtra] = useState(false);
 
   // Clientes dinâmicos
@@ -307,7 +307,8 @@ const DriverDailyDeliveries: React.FC = () => {
 
   // Adicionar item extra à lista
   const handleAddExtraItem = () => {
-    if (!extraProductId || extraQuantity <= 0) return;
+    const qty = parseInt(extraQuantity) || 0;
+    if (!extraProductId || qty <= 0) return;
     
     const product = products.find(p => p.id === extraProductId);
     if (!product) return;
@@ -317,20 +318,20 @@ const DriverDailyDeliveries: React.FC = () => {
     if (existingIndex >= 0) {
       // Somar quantidade
       const updated = [...extraItems];
-      updated[existingIndex].quantity += extraQuantity;
+      updated[existingIndex].quantity += qty;
       setExtraItems(updated);
     } else {
       // Adicionar novo item
       setExtraItems([...extraItems, {
         productId: product.id,
         productName: product.name,
-        quantity: extraQuantity,
+        quantity: qty,
         unitPrice: product.price
       }]);
     }
     
     setExtraProductId('');
-    setExtraQuantity(1);
+    setExtraQuantity('');
   };
 
   // Remover item extra da lista
@@ -349,9 +350,6 @@ const DriverDailyDeliveries: React.FC = () => {
     try {
       // Adicionar extras à entrega
       await addExtraToDelivery(extraDeliveryId, extraItems);
-      
-      // Marcar como entregue
-      await updateDeliveryStatus(extraDeliveryId, 'delivered');
       
       setShowExtraModal(false);
       setExtraDeliveryId('');
@@ -1303,12 +1301,13 @@ const DriverDailyDeliveries: React.FC = () => {
                   type="number"
                   min="1"
                   value={extraQuantity}
-                  onChange={(e) => setExtraQuantity(parseInt(e.target.value) || 1)}
+                  onChange={(e) => setExtraQuantity(e.target.value)}
+                  placeholder="Qtd"
                   className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-center"
                 />
                 <button
                   onClick={handleAddExtraItem}
-                  disabled={!extraProductId}
+                  disabled={!extraProductId || !extraQuantity}
                   className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
                 >
                   <Plus size={20} />
@@ -1359,7 +1358,7 @@ const DriverDailyDeliveries: React.FC = () => {
               {/* Info */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <p className="text-sm text-blue-700">
-                  <strong>💡 Dica:</strong> Ao salvar, os itens extras serão adicionados à entrega e ela será marcada como entregue automaticamente.
+                  <strong>💡 Dica:</strong> Ao salvar, os itens extras serão adicionados à entrega.
                 </p>
               </div>
             </div>
@@ -1388,7 +1387,7 @@ const DriverDailyDeliveries: React.FC = () => {
                 ) : (
                   <>
                     <CheckCircle size={16} />
-                    Salvar e Entregar
+                    Salvar Extras
                   </>
                 )}
               </button>
