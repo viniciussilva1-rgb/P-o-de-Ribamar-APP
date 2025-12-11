@@ -6,7 +6,8 @@ import {
   Package, Truck, CheckCircle, XCircle, Clock, MapPin, Phone, 
   User, AlertCircle, Loader2, Calendar, ChevronDown, ChevronRight,
   DollarSign, ClipboardList, RefreshCw, Send, Filter, Users,
-  Sparkles, Edit3, Plus, Minus, Save, CreditCard, Banknote, X
+  Sparkles, Edit3, Plus, Minus, Save, CreditCard, Banknote, X,
+  ShoppingBag
 } from 'lucide-react';
 
 // Helper: formatar dia da semana
@@ -28,6 +29,7 @@ const DriverDailyDeliveries: React.FC = () => {
     clients,
     generateDailyDeliveries,
     updateDeliveryStatus,
+    addExtraToDelivery,
     getDeliveriesByDriver,
     getDriverDailySummary,
     getScheduledClientsForDay,
@@ -66,6 +68,15 @@ const DriverDailyDeliveries: React.FC = () => {
   const [paidUntilDate, setPaidUntilDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [savingPayment, setSavingPayment] = useState(false);
   const [clientDebt, setClientDebt] = useState<number>(0);
+
+  // Estados para modal de Extra
+  const [showExtraModal, setShowExtraModal] = useState(false);
+  const [extraDeliveryId, setExtraDeliveryId] = useState<string>('');
+  const [extraClientName, setExtraClientName] = useState<string>('');
+  const [extraItems, setExtraItems] = useState<{ productId: string; productName: string; quantity: number; unitPrice: number }[]>([]);
+  const [extraProductId, setExtraProductId] = useState<string>('');
+  const [extraQuantity, setExtraQuantity] = useState<number>(1);
+  const [savingExtra, setSavingExtra] = useState(false);
 
   // Clientes dinâmicos
   const dynamicClients = currentUser?.id ? getDynamicClientsForDriver(currentUser.id) : [];
@@ -281,6 +292,76 @@ const DriverDailyDeliveries: React.FC = () => {
       setError('Erro ao registrar pagamento');
     } finally {
       setSavingPayment(false);
+    }
+  };
+
+  // Abrir modal de extras
+  const handleOpenExtraModal = (deliveryId: string, clientName: string) => {
+    setExtraDeliveryId(deliveryId);
+    setExtraClientName(clientName);
+    setExtraItems([]);
+    setExtraProductId('');
+    setExtraQuantity(1);
+    setShowExtraModal(true);
+  };
+
+  // Adicionar item extra à lista
+  const handleAddExtraItem = () => {
+    if (!extraProductId || extraQuantity <= 0) return;
+    
+    const product = products.find(p => p.id === extraProductId);
+    if (!product) return;
+    
+    // Verificar se já existe na lista
+    const existingIndex = extraItems.findIndex(item => item.productId === extraProductId);
+    if (existingIndex >= 0) {
+      // Somar quantidade
+      const updated = [...extraItems];
+      updated[existingIndex].quantity += extraQuantity;
+      setExtraItems(updated);
+    } else {
+      // Adicionar novo item
+      setExtraItems([...extraItems, {
+        productId: product.id,
+        productName: product.name,
+        quantity: extraQuantity,
+        unitPrice: product.price
+      }]);
+    }
+    
+    setExtraProductId('');
+    setExtraQuantity(1);
+  };
+
+  // Remover item extra da lista
+  const handleRemoveExtraItem = (productId: string) => {
+    setExtraItems(extraItems.filter(item => item.productId !== productId));
+  };
+
+  // Calcular total dos extras
+  const extraTotal = extraItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+
+  // Salvar extras e marcar como entregue
+  const handleSaveExtras = async () => {
+    if (!extraDeliveryId || extraItems.length === 0) return;
+    
+    setSavingExtra(true);
+    try {
+      // Adicionar extras à entrega
+      await addExtraToDelivery(extraDeliveryId, extraItems);
+      
+      // Marcar como entregue
+      await updateDeliveryStatus(extraDeliveryId, 'delivered');
+      
+      setShowExtraModal(false);
+      setExtraDeliveryId('');
+      setExtraClientName('');
+      setExtraItems([]);
+    } catch (err) {
+      console.error('Erro ao adicionar extras:', err);
+      setError('Erro ao adicionar itens extras');
+    } finally {
+      setSavingExtra(false);
     }
   };
 
@@ -776,10 +857,15 @@ const DriverDailyDeliveries: React.FC = () => {
                           {/* Produtos - diferente para dinâmicos */}
                           {editingDynamicDelivery !== delivery.id ? (
                             <div className="mt-2 flex flex-wrap gap-2">
-                              {delivery.items.map(item => (
-                                <span key={item.productId} className={`px-2 py-1 rounded text-sm ${
-                                  isClientDynamic(delivery.clientId) ? 'bg-purple-100 text-purple-700' : 'bg-gray-100'
+                              {delivery.items.map((item, idx) => (
+                                <span key={`${item.productId}-${idx}`} className={`px-2 py-1 rounded text-sm ${
+                                  (item as any).isExtra 
+                                    ? 'bg-purple-100 text-purple-700 border border-purple-300' 
+                                    : isClientDynamic(delivery.clientId) 
+                                      ? 'bg-purple-100 text-purple-700' 
+                                      : 'bg-gray-100'
                                 }`}>
+                                  {(item as any).isExtra && <span className="mr-1">+</span>}
                                   {getProductName(item.productId)}: {item.quantity}
                                 </span>
                               ))}
@@ -958,6 +1044,16 @@ const DriverDailyDeliveries: React.FC = () => {
                               <XCircle size={14} />
                               Não Entregue
                             </button>
+                            {/* Botão Extra - Adicionar itens extras */}
+                            {!isClientDynamic(delivery.clientId) && (
+                              <button
+                                onClick={() => handleOpenExtraModal(delivery.id, delivery.clientName)}
+                                className="flex items-center gap-1 px-3 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 text-sm"
+                              >
+                                <ShoppingBag size={14} />
+                                + Extra
+                              </button>
+                            )}
                             {/* Botão Receber Pagamento */}
                             <button
                               onClick={() => handleOpenPaymentModal(delivery.clientId, delivery.clientName)}
@@ -1153,6 +1249,146 @@ const DriverDailyDeliveries: React.FC = () => {
                   <>
                     <CheckCircle size={16} />
                     Registrar
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Extras */}
+      {showExtraModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="p-4 bg-gradient-to-r from-purple-600 to-purple-700 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold flex items-center gap-2">
+                    <ShoppingBag size={20} />
+                    Adicionar Extra
+                  </h3>
+                  <p className="text-purple-100 text-sm">{extraClientName}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowExtraModal(false);
+                    setExtraItems([]);
+                  }}
+                  className="p-2 hover:bg-purple-500 rounded-lg transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Conteúdo */}
+            <div className="p-4 space-y-4">
+              {/* Seleção de produto */}
+              <div className="flex gap-2">
+                <select
+                  value={extraProductId}
+                  onChange={(e) => setExtraProductId(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="">Selecione o produto...</option>
+                  {products.map(product => (
+                    <option key={product.id} value={product.id}>
+                      {product.name} - €{product.price.toFixed(2)}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  min="1"
+                  value={extraQuantity}
+                  onChange={(e) => setExtraQuantity(parseInt(e.target.value) || 1)}
+                  className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-center"
+                />
+                <button
+                  onClick={handleAddExtraItem}
+                  disabled={!extraProductId}
+                  className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                >
+                  <Plus size={20} />
+                </button>
+              </div>
+
+              {/* Lista de extras adicionados */}
+              {extraItems.length > 0 && (
+                <div className="border border-purple-200 rounded-lg overflow-hidden">
+                  <div className="bg-purple-50 px-3 py-2 text-sm font-medium text-purple-700">
+                    Itens Extras
+                  </div>
+                  <div className="divide-y divide-gray-100">
+                    {extraItems.map(item => (
+                      <div key={item.productId} className="flex items-center justify-between px-3 py-2">
+                        <div>
+                          <span className="font-medium">{item.productName}</span>
+                          <span className="text-gray-500 ml-2">x{item.quantity}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-purple-600">
+                            €{(item.quantity * item.unitPrice).toFixed(2)}
+                          </span>
+                          <button
+                            onClick={() => handleRemoveExtraItem(item.productId)}
+                            className="p-1 text-red-500 hover:bg-red-50 rounded"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="bg-purple-100 px-3 py-2 flex justify-between items-center">
+                    <span className="font-medium text-purple-700">Total Extra:</span>
+                    <span className="text-lg font-bold text-purple-700">€{extraTotal.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
+
+              {extraItems.length === 0 && (
+                <div className="text-center py-6 text-gray-400">
+                  <ShoppingBag size={32} className="mx-auto mb-2 opacity-50" />
+                  <p>Adicione produtos extras acima</p>
+                </div>
+              )}
+
+              {/* Info */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-700">
+                  <strong>💡 Dica:</strong> Ao salvar, os itens extras serão adicionados à entrega e ela será marcada como entregue automaticamente.
+                </p>
+              </div>
+            </div>
+
+            {/* Botões */}
+            <div className="p-4 border-t border-gray-200 flex gap-3">
+              <button
+                onClick={() => {
+                  setShowExtraModal(false);
+                  setExtraItems([]);
+                }}
+                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveExtras}
+                disabled={savingExtra || extraItems.length === 0}
+                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {savingExtra ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle size={16} />
+                    Salvar e Entregar
                   </>
                 )}
               </button>

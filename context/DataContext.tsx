@@ -46,6 +46,7 @@ interface DataContextType {
   clientDeliveries: ClientDelivery[];
   generateDailyDeliveries: (driverId: string, date: string) => Promise<ClientDelivery[]>;
   updateDeliveryStatus: (deliveryId: string, status: DeliveryStatus, reason?: string) => Promise<void>;
+  addExtraToDelivery: (deliveryId: string, extraItems: { productId: string; productName: string; quantity: number; unitPrice: number }[]) => Promise<void>;
   getDeliveriesByDriver: (driverId: string, date: string) => ClientDelivery[];
   getDriverDailySummary: (driverId: string, date: string) => DriverDailySummary;
   getAdminDeliveryReport: (date: string) => AdminDeliveryReport;
@@ -971,6 +972,38 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     await updateDoc(doc(db, 'client_deliveries', deliveryId), updates);
   };
 
+  // Adicionar itens extras a uma entrega
+  const addExtraToDelivery = async (
+    deliveryId: string, 
+    extraItems: { productId: string; productName: string; quantity: number; unitPrice: number }[]
+  ): Promise<void> => {
+    const delivery = clientDeliveries.find(d => d.id === deliveryId);
+    if (!delivery) return;
+    
+    // Calcular valor dos extras
+    const extraValue = extraItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+    
+    // Criar novos itens para adicionar (marcados como extra)
+    const newItems = extraItems.map(item => ({
+      productId: item.productId,
+      productName: item.productName,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      totalPrice: parseFloat((item.quantity * item.unitPrice).toFixed(2)),
+      isExtra: true // Marca como item extra
+    }));
+    
+    // Atualizar a entrega com os novos itens
+    const updatedItems = [...delivery.items, ...newItems];
+    const newTotalValue = parseFloat((delivery.totalValue + extraValue).toFixed(2));
+    
+    await updateDoc(doc(db, 'client_deliveries', deliveryId), {
+      items: updatedItems,
+      totalValue: newTotalValue,
+      updatedAt: new Date().toISOString()
+    });
+  };
+
   // Obter entregas de um entregador para uma data
   const getDeliveriesByDriver = (driverId: string, date: string): ClientDelivery[] => {
     return clientDeliveries.filter(d => d.driverId === driverId && d.date === date);
@@ -1787,7 +1820,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       updateDailyProduction, getDailyRecord,
       calculateClientDebt, registerPayment, toggleSkippedDate, updateClientPrice, updatePricesForRoute,
       createDailyLoad, updateDailyLoad, completeDailyLoad, getDailyLoadByDriver, getDailyLoadsByDate, getDailyLoadReport, getProductionSuggestions,
-      generateDailyDeliveries, updateDeliveryStatus, getDeliveriesByDriver, getDriverDailySummary, getAdminDeliveryReport, getScheduledClientsForDay,
+      generateDailyDeliveries, updateDeliveryStatus, addExtraToDelivery, getDeliveriesByDriver, getDriverDailySummary, getAdminDeliveryReport, getScheduledClientsForDay,
       recordDynamicDelivery, getDynamicClientHistory, getDynamicClientPrediction, getDynamicLoadSummary, getDynamicClientsForDriver,
       saveDailyCashFund, getDailyCashFund, registerDailyPayment, getDailyPaymentsByDriver, getClientPaymentSummaries,
       saveDailyDriverClosure, getDailyDriverClosure, calculateDailyClosureData,
