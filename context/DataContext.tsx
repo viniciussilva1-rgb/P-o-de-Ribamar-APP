@@ -49,6 +49,7 @@ interface DataContextType {
   addExtraToDelivery: (deliveryId: string, extraItems: { productId: string; productName: string; quantity: number; unitPrice: number }[]) => Promise<void>;
   removeExtraFromDelivery: (deliveryId: string, productId: string) => Promise<void>;
   substituteProductInDelivery: (deliveryId: string, originalProductId: string, originalQuantityToReplace: number, newProductId: string, newQuantity: number) => Promise<void>;
+  revertSubstituteInDelivery: (deliveryId: string, substituteProductId: string) => Promise<void>;
   getDeliveriesByDriver: (driverId: string, date: string) => ClientDelivery[];
   getDriverDailySummary: (driverId: string, date: string) => DriverDailySummary;
   getAdminDeliveryReport: (date: string) => AdminDeliveryReport;
@@ -1102,6 +1103,70 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
   };
 
+  // Reverter substituição - volta o produto original
+  const revertSubstituteInDelivery = async (deliveryId: string, substituteProductId: string): Promise<void> => {
+    const delivery = clientDeliveries.find(d => d.id === deliveryId);
+    if (!delivery) return;
+    
+    // Encontrar o item substituto
+    const substituteItemIndex = delivery.items.findIndex(item => 
+      item.productId === substituteProductId && (item as any).isSubstitute === true
+    );
+    if (substituteItemIndex === -1) return;
+    
+    const substituteItem = delivery.items[substituteItemIndex] as any;
+    const originalProductId = substituteItem.originalProductId;
+    const originalProductName = substituteItem.originalProductName;
+    const originalQuantityReplaced = substituteItem.originalQuantityReplaced || substituteItem.quantity;
+    
+    // Obter preço do produto original
+    const originalProduct = products.find(p => p.id === originalProductId);
+    const originalUnitPrice = originalProduct?.price || 0;
+    
+    // Calcular valores
+    const substituteValue = substituteItem.totalPrice || (substituteItem.quantity * substituteItem.unitPrice);
+    const originalValue = parseFloat((originalQuantityReplaced * originalUnitPrice).toFixed(2));
+    
+    // Verificar se já existe o produto original na lista (caso de substituição parcial)
+    const existingOriginalIndex = delivery.items.findIndex(item => 
+      item.productId === originalProductId && !(item as any).isSubstitute && !(item as any).isExtra
+    );
+    
+    const updatedItems = [...delivery.items];
+    
+    if (existingOriginalIndex >= 0) {
+      // Somar a quantidade de volta ao original existente
+      const existingOriginal = updatedItems[existingOriginalIndex] as any;
+      const newQuantity = existingOriginal.quantity + originalQuantityReplaced;
+      updatedItems[existingOriginalIndex] = {
+        ...existingOriginal,
+        quantity: newQuantity,
+        totalPrice: parseFloat((newQuantity * originalUnitPrice).toFixed(2))
+      };
+      // Remover o substituto
+      updatedItems.splice(substituteItemIndex, 1);
+    } else {
+      // Criar item original novamente no lugar do substituto
+      const restoredOriginal = {
+        productId: originalProductId,
+        productName: originalProductName,
+        quantity: originalQuantityReplaced,
+        unitPrice: originalUnitPrice,
+        totalPrice: originalValue
+      };
+      updatedItems.splice(substituteItemIndex, 1, restoredOriginal as any);
+    }
+    
+    // Recalcular valor total
+    const newTotalValue = parseFloat((delivery.totalValue - substituteValue + originalValue).toFixed(2));
+    
+    await updateDoc(doc(db, 'client_deliveries', deliveryId), {
+      items: updatedItems,
+      totalValue: newTotalValue,
+      updatedAt: new Date().toISOString()
+    });
+  };
+
   // Função auxiliar para obter nome do produto
   const getProductName = (productId: string): string => {
     const product = products.find(p => p.id === productId);
@@ -1924,7 +1989,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       updateDailyProduction, getDailyRecord,
       calculateClientDebt, registerPayment, toggleSkippedDate, updateClientPrice, updatePricesForRoute,
       createDailyLoad, updateDailyLoad, completeDailyLoad, getDailyLoadByDriver, getDailyLoadsByDate, getDailyLoadReport, getProductionSuggestions,
-      generateDailyDeliveries, updateDeliveryStatus, addExtraToDelivery, removeExtraFromDelivery, substituteProductInDelivery, getDeliveriesByDriver, getDriverDailySummary, getAdminDeliveryReport, getScheduledClientsForDay,
+      generateDailyDeliveries, updateDeliveryStatus, addExtraToDelivery, removeExtraFromDelivery, substituteProductInDelivery, revertSubstituteInDelivery, getDeliveriesByDriver, getDriverDailySummary, getAdminDeliveryReport, getScheduledClientsForDay,
       recordDynamicDelivery, getDynamicClientHistory, getDynamicClientPrediction, getDynamicLoadSummary, getDynamicClientsForDriver,
       saveDailyCashFund, getDailyCashFund, registerDailyPayment, getDailyPaymentsByDriver, getClientPaymentSummaries,
       saveDailyDriverClosure, getDailyDriverClosure, calculateDailyClosureData,

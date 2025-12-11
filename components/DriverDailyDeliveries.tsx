@@ -32,6 +32,7 @@ const DriverDailyDeliveries: React.FC = () => {
     addExtraToDelivery,
     removeExtraFromDelivery,
     substituteProductInDelivery,
+    revertSubstituteInDelivery,
     getDeliveriesByDriver,
     getDriverDailySummary,
     getScheduledClientsForDay,
@@ -383,6 +384,16 @@ const DriverDailyDeliveries: React.FC = () => {
     } catch (err) {
       console.error('Erro ao remover extra:', err);
       setError('Erro ao remover item extra');
+    }
+  };
+
+  // Reverter substituição - volta o produto original
+  const handleRevertSubstitute = async (deliveryId: string, substituteProductId: string) => {
+    try {
+      await revertSubstituteInDelivery(deliveryId, substituteProductId);
+    } catch (err) {
+      console.error('Erro ao reverter substituição:', err);
+      setError('Erro ao reverter substituição');
     }
   };
 
@@ -939,6 +950,19 @@ const DriverDailyDeliveries: React.FC = () => {
                                       }}
                                       className="ml-1 p-0.5 hover:bg-purple-200 rounded"
                                       title="Remover extra"
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  )}
+                                  {/* Botão de reverter substituição */}
+                                  {(item as any).isSubstitute && delivery.status === 'pending' && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleRevertSubstitute(delivery.id, item.productId);
+                                      }}
+                                      className="ml-1 p-0.5 hover:bg-orange-200 rounded"
+                                      title={`Reverter para ${(item as any).originalQuantityReplaced || item.quantity}x ${(item as any).originalProductName}`}
                                     >
                                       <X size={12} />
                                     </button>
