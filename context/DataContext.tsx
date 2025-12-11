@@ -48,7 +48,7 @@ interface DataContextType {
   updateDeliveryStatus: (deliveryId: string, status: DeliveryStatus, reason?: string) => Promise<void>;
   addExtraToDelivery: (deliveryId: string, extraItems: { productId: string; productName: string; quantity: number; unitPrice: number }[]) => Promise<void>;
   removeExtraFromDelivery: (deliveryId: string, productId: string) => Promise<void>;
-  substituteProductInDelivery: (deliveryId: string, originalProductId: string, newProductId: string, newQuantity: number) => Promise<void>;
+  substituteProductInDelivery: (deliveryId: string, originalProductId: string, originalQuantityToReplace: number, newProductId: string, newQuantity: number) => Promise<void>;
   getDeliveriesByDriver: (driverId: string, date: string) => ClientDelivery[];
   getDriverDailySummary: (driverId: string, date: string) => DriverDailySummary;
   getAdminDeliveryReport: (date: string) => AdminDeliveryReport;
@@ -1034,7 +1034,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Substituir produto em uma entrega (apenas para este dia)
   const substituteProductInDelivery = async (
     deliveryId: string, 
-    originalProductId: string, 
+    originalProductId: string,
+    originalQuantityToReplace: number, // Quantas unidades do original serão substituídas
     newProductId: string, 
     newQuantity: number
   ): Promise<void> => {
@@ -1044,14 +1045,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const newProduct = products.find(p => p.id === newProductId);
     if (!newProduct) return;
     
-    // Encontrar o item original (não extra)
+    // Encontrar o item original (não extra, não já substituído)
     const originalItemIndex = delivery.items.findIndex(item => 
-      item.productId === originalProductId && !(item as any).isExtra
+      item.productId === originalProductId && !(item as any).isExtra && !(item as any).isSubstitute
     );
     if (originalItemIndex === -1) return;
     
     const originalItem = delivery.items[originalItemIndex];
-    const originalValue = (originalItem as any).totalPrice || (originalItem.quantity * ((originalItem as any).unitPrice || 0));
+    const originalUnitPrice = (originalItem as any).unitPrice || 0;
+    const originalProductName = (originalItem as any).productName || getProductName(originalProductId);
+    
+    // Calcular valor a ser removido (baseado na quantidade substituída)
+    const valueToRemove = parseFloat((originalQuantityToReplace * originalUnitPrice).toFixed(2));
     const newValue = parseFloat((newQuantity * newProduct.price).toFixed(2));
     
     // Criar item substituto marcado como substituição
@@ -1061,17 +1066,34 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       quantity: newQuantity,
       unitPrice: newProduct.price,
       totalPrice: newValue,
-      isSubstitute: true, // Marca como substituição
-      originalProductId: originalProductId, // Referência ao produto original
-      originalProductName: (originalItem as any).productName || getProductName(originalProductId)
+      isSubstitute: true,
+      originalProductId: originalProductId,
+      originalProductName: originalProductName,
+      originalQuantityReplaced: originalQuantityToReplace // Guardar quantos foram substituídos
     };
     
-    // Atualizar a lista de itens (remove original, adiciona substituto)
+    // Calcular quantidade restante do produto original
+    const remainingQuantity = originalItem.quantity - originalQuantityToReplace;
+    
+    // Atualizar a lista de itens
     const updatedItems = [...delivery.items];
-    updatedItems.splice(originalItemIndex, 1, substitutedItem as any);
+    
+    if (remainingQuantity > 0) {
+      // Reduzir quantidade do original e adicionar substituto
+      const updatedOriginal = {
+        ...originalItem,
+        quantity: remainingQuantity,
+        totalPrice: parseFloat((remainingQuantity * originalUnitPrice).toFixed(2))
+      };
+      updatedItems[originalItemIndex] = updatedOriginal as any;
+      updatedItems.push(substitutedItem as any);
+    } else {
+      // Substituir completamente
+      updatedItems.splice(originalItemIndex, 1, substitutedItem as any);
+    }
     
     // Recalcular valor total
-    const newTotalValue = parseFloat((delivery.totalValue - originalValue + newValue).toFixed(2));
+    const newTotalValue = parseFloat((delivery.totalValue - valueToRemove + newValue).toFixed(2));
     
     await updateDoc(doc(db, 'client_deliveries', deliveryId), {
       items: updatedItems,

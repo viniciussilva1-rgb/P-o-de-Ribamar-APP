@@ -85,6 +85,7 @@ const DriverDailyDeliveries: React.FC = () => {
   const [substituteDeliveryId, setSubstituteDeliveryId] = useState<string>('');
   const [substituteClientName, setSubstituteClientName] = useState<string>('');
   const [substituteOriginalProductId, setSubstituteOriginalProductId] = useState<string>('');
+  const [substituteOriginalQty, setSubstituteOriginalQty] = useState<string>(''); // Quantas unidades do original substituir
   const [substituteNewProductId, setSubstituteNewProductId] = useState<string>('');
   const [substituteQuantity, setSubstituteQuantity] = useState<string>('');
   const [savingSubstitute, setSavingSubstitute] = useState(false);
@@ -393,6 +394,7 @@ const DriverDailyDeliveries: React.FC = () => {
     setSubstituteClientName(clientName);
     setDeliveryItemsForSubstitute(regularItems);
     setSubstituteOriginalProductId('');
+    setSubstituteOriginalQty('');
     setSubstituteNewProductId('');
     setSubstituteQuantity('');
     setShowSubstituteModal(true);
@@ -400,16 +402,18 @@ const DriverDailyDeliveries: React.FC = () => {
 
   // Salvar substituição
   const handleSaveSubstitute = async () => {
-    const qty = parseInt(substituteQuantity) || 0;
-    if (!substituteDeliveryId || !substituteOriginalProductId || !substituteNewProductId || qty <= 0) return;
+    const originalQty = parseInt(substituteOriginalQty) || 0;
+    const newQty = parseInt(substituteQuantity) || 0;
+    if (!substituteDeliveryId || !substituteOriginalProductId || !substituteNewProductId || originalQty <= 0 || newQty <= 0) return;
     
     setSavingSubstitute(true);
     try {
-      await substituteProductInDelivery(substituteDeliveryId, substituteOriginalProductId, substituteNewProductId, qty);
+      await substituteProductInDelivery(substituteDeliveryId, substituteOriginalProductId, originalQty, substituteNewProductId, newQty);
       setShowSubstituteModal(false);
       setSubstituteDeliveryId('');
       setSubstituteClientName('');
       setSubstituteOriginalProductId('');
+      setSubstituteOriginalQty('');
       setSubstituteNewProductId('');
       setSubstituteQuantity('');
       setDeliveryItemsForSubstitute([]);
@@ -1515,7 +1519,10 @@ const DriverDailyDeliveries: React.FC = () => {
                 </label>
                 <select
                   value={substituteOriginalProductId}
-                  onChange={(e) => setSubstituteOriginalProductId(e.target.value)}
+                  onChange={(e) => {
+                    setSubstituteOriginalProductId(e.target.value);
+                    setSubstituteOriginalQty(''); // Limpar quantidade ao mudar produto
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
                 >
                   <option value="">Selecione o produto original...</option>
@@ -1526,6 +1533,46 @@ const DriverDailyDeliveries: React.FC = () => {
                   ))}
                 </select>
               </div>
+
+              {/* Quantidade do Original a Substituir */}
+              {substituteOriginalProductId && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Quantas unidades substituir?
+                  </label>
+                  {(() => {
+                    const selectedItem = deliveryItemsForSubstitute.find(item => item.productId === substituteOriginalProductId);
+                    const maxQty = selectedItem?.quantity || 1;
+                    return (
+                      <div className="flex gap-2 items-center">
+                        <input
+                          type="number"
+                          min="1"
+                          max={maxQty}
+                          value={substituteOriginalQty}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 0;
+                            if (val <= maxQty) {
+                              setSubstituteOriginalQty(e.target.value);
+                            }
+                          }}
+                          placeholder="Qtd"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                        />
+                        <button
+                          onClick={() => setSubstituteOriginalQty(maxQty.toString())}
+                          className="px-3 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 text-sm"
+                        >
+                          Todas ({maxQty})
+                        </button>
+                      </div>
+                    );
+                  })()}
+                  <p className="text-xs text-gray-500 mt-1">
+                    As unidades não substituídas permanecerão na entrega
+                  </p>
+                </div>
+              )}
 
               {/* Novo Produto */}
               <div>
@@ -1546,10 +1593,10 @@ const DriverDailyDeliveries: React.FC = () => {
                 </select>
               </div>
 
-              {/* Quantidade */}
+              {/* Quantidade do Novo Produto */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Quantidade:
+                  Quantidade do novo produto:
                 </label>
                 <input
                   type="number"
@@ -1561,9 +1608,19 @@ const DriverDailyDeliveries: React.FC = () => {
                 />
               </div>
 
+              {/* Resumo da troca */}
+              {substituteOriginalProductId && substituteOriginalQty && substituteNewProductId && substituteQuantity && (
+                <div className="bg-orange-100 border border-orange-300 rounded-lg p-3">
+                  <p className="text-sm text-orange-800 font-medium">📋 Resumo da troca:</p>
+                  <p className="text-sm text-orange-700 mt-1">
+                    {substituteOriginalQty}x {getProductName(substituteOriginalProductId)} → {substituteQuantity}x {getProductName(substituteNewProductId)}
+                  </p>
+                </div>
+              )}
+
               {/* Info */}
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-                <p className="text-sm text-orange-700">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-700">
                   <strong>💡 Nota:</strong> Esta substituição é apenas para esta entrega. O registo do cliente não será alterado.
                 </p>
               </div>
@@ -1582,7 +1639,7 @@ const DriverDailyDeliveries: React.FC = () => {
               </button>
               <button
                 onClick={handleSaveSubstitute}
-                disabled={savingSubstitute || !substituteOriginalProductId || !substituteNewProductId || !substituteQuantity}
+                disabled={savingSubstitute || !substituteOriginalProductId || !substituteOriginalQty || !substituteNewProductId || !substituteQuantity}
                 className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {savingSubstitute ? (
