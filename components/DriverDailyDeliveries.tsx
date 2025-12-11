@@ -7,7 +7,7 @@ import {
   User, AlertCircle, Loader2, Calendar, ChevronDown, ChevronRight,
   DollarSign, ClipboardList, RefreshCw, Send, Filter, Users,
   Sparkles, Edit3, Plus, Minus, Save, CreditCard, Banknote, X,
-  ShoppingBag
+  ShoppingBag, ArrowLeftRight, Trash2
 } from 'lucide-react';
 
 // Helper: formatar dia da semana
@@ -30,6 +30,8 @@ const DriverDailyDeliveries: React.FC = () => {
     generateDailyDeliveries,
     updateDeliveryStatus,
     addExtraToDelivery,
+    removeExtraFromDelivery,
+    substituteProductInDelivery,
     getDeliveriesByDriver,
     getDriverDailySummary,
     getScheduledClientsForDay,
@@ -77,6 +79,16 @@ const DriverDailyDeliveries: React.FC = () => {
   const [extraProductId, setExtraProductId] = useState<string>('');
   const [extraQuantity, setExtraQuantity] = useState<string>('');
   const [savingExtra, setSavingExtra] = useState(false);
+
+  // Estados para modal de Substituição
+  const [showSubstituteModal, setShowSubstituteModal] = useState(false);
+  const [substituteDeliveryId, setSubstituteDeliveryId] = useState<string>('');
+  const [substituteClientName, setSubstituteClientName] = useState<string>('');
+  const [substituteOriginalProductId, setSubstituteOriginalProductId] = useState<string>('');
+  const [substituteNewProductId, setSubstituteNewProductId] = useState<string>('');
+  const [substituteQuantity, setSubstituteQuantity] = useState<string>('');
+  const [savingSubstitute, setSavingSubstitute] = useState(false);
+  const [deliveryItemsForSubstitute, setDeliveryItemsForSubstitute] = useState<any[]>([]);
 
   // Clientes dinâmicos
   const dynamicClients = currentUser?.id ? getDynamicClientsForDriver(currentUser.id) : [];
@@ -360,6 +372,52 @@ const DriverDailyDeliveries: React.FC = () => {
       setError('Erro ao adicionar itens extras');
     } finally {
       setSavingExtra(false);
+    }
+  };
+
+  // Remover extra já salvo
+  const handleRemoveSavedExtra = async (deliveryId: string, productId: string) => {
+    try {
+      await removeExtraFromDelivery(deliveryId, productId);
+    } catch (err) {
+      console.error('Erro ao remover extra:', err);
+      setError('Erro ao remover item extra');
+    }
+  };
+
+  // Abrir modal de substituição
+  const handleOpenSubstituteModal = (deliveryId: string, clientName: string, items: any[]) => {
+    // Filtrar apenas itens que não são extras nem já substituídos
+    const regularItems = items.filter(item => !item.isExtra && !item.isSubstitute);
+    setSubstituteDeliveryId(deliveryId);
+    setSubstituteClientName(clientName);
+    setDeliveryItemsForSubstitute(regularItems);
+    setSubstituteOriginalProductId('');
+    setSubstituteNewProductId('');
+    setSubstituteQuantity('');
+    setShowSubstituteModal(true);
+  };
+
+  // Salvar substituição
+  const handleSaveSubstitute = async () => {
+    const qty = parseInt(substituteQuantity) || 0;
+    if (!substituteDeliveryId || !substituteOriginalProductId || !substituteNewProductId || qty <= 0) return;
+    
+    setSavingSubstitute(true);
+    try {
+      await substituteProductInDelivery(substituteDeliveryId, substituteOriginalProductId, substituteNewProductId, qty);
+      setShowSubstituteModal(false);
+      setSubstituteDeliveryId('');
+      setSubstituteClientName('');
+      setSubstituteOriginalProductId('');
+      setSubstituteNewProductId('');
+      setSubstituteQuantity('');
+      setDeliveryItemsForSubstitute([]);
+    } catch (err) {
+      console.error('Erro ao substituir produto:', err);
+      setError('Erro ao substituir produto');
+    } finally {
+      setSavingSubstitute(false);
     }
   };
 
@@ -856,15 +914,31 @@ const DriverDailyDeliveries: React.FC = () => {
                           {editingDynamicDelivery !== delivery.id ? (
                             <div className="mt-2 flex flex-wrap gap-2">
                               {delivery.items.map((item, idx) => (
-                                <span key={`${item.productId}-${idx}`} className={`px-2 py-1 rounded text-sm ${
+                                <span key={`${item.productId}-${idx}`} className={`px-2 py-1 rounded text-sm flex items-center gap-1 ${
                                   (item as any).isExtra 
                                     ? 'bg-purple-100 text-purple-700 border border-purple-300' 
-                                    : isClientDynamic(delivery.clientId) 
-                                      ? 'bg-purple-100 text-purple-700' 
-                                      : 'bg-gray-100'
+                                    : (item as any).isSubstitute
+                                      ? 'bg-orange-100 text-orange-700 border border-orange-300'
+                                      : isClientDynamic(delivery.clientId) 
+                                        ? 'bg-purple-100 text-purple-700' 
+                                        : 'bg-gray-100'
                                 }`}>
-                                  {(item as any).isExtra && <span className="mr-1">+</span>}
+                                  {(item as any).isExtra && <span className="font-bold">+</span>}
+                                  {(item as any).isSubstitute && <ArrowLeftRight size={12} />}
                                   {getProductName(item.productId)}: {item.quantity}
+                                  {/* Botão de remover extra */}
+                                  {(item as any).isExtra && delivery.status === 'pending' && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleRemoveSavedExtra(delivery.id, item.productId);
+                                      }}
+                                      className="ml-1 p-0.5 hover:bg-purple-200 rounded"
+                                      title="Remover extra"
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  )}
                                 </span>
                               ))}
                               {isClientDynamic(delivery.clientId) && delivery.items.length === 0 && (
@@ -1050,6 +1124,16 @@ const DriverDailyDeliveries: React.FC = () => {
                               >
                                 <ShoppingBag size={14} />
                                 + Extra
+                              </button>
+                            )}
+                            {/* Botão Substituir - Trocar produto apenas neste dia */}
+                            {!isClientDynamic(delivery.clientId) && delivery.items.some(item => !(item as any).isExtra && !(item as any).isSubstitute) && (
+                              <button
+                                onClick={() => handleOpenSubstituteModal(delivery.id, delivery.clientName, delivery.items)}
+                                className="flex items-center gap-1 px-3 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 text-sm"
+                              >
+                                <ArrowLeftRight size={14} />
+                                Trocar
                               </button>
                             )}
                             {/* Botão Receber Pagamento */}
@@ -1388,6 +1472,128 @@ const DriverDailyDeliveries: React.FC = () => {
                   <>
                     <CheckCircle size={16} />
                     Salvar Extras
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Substituição de Produto */}
+      {showSubstituteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="p-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold flex items-center gap-2">
+                    <ArrowLeftRight size={20} />
+                    Substituir Produto
+                  </h3>
+                  <p className="text-orange-100 text-sm">{substituteClientName}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowSubstituteModal(false);
+                    setDeliveryItemsForSubstitute([]);
+                  }}
+                  className="p-2 hover:bg-orange-400 rounded-lg transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Conteúdo */}
+            <div className="p-4 space-y-4">
+              {/* Produto Original */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Produto a Substituir:
+                </label>
+                <select
+                  value={substituteOriginalProductId}
+                  onChange={(e) => setSubstituteOriginalProductId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                >
+                  <option value="">Selecione o produto original...</option>
+                  {deliveryItemsForSubstitute.map(item => (
+                    <option key={item.productId} value={item.productId}>
+                      {getProductName(item.productId)} (x{item.quantity})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Novo Produto */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Novo Produto:
+                </label>
+                <select
+                  value={substituteNewProductId}
+                  onChange={(e) => setSubstituteNewProductId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                >
+                  <option value="">Selecione o novo produto...</option>
+                  {products.map(product => (
+                    <option key={product.id} value={product.id}>
+                      {product.name} - €{product.price.toFixed(2)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Quantidade */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Quantidade:
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={substituteQuantity}
+                  onChange={(e) => setSubstituteQuantity(e.target.value)}
+                  placeholder="Qtd"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                />
+              </div>
+
+              {/* Info */}
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                <p className="text-sm text-orange-700">
+                  <strong>💡 Nota:</strong> Esta substituição é apenas para esta entrega. O registo do cliente não será alterado.
+                </p>
+              </div>
+            </div>
+
+            {/* Botões */}
+            <div className="p-4 border-t border-gray-200 flex gap-3">
+              <button
+                onClick={() => {
+                  setShowSubstituteModal(false);
+                  setDeliveryItemsForSubstitute([]);
+                }}
+                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveSubstitute}
+                disabled={savingSubstitute || !substituteOriginalProductId || !substituteNewProductId || !substituteQuantity}
+                className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {savingSubstitute ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <ArrowLeftRight size={16} />
+                    Confirmar Troca
                   </>
                 )}
               </button>

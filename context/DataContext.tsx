@@ -47,6 +47,8 @@ interface DataContextType {
   generateDailyDeliveries: (driverId: string, date: string) => Promise<ClientDelivery[]>;
   updateDeliveryStatus: (deliveryId: string, status: DeliveryStatus, reason?: string) => Promise<void>;
   addExtraToDelivery: (deliveryId: string, extraItems: { productId: string; productName: string; quantity: number; unitPrice: number }[]) => Promise<void>;
+  removeExtraFromDelivery: (deliveryId: string, productId: string) => Promise<void>;
+  substituteProductInDelivery: (deliveryId: string, originalProductId: string, newProductId: string, newQuantity: number) => Promise<void>;
   getDeliveriesByDriver: (driverId: string, date: string) => ClientDelivery[];
   getDriverDailySummary: (driverId: string, date: string) => DriverDailySummary;
   getAdminDeliveryReport: (date: string) => AdminDeliveryReport;
@@ -1004,6 +1006,86 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
   };
 
+  // Remover item extra de uma entrega
+  const removeExtraFromDelivery = async (deliveryId: string, productId: string): Promise<void> => {
+    const delivery = clientDeliveries.find(d => d.id === deliveryId);
+    if (!delivery) return;
+    
+    // Encontrar o item extra a ser removido
+    const itemToRemove = delivery.items.find(item => 
+      item.productId === productId && (item as any).isExtra === true
+    );
+    if (!itemToRemove) return;
+    
+    // Remover o item e recalcular valor
+    const updatedItems = delivery.items.filter(item => 
+      !(item.productId === productId && (item as any).isExtra === true)
+    );
+    const removedValue = (itemToRemove as any).totalPrice || (itemToRemove.quantity * ((itemToRemove as any).unitPrice || 0));
+    const newTotalValue = parseFloat((delivery.totalValue - removedValue).toFixed(2));
+    
+    await updateDoc(doc(db, 'client_deliveries', deliveryId), {
+      items: updatedItems,
+      totalValue: Math.max(0, newTotalValue),
+      updatedAt: new Date().toISOString()
+    });
+  };
+
+  // Substituir produto em uma entrega (apenas para este dia)
+  const substituteProductInDelivery = async (
+    deliveryId: string, 
+    originalProductId: string, 
+    newProductId: string, 
+    newQuantity: number
+  ): Promise<void> => {
+    const delivery = clientDeliveries.find(d => d.id === deliveryId);
+    if (!delivery) return;
+    
+    const newProduct = products.find(p => p.id === newProductId);
+    if (!newProduct) return;
+    
+    // Encontrar o item original (não extra)
+    const originalItemIndex = delivery.items.findIndex(item => 
+      item.productId === originalProductId && !(item as any).isExtra
+    );
+    if (originalItemIndex === -1) return;
+    
+    const originalItem = delivery.items[originalItemIndex];
+    const originalValue = (originalItem as any).totalPrice || (originalItem.quantity * ((originalItem as any).unitPrice || 0));
+    const newValue = parseFloat((newQuantity * newProduct.price).toFixed(2));
+    
+    // Criar item substituto marcado como substituição
+    const substitutedItem = {
+      productId: newProduct.id,
+      productName: newProduct.name,
+      quantity: newQuantity,
+      unitPrice: newProduct.price,
+      totalPrice: newValue,
+      isSubstitute: true, // Marca como substituição
+      originalProductId: originalProductId, // Referência ao produto original
+      originalProductName: (originalItem as any).productName || getProductName(originalProductId)
+    };
+    
+    // Atualizar a lista de itens (remove original, adiciona substituto)
+    const updatedItems = [...delivery.items];
+    updatedItems.splice(originalItemIndex, 1, substitutedItem as any);
+    
+    // Recalcular valor total
+    const newTotalValue = parseFloat((delivery.totalValue - originalValue + newValue).toFixed(2));
+    
+    await updateDoc(doc(db, 'client_deliveries', deliveryId), {
+      items: updatedItems,
+      totalValue: newTotalValue,
+      updatedAt: new Date().toISOString()
+    });
+  };
+
+  // Função auxiliar para obter nome do produto
+  const getProductName = (productId: string): string => {
+    const product = products.find(p => p.id === productId);
+    return product?.name || 'Produto';
+  };
+
   // Obter entregas de um entregador para uma data
   const getDeliveriesByDriver = (driverId: string, date: string): ClientDelivery[] => {
     return clientDeliveries.filter(d => d.driverId === driverId && d.date === date);
@@ -1820,7 +1902,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       updateDailyProduction, getDailyRecord,
       calculateClientDebt, registerPayment, toggleSkippedDate, updateClientPrice, updatePricesForRoute,
       createDailyLoad, updateDailyLoad, completeDailyLoad, getDailyLoadByDriver, getDailyLoadsByDate, getDailyLoadReport, getProductionSuggestions,
-      generateDailyDeliveries, updateDeliveryStatus, addExtraToDelivery, getDeliveriesByDriver, getDriverDailySummary, getAdminDeliveryReport, getScheduledClientsForDay,
+      generateDailyDeliveries, updateDeliveryStatus, addExtraToDelivery, removeExtraFromDelivery, substituteProductInDelivery, getDeliveriesByDriver, getDriverDailySummary, getAdminDeliveryReport, getScheduledClientsForDay,
       recordDynamicDelivery, getDynamicClientHistory, getDynamicClientPrediction, getDynamicLoadSummary, getDynamicClientsForDriver,
       saveDailyCashFund, getDailyCashFund, registerDailyPayment, getDailyPaymentsByDriver, getClientPaymentSummaries,
       saveDailyDriverClosure, getDailyDriverClosure, calculateDailyClosureData,
