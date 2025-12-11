@@ -33,6 +33,7 @@ const DriverDailyDeliveries: React.FC = () => {
     removeExtraFromDelivery,
     substituteProductInDelivery,
     revertSubstituteInDelivery,
+    adjustQuantityInDelivery,
     getDeliveriesByDriver,
     getDriverDailySummary,
     getScheduledClientsForDay,
@@ -91,6 +92,17 @@ const DriverDailyDeliveries: React.FC = () => {
   const [substituteQuantity, setSubstituteQuantity] = useState<string>('');
   const [savingSubstitute, setSavingSubstitute] = useState(false);
   const [deliveryItemsForSubstitute, setDeliveryItemsForSubstitute] = useState<any[]>([]);
+
+  // Estados para modal de Ajuste de Quantidade
+  const [showAdjustModal, setShowAdjustModal] = useState(false);
+  const [adjustDeliveryId, setAdjustDeliveryId] = useState<string>('');
+  const [adjustClientName, setAdjustClientName] = useState<string>('');
+  const [adjustProductId, setAdjustProductId] = useState<string>('');
+  const [adjustProductName, setAdjustProductName] = useState<string>('');
+  const [adjustCurrentQty, setAdjustCurrentQty] = useState<number>(0);
+  const [adjustOriginalQty, setAdjustOriginalQty] = useState<number>(0);
+  const [adjustNewQty, setAdjustNewQty] = useState<string>('');
+  const [savingAdjust, setSavingAdjust] = useState(false);
 
   // Clientes dinâmicos
   const dynamicClients = currentUser?.id ? getDynamicClientsForDriver(currentUser.id) : [];
@@ -394,6 +406,42 @@ const DriverDailyDeliveries: React.FC = () => {
     } catch (err) {
       console.error('Erro ao reverter substituição:', err);
       setError('Erro ao reverter substituição');
+    }
+  };
+
+  // Abrir modal de ajuste de quantidade
+  const handleOpenAdjustModal = (deliveryId: string, clientName: string, item: any) => {
+    setAdjustDeliveryId(deliveryId);
+    setAdjustClientName(clientName);
+    setAdjustProductId(item.productId);
+    setAdjustProductName(item.productName || getProductName(item.productId));
+    setAdjustCurrentQty(item.quantity);
+    setAdjustOriginalQty(item.originalQuantity || item.quantity);
+    setAdjustNewQty(item.quantity.toString());
+    setShowAdjustModal(true);
+  };
+
+  // Salvar ajuste de quantidade
+  const handleSaveAdjust = async () => {
+    const newQty = parseInt(adjustNewQty) || 0;
+    if (!adjustDeliveryId || !adjustProductId) return;
+    
+    setSavingAdjust(true);
+    try {
+      await adjustQuantityInDelivery(adjustDeliveryId, adjustProductId, newQty);
+      setShowAdjustModal(false);
+      setAdjustDeliveryId('');
+      setAdjustClientName('');
+      setAdjustProductId('');
+      setAdjustProductName('');
+      setAdjustCurrentQty(0);
+      setAdjustOriginalQty(0);
+      setAdjustNewQty('');
+    } catch (err) {
+      console.error('Erro ao ajustar quantidade:', err);
+      setError('Erro ao ajustar quantidade');
+    } finally {
+      setSavingAdjust(false);
     }
   };
 
@@ -934,13 +982,33 @@ const DriverDailyDeliveries: React.FC = () => {
                                     ? 'bg-purple-100 text-purple-700 border border-purple-300' 
                                     : (item as any).isSubstitute
                                       ? 'bg-orange-100 text-orange-700 border border-orange-300'
-                                      : isClientDynamic(delivery.clientId) 
-                                        ? 'bg-purple-100 text-purple-700' 
-                                        : 'bg-gray-100'
+                                      : (item as any).isAdjusted
+                                        ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                                        : isClientDynamic(delivery.clientId) 
+                                          ? 'bg-purple-100 text-purple-700' 
+                                          : 'bg-gray-100'
                                 }`}>
                                   {(item as any).isExtra && <span className="font-bold">+</span>}
                                   {(item as any).isSubstitute && <ArrowLeftRight size={12} />}
+                                  {(item as any).isAdjusted && <Edit3 size={12} />}
                                   {getProductName(item.productId)}: {item.quantity}
+                                  {/* Mostrar quantidade original se foi ajustado */}
+                                  {(item as any).isAdjusted && (item as any).originalQuantity && (
+                                    <span className="text-xs opacity-70">(era {(item as any).originalQuantity})</span>
+                                  )}
+                                  {/* Botão de editar quantidade (item normal, não extra, não substituto) */}
+                                  {!(item as any).isExtra && !(item as any).isSubstitute && delivery.status === 'pending' && !isClientDynamic(delivery.clientId) && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleOpenAdjustModal(delivery.id, delivery.clientName, item);
+                                      }}
+                                      className="ml-1 p-0.5 hover:bg-gray-200 rounded"
+                                      title="Ajustar quantidade"
+                                    >
+                                      <Edit3 size={12} />
+                                    </button>
+                                  )}
                                   {/* Botão de remover extra */}
                                   {(item as any).isExtra && delivery.status === 'pending' && (
                                     <button
@@ -1675,6 +1743,134 @@ const DriverDailyDeliveries: React.FC = () => {
                   <>
                     <ArrowLeftRight size={16} />
                     Confirmar Troca
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Ajuste de Quantidade */}
+      {showAdjustModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-sm w-full shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="p-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold flex items-center gap-2">
+                    <Edit3 size={20} />
+                    Ajustar Quantidade
+                  </h3>
+                  <p className="text-blue-100 text-sm">{adjustClientName}</p>
+                </div>
+                <button
+                  onClick={() => setShowAdjustModal(false)}
+                  className="p-2 hover:bg-blue-400 rounded-lg transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Conteúdo */}
+            <div className="p-4 space-y-4">
+              {/* Produto */}
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-sm text-gray-500">Produto:</p>
+                <p className="font-medium text-lg">{adjustProductName}</p>
+                {adjustOriginalQty !== adjustCurrentQty && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    Quantidade original do registo: {adjustOriginalQty}
+                  </p>
+                )}
+              </div>
+
+              {/* Quantidade */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nova Quantidade:
+                </label>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => {
+                      const current = parseInt(adjustNewQty) || 0;
+                      if (current > 0) setAdjustNewQty((current - 1).toString());
+                    }}
+                    className="w-12 h-12 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 flex items-center justify-center text-2xl font-bold"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min="0"
+                    value={adjustNewQty}
+                    onChange={(e) => setAdjustNewQty(e.target.value)}
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-center text-2xl font-bold focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    onClick={() => {
+                      const current = parseInt(adjustNewQty) || 0;
+                      setAdjustNewQty((current + 1).toString());
+                    }}
+                    className="w-12 h-12 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 flex items-center justify-center text-2xl font-bold"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              {/* Botão de restaurar original */}
+              {adjustOriginalQty !== parseInt(adjustNewQty) && (
+                <button
+                  onClick={() => setAdjustNewQty(adjustOriginalQty.toString())}
+                  className="w-full px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm flex items-center justify-center gap-2"
+                >
+                  <RefreshCw size={14} />
+                  Restaurar quantidade original ({adjustOriginalQty})
+                </button>
+              )}
+
+              {/* Aviso */}
+              {parseInt(adjustNewQty) === 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-sm text-red-700">
+                    <strong>⚠️ Atenção:</strong> Quantidade 0 removerá este produto da entrega de hoje.
+                  </p>
+                </div>
+              )}
+
+              {/* Info */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-700">
+                  <strong>💡 Nota:</strong> Este ajuste é apenas para hoje. O registo do cliente não será alterado.
+                </p>
+              </div>
+            </div>
+
+            {/* Botões */}
+            <div className="p-4 border-t border-gray-200 flex gap-3">
+              <button
+                onClick={() => setShowAdjustModal(false)}
+                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveAdjust}
+                disabled={savingAdjust || adjustNewQty === '' || parseInt(adjustNewQty) === adjustCurrentQty}
+                className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {savingAdjust ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle size={16} />
+                    Confirmar
                   </>
                 )}
               </button>

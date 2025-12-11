@@ -50,6 +50,7 @@ interface DataContextType {
   removeExtraFromDelivery: (deliveryId: string, productId: string) => Promise<void>;
   substituteProductInDelivery: (deliveryId: string, originalProductId: string, originalQuantityToReplace: number, newProductId: string, newQuantity: number) => Promise<void>;
   revertSubstituteInDelivery: (deliveryId: string, substituteProductId: string) => Promise<void>;
+  adjustQuantityInDelivery: (deliveryId: string, productId: string, newQuantity: number) => Promise<void>;
   getDeliveriesByDriver: (driverId: string, date: string) => ClientDelivery[];
   getDriverDailySummary: (driverId: string, date: string) => DriverDailySummary;
   getAdminDeliveryReport: (date: string) => AdminDeliveryReport;
@@ -1167,6 +1168,63 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
   };
 
+  // Ajustar quantidade de um produto na entrega (apenas para este dia)
+  const adjustQuantityInDelivery = async (
+    deliveryId: string, 
+    productId: string, 
+    newQuantity: number
+  ): Promise<void> => {
+    const delivery = clientDeliveries.find(d => d.id === deliveryId);
+    if (!delivery) return;
+    
+    // Encontrar o item (não extra, não substituto)
+    const itemIndex = delivery.items.findIndex(item => 
+      item.productId === productId && !(item as any).isExtra && !(item as any).isSubstitute
+    );
+    if (itemIndex === -1) return;
+    
+    const item = delivery.items[itemIndex] as any;
+    const unitPrice = item.unitPrice || 0;
+    const oldQuantity = item.quantity;
+    const oldValue = item.totalPrice || (oldQuantity * unitPrice);
+    
+    // Guardar quantidade original se ainda não foi guardada
+    const originalQuantity = item.originalQuantity || oldQuantity;
+    
+    const updatedItems = [...delivery.items];
+    
+    if (newQuantity <= 0) {
+      // Remover item se quantidade for 0 ou menos
+      updatedItems.splice(itemIndex, 1);
+      const newTotalValue = parseFloat((delivery.totalValue - oldValue).toFixed(2));
+      
+      await updateDoc(doc(db, 'client_deliveries', deliveryId), {
+        items: updatedItems,
+        totalValue: Math.max(0, newTotalValue),
+        updatedAt: new Date().toISOString()
+      });
+    } else {
+      // Atualizar quantidade
+      const newValue = parseFloat((newQuantity * unitPrice).toFixed(2));
+      
+      updatedItems[itemIndex] = {
+        ...item,
+        quantity: newQuantity,
+        totalPrice: newValue,
+        originalQuantity: originalQuantity, // Guardar quantidade original do registo
+        isAdjusted: newQuantity !== originalQuantity // Marcar se foi ajustado
+      };
+      
+      const newTotalValue = parseFloat((delivery.totalValue - oldValue + newValue).toFixed(2));
+      
+      await updateDoc(doc(db, 'client_deliveries', deliveryId), {
+        items: updatedItems,
+        totalValue: newTotalValue,
+        updatedAt: new Date().toISOString()
+      });
+    }
+  };
+
   // Função auxiliar para obter nome do produto
   const getProductName = (productId: string): string => {
     const product = products.find(p => p.id === productId);
@@ -1989,7 +2047,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       updateDailyProduction, getDailyRecord,
       calculateClientDebt, registerPayment, toggleSkippedDate, updateClientPrice, updatePricesForRoute,
       createDailyLoad, updateDailyLoad, completeDailyLoad, getDailyLoadByDriver, getDailyLoadsByDate, getDailyLoadReport, getProductionSuggestions,
-      generateDailyDeliveries, updateDeliveryStatus, addExtraToDelivery, removeExtraFromDelivery, substituteProductInDelivery, revertSubstituteInDelivery, getDeliveriesByDriver, getDriverDailySummary, getAdminDeliveryReport, getScheduledClientsForDay,
+      generateDailyDeliveries, updateDeliveryStatus, addExtraToDelivery, removeExtraFromDelivery, substituteProductInDelivery, revertSubstituteInDelivery, adjustQuantityInDelivery, getDeliveriesByDriver, getDriverDailySummary, getAdminDeliveryReport, getScheduledClientsForDay,
       recordDynamicDelivery, getDynamicClientHistory, getDynamicClientPrediction, getDynamicLoadSummary, getDynamicClientsForDriver,
       saveDailyCashFund, getDailyCashFund, registerDailyPayment, getDailyPaymentsByDriver, getClientPaymentSummaries,
       saveDailyDriverClosure, getDailyDriverClosure, calculateDailyClosureData,
