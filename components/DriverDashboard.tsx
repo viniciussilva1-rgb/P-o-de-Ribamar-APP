@@ -345,60 +345,58 @@ const DriverDashboard: React.FC = () => {
         </button>
       </div>
 
-      {/* Cards por Tipo de Pagamento */}
+      {/* Cards por Tipo de Pagamento - Clicáveis */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
+        <button
+          onClick={() => setFilterType(filterType === 'monthly' ? 'all' : 'monthly')}
+          className={`bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border-2 transition-all text-left ${
+            filterType === 'monthly' ? 'border-purple-500 ring-2 ring-purple-200' : 'border-purple-200 hover:border-purple-400'
+          }`}
+        >
           <div className="flex items-center gap-2 mb-2">
             <Calendar className="text-purple-600" size={20} />
             <span className="font-semibold text-purple-800">Mensais</span>
           </div>
           <p className="text-3xl font-bold text-purple-700">{globalTotals.monthlyPending}</p>
           <p className="text-sm text-purple-600">clientes com pagamento pendente</p>
-        </div>
+          {filterType === 'monthly' && (
+            <p className="text-xs text-purple-700 mt-2 font-medium">✓ Filtrando mensais</p>
+          )}
+        </button>
 
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
+        <button
+          onClick={() => setFilterType(filterType === 'weekly' ? 'all' : 'weekly')}
+          className={`bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border-2 transition-all text-left ${
+            filterType === 'weekly' ? 'border-blue-500 ring-2 ring-blue-200' : 'border-blue-200 hover:border-blue-400'
+          }`}
+        >
           <div className="flex items-center gap-2 mb-2">
             <CalendarDays className="text-blue-600" size={20} />
             <span className="font-semibold text-blue-800">Semanais</span>
           </div>
           <p className="text-3xl font-bold text-blue-700">{globalTotals.weeklyPending}</p>
           <p className="text-sm text-blue-600">clientes com pagamento pendente</p>
-        </div>
+          {filterType === 'weekly' && (
+            <p className="text-xs text-blue-700 mt-2 font-medium">✓ Filtrando semanais</p>
+          )}
+        </button>
 
-        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-200">
+        <button
+          onClick={() => setFilterType(filterType === 'daily' ? 'all' : 'daily')}
+          className={`bg-gradient-to-br from-teal-50 to-teal-100 rounded-xl p-4 border-2 transition-all text-left ${
+            filterType === 'daily' ? 'border-teal-500 ring-2 ring-teal-200' : 'border-teal-200 hover:border-teal-400'
+          }`}
+        >
           <div className="flex items-center gap-2 mb-2">
-            <Wallet className="text-green-600" size={20} />
-            <span className="font-semibold text-green-800">Diários</span>
+            <Wallet className="text-teal-600" size={20} />
+            <span className="font-semibold text-teal-800">Diários</span>
           </div>
-          <p className="text-3xl font-bold text-green-700">{globalTotals.dailyPending}</p>
-          <p className="text-sm text-green-600">clientes com pagamento pendente</p>
-        </div>
-      </div>
-
-      {/* Filtro */}
-      <div className="flex items-center gap-2 bg-white rounded-xl p-2 shadow-sm border border-gray-100">
-        <Filter size={18} className="text-gray-400 ml-2" />
-        <span className="text-sm text-gray-500">Filtrar por:</span>
-        <div className="flex gap-1 flex-wrap">
-          {[
-            { key: 'all', label: 'Todos' },
-            { key: 'monthly', label: 'Mensais' },
-            { key: 'weekly', label: 'Semanais' },
-            { key: 'daily', label: 'Diários' }
-          ].map(filter => (
-            <button
-              key={filter.key}
-              onClick={() => setFilterType(filter.key as any)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                filterType === filter.key
-                  ? 'bg-amber-500 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {filter.label}
-            </button>
-          ))}
-        </div>
+          <p className="text-3xl font-bold text-teal-700">{globalTotals.dailyPending}</p>
+          <p className="text-sm text-teal-600">clientes com pagamento pendente</p>
+          {filterType === 'daily' && (
+            <p className="text-xs text-teal-700 mt-2 font-medium">✓ Filtrando diários</p>
+          )}
+        </button>
       </div>
 
       {/* Lista por Rotas */}
@@ -406,6 +404,14 @@ const DriverDashboard: React.FC = () => {
         <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
           <MapPin className="text-amber-600" size={20} />
           Clientes por Rota
+          {(filterType !== 'all' || statusFilter !== 'all') && (
+            <button
+              onClick={() => { setFilterType('all'); setStatusFilter('all'); }}
+              className="ml-2 px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs text-gray-600 font-medium transition-colors"
+            >
+              Limpar filtros
+            </button>
+          )}
         </h3>
 
         {Array.from(clientsByRouteAndStatus.entries()).map(([routeId, routeData]) => {
