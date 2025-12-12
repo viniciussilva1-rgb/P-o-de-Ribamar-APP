@@ -639,9 +639,34 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       method: p.method
     }));
 
+    // Data de hoje para filtrar entregas futuras
+    const today = new Date().toISOString().split('T')[0];
+
     // Buscar todas as entregas deste cliente (ordenadas por data desc)
+    // IMPORTANTE: Filtrar apenas entregas até hoje E que foram realmente entregues
     const allDeliveries = clientDeliveries
-      .filter(d => d.clientId === clientId && d.status !== 'not_delivered')
+      .filter(d => {
+        if (d.clientId !== clientId) return false;
+        if (d.status === 'not_delivered') return false;
+        
+        // Não mostrar entregas futuras
+        if (d.date > today) return false;
+        
+        // Para clientes dinâmicos, só mostrar entregas que foram confirmadas (têm itens com quantidade > 0)
+        if (client.isDynamicChoice) {
+          // Se status é 'delivered', mostrar
+          if (d.status === 'delivered') return true;
+          // Se é 'pending' e tem itens com valor, pode ter sido gerada automaticamente
+          // Não mostrar pending sem itens reais
+          if (d.status === 'pending') {
+            const hasRealItems = d.items && d.items.length > 0 && d.items.some(item => item.quantity > 0 && item.productName && item.productName !== 'Produto');
+            return hasRealItems;
+          }
+          return false;
+        }
+        
+        return true;
+      })
       .sort((a, b) => b.date.localeCompare(a.date));
 
     // Converter entregas em faturas
@@ -688,7 +713,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Calcular crédito (pagamento adiantado)
     // Se paidUntilDate é maior que hoje, cliente tem crédito
-    const today = new Date().toISOString().split('T')[0];
     let credit = 0;
     let hasFutureCredit = false;
     
