@@ -535,14 +535,21 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       };
     }
 
-    // Último pagamento
+    // Buscar o último pagamento dos registros diários (mais confiável)
+    const clientPaymentsFromDaily = dailyPaymentsReceived
+      .filter(p => p.clientId === clientId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    
+    const lastDailyPayment = clientPaymentsFromDaily[0];
+
+    // Último pagamento do histórico do cliente
     const paymentHistory = client.paymentHistory || [];
     const lastPayment = paymentHistory.length > 0 
       ? paymentHistory[paymentHistory.length - 1] 
       : null;
 
-    // Data até quando está pago (lastPaymentDate é a data até quando está pago)
-    const paidUntilDate = client.lastPaymentDate || null;
+    // Data até quando está pago: usar o mais recente entre daily_payments e client.lastPaymentDate
+    const paidUntilDate = lastDailyPayment?.paidUntil || client.lastPaymentDate || null;
 
     // Calcular datas pagas e não pagas (últimos 60 dias)
     const paidDates: string[] = [];
@@ -587,8 +594,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     return {
-      lastPaymentDate: lastPayment?.date || null,
-      lastPaymentAmount: lastPayment?.amount || null,
+      lastPaymentDate: lastDailyPayment?.date || lastPayment?.date || null,
+      lastPaymentAmount: lastDailyPayment?.amount || lastPayment?.amount || null,
       paidUntilDate,
       unpaidDates,
       paidDates
@@ -615,7 +622,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       };
     }
 
-    const paidUntilDate = client.lastPaymentDate || null;
+    // Buscar o último pagamento dos registros diários (mais confiável)
+    const clientPaymentsFromDaily = dailyPaymentsReceived
+      .filter(p => p.clientId === clientId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    
+    const lastDailyPayment = clientPaymentsFromDaily[0];
+    
+    // paidUntilDate: usar o mais recente entre daily_payments e client.lastPaymentDate
+    const paidUntilDate = lastDailyPayment?.paidUntil || client.lastPaymentDate || null;
+    
     const paymentHistory = (client.paymentHistory || []).map(p => ({
       date: p.date,
       amount: p.amount,
@@ -629,6 +645,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Converter entregas em faturas
     const allInvoices: ClientInvoice[] = allDeliveries.map(delivery => {
+      // Uma entrega está paga se a data é menor OU IGUAL à data "pago até"
       const isPaid = paidUntilDate ? delivery.date <= paidUntilDate : false;
       
       return {
@@ -651,17 +668,45 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const unpaidInvoices = allInvoices.filter(inv => !inv.isPaid);
     const paidInvoices = allInvoices.filter(inv => inv.isPaid);
 
-    // Calcular débito total
-    const { total: totalDebt, daysCount: daysUnpaid } = calculateClientDebt(client);
+    // Calcular débito total usando a mesma lógica
+    // Para clientes dinâmicos: somar entregas não pagas
+    // Para clientes normais: usar calculateClientDebt
+    let totalDebt = 0;
+    let daysUnpaid = 0;
+    
+    if (client.isDynamicChoice) {
+      // Para dinâmicos: débito = soma das entregas não pagas
+      totalDebt = unpaidInvoices.reduce((sum, inv) => sum + inv.totalValue, 0);
+      daysUnpaid = unpaidInvoices.length;
+    } else {
+      // Para normais: usar a função existente
+      const debtCalc = calculateClientDebt(client);
+      totalDebt = debtCalc.total;
+      daysUnpaid = debtCalc.daysCount;
+    }
+
+    // Calcular crédito (pagamento adiantado)
+    // Se paidUntilDate é maior que hoje, cliente tem crédito
+    const today = new Date().toISOString().split('T')[0];
+    let credit = 0;
+    let hasFutureCredit = false;
+    
+    if (paidUntilDate && paidUntilDate > today) {
+      hasFutureCredit = true;
+      // Calcular quantos dias de crédito tem
+      // (simplificado: não calculamos valor exato, só indicamos que tem crédito)
+    }
 
     return {
       clientId,
       clientName: client.name,
       paymentFrequency: client.paymentFrequency || 'Diário',
-      lastPaymentDate: paymentHistory.length > 0 ? paymentHistory[paymentHistory.length - 1].date : null,
+      lastPaymentDate: lastDailyPayment?.date || (paymentHistory.length > 0 ? paymentHistory[paymentHistory.length - 1].date : null),
       paidUntilDate,
-      totalDebt,
+      totalDebt: Math.max(0, totalDebt), // Não mostrar valores negativos
       daysUnpaid,
+      credit,
+      hasFutureCredit,
       allInvoices,
       unpaidInvoices,
       paidInvoices,

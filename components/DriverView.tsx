@@ -1837,21 +1837,47 @@ export const DriverView: React.FC = () => {
                 </div>
                 <div className="text-center">
                   <p className="text-xs text-purple-600 uppercase font-semibold">Pago até</p>
-                  <p className="text-lg font-bold text-purple-800">
+                  <p className={`text-lg font-bold ${consumptionData.hasFutureCredit ? 'text-green-600' : 'text-purple-800'}`}>
                     {consumptionData.paidUntilDate 
                       ? new Date(consumptionData.paidUntilDate).toLocaleDateString('pt-PT')
                       : 'Nunca'}
+                    {consumptionData.hasFutureCredit && ' ✓'}
                   </p>
                 </div>
                 <div className="text-center">
                   <p className="text-xs text-purple-600 uppercase font-semibold">Dias em aberto</p>
-                  <p className="text-lg font-bold text-red-600">{consumptionData.daysUnpaid}</p>
+                  <p className={`text-lg font-bold ${consumptionData.daysUnpaid > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    {consumptionData.daysUnpaid}
+                  </p>
                 </div>
                 <div className="text-center">
-                  <p className="text-xs text-red-600 uppercase font-semibold">Total em aberto</p>
-                  <p className="text-2xl font-bold text-red-600">€ {consumptionData.totalDebt.toFixed(2)}</p>
+                  {consumptionData.hasFutureCredit ? (
+                    <>
+                      <p className="text-xs text-green-600 uppercase font-semibold">Status</p>
+                      <p className="text-lg font-bold text-green-600">✓ Adiantado</p>
+                    </>
+                  ) : consumptionData.totalDebt > 0 ? (
+                    <>
+                      <p className="text-xs text-red-600 uppercase font-semibold">Total em aberto</p>
+                      <p className="text-2xl font-bold text-red-600">€ {consumptionData.totalDebt.toFixed(2)}</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xs text-green-600 uppercase font-semibold">Status</p>
+                      <p className="text-lg font-bold text-green-600">✓ Em dia</p>
+                    </>
+                  )}
                 </div>
               </div>
+              
+              {/* Mensagem de pagamento adiantado */}
+              {consumptionData.hasFutureCredit && (
+                <div className="mt-3 p-2 bg-green-100 border border-green-200 rounded-lg text-center">
+                  <p className="text-sm text-green-700 font-medium">
+                    🎉 Cliente pagou adiantado até {new Date(consumptionData.paidUntilDate!).toLocaleDateString('pt-PT')}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Conteúdo com scroll */}

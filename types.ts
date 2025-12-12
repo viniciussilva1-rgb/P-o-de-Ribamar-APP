@@ -562,6 +562,10 @@ export interface ClientConsumptionHistory {
   totalDebt: number;
   daysUnpaid: number;
   
+  // Crédito (saldo positivo) - quando pagou adiantado
+  credit: number;
+  hasFutureCredit: boolean; // Se tem pagamento que cobre dias futuros
+  
   // Todas as faturas (entregas) - ordenadas por data desc
   allInvoices: ClientInvoice[];
   
