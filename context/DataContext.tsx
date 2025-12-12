@@ -614,31 +614,50 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const currentDate = new Date(startDate);
     
-    while (currentDate <= today) {
-      const dateStr = currentDate.toISOString().split('T')[0];
+    // Para clientes dinâmicos, usar as entregas reais (client_deliveries)
+    if (client.isDynamicChoice) {
+      const clientDeliveriesForCalendar = clientDeliveries.filter(d => 
+        d.clientId === clientId && 
+        d.status === 'delivered' &&
+        d.date >= startDate.toISOString().split('T')[0] &&
+        d.date <= today.toISOString().split('T')[0]
+      );
       
-      // Verificar se é dia de entrega
-      const dayIndex = currentDate.getDay();
-      const mapKeys = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
-      const dayKey = mapKeys[dayIndex] as keyof DeliverySchedule;
-      const scheduledItems = client.deliverySchedule?.[dayKey];
-      
-      // Se tem entrega programada para este dia
-      if (scheduledItems && scheduledItems.length > 0) {
-        // Verificar se foi pulado (não entregue)
-        if (client.skippedDates?.includes(dateStr)) {
-          // Dia pulado - não conta
+      clientDeliveriesForCalendar.forEach(delivery => {
+        if (paidUntilDate && delivery.date <= paidUntilDate) {
+          paidDates.push(delivery.date);
         } else {
-          // Verificar se está pago
-          if (paidUntilDate && dateStr <= paidUntilDate) {
-            paidDates.push(dateStr);
+          unpaidDates.push(delivery.date);
+        }
+      });
+    } else {
+      // Para clientes normais, usar o schedule
+      while (currentDate <= today) {
+        const dateStr = currentDate.toISOString().split('T')[0];
+        
+        // Verificar se é dia de entrega
+        const dayIndex = currentDate.getDay();
+        const mapKeys = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
+        const dayKey = mapKeys[dayIndex] as keyof DeliverySchedule;
+        const scheduledItems = client.deliverySchedule?.[dayKey];
+        
+        // Se tem entrega programada para este dia
+        if (scheduledItems && scheduledItems.length > 0) {
+          // Verificar se foi pulado (não entregue)
+          if (client.skippedDates?.includes(dateStr)) {
+            // Dia pulado - não conta
           } else {
-            unpaidDates.push(dateStr);
+            // Verificar se está pago
+            if (paidUntilDate && dateStr <= paidUntilDate) {
+              paidDates.push(dateStr);
+            } else {
+              unpaidDates.push(dateStr);
+            }
           }
         }
+        
+        currentDate.setDate(currentDate.getDate() + 1);
       }
-      
-      currentDate.setDate(currentDate.getDate() + 1);
     }
 
     return {
