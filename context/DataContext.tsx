@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, Client, UserRole, Product, ProductionData, DailyProductionRecord, Route, PaymentTransaction, DeliverySchedule, DailyLoad, LoadItem, ReturnItem, DailyLoadReport, ProductionSuggestion, ClientDelivery, DeliveryStatus, DriverDailySummary, AdminDeliveryReport, DeliveryItem, DynamicConsumptionRecord, ProductConsumptionStats, DynamicClientHistory, DynamicClientPrediction, DynamicLoadSummary, DailyCashFund, DailyDriverClosure, DailyPaymentReceived, WeeklyDriverSettlement, ClientPaymentSummary } from '../types';
+import { User, Client, UserRole, Product, ProductionData, DailyProductionRecord, Route, PaymentTransaction, DeliverySchedule, DailyLoad, LoadItem, ReturnItem, DailyLoadReport, ProductionSuggestion, ClientDelivery, DeliveryStatus, DriverDailySummary, AdminDeliveryReport, DeliveryItem, DynamicConsumptionRecord, ProductConsumptionStats, DynamicClientHistory, DynamicClientPrediction, DynamicLoadSummary, DailyCashFund, DailyDriverClosure, DailyPaymentReceived, WeeklyDriverSettlement, ClientPaymentSummary, ClientConsumptionHistory, ClientInvoice } from '../types';
 import { INITIAL_PRODUCTS, MOCK_ADMIN_EMAIL } from '../constants';
 import { db } from '../firebaseConfig'; // Import database
 import { collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot, query, where, getDocs } from 'firebase/firestore';
@@ -29,6 +29,7 @@ interface DataContextType {
   
   calculateClientDebt: (client: Client) => { total: number, daysCount: number, details: string[] };
   getClientPaymentInfo: (clientId: string) => { lastPaymentDate: string | null; lastPaymentAmount: number | null; paidUntilDate: string | null; unpaidDates: string[]; paidDates: string[] };
+  getClientConsumptionHistory: (clientId: string) => ClientConsumptionHistory;
   registerPayment: (clientId: string, amount: number, method: string) => void;
   toggleSkippedDate: (clientId: string, date: string) => void;
   updateClientPrice: (clientId: string, productId: string, newPrice: number, userRole: UserRole) => void;
@@ -443,6 +444,37 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     startDate.setHours(0,0,0,0);
     today.setHours(0,0,0,0);
 
+    // Para clientes dinâmicos, usar as entregas reais (client_deliveries)
+    if (client.isDynamicChoice) {
+      // Filtrar entregas deste cliente após a última data de pagamento
+      const clientDeliveriesForDebt = clientDeliveries.filter(d => {
+        if (d.clientId !== client.id) return false;
+        if (d.status === 'not_delivered') return false; // Não entregue não conta
+        
+        // Apenas entregas após lastPaymentDate
+        if (client.lastPaymentDate && d.date <= client.lastPaymentDate) return false;
+        
+        return true;
+      });
+
+      // Somar o valor de cada entrega
+      clientDeliveriesForDebt.forEach(delivery => {
+        if (delivery.totalValue > 0) {
+          total += delivery.totalValue;
+          daysCount++;
+          
+          // Criar detalhes
+          const itemsDesc = delivery.items.map(item => 
+            `${item.quantity}x ${item.productName}`
+          ).join(', ');
+          details.push(`${delivery.date}: €${delivery.totalValue.toFixed(2)} (${itemsDesc})`);
+        }
+      });
+
+      return { total, daysCount, details };
+    }
+
+    // Para clientes normais, usar o schedule
     const currentDate = new Date(startDate);
     const safetyLimit = new Date();
     safetyLimit.setDate(safetyLimit.getDate() - 365);
@@ -560,6 +592,80 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       paidUntilDate,
       unpaidDates,
       paidDates
+    };
+  };
+
+  // Obter histórico completo de consumo/faturas do cliente
+  const getClientConsumptionHistory = (clientId: string): ClientConsumptionHistory => {
+    const client = clients.find(c => c.id === clientId);
+    
+    if (!client) {
+      return {
+        clientId,
+        clientName: '',
+        paymentFrequency: 'Diário',
+        lastPaymentDate: null,
+        paidUntilDate: null,
+        totalDebt: 0,
+        daysUnpaid: 0,
+        allInvoices: [],
+        unpaidInvoices: [],
+        paidInvoices: [],
+        paymentHistory: []
+      };
+    }
+
+    const paidUntilDate = client.lastPaymentDate || null;
+    const paymentHistory = (client.paymentHistory || []).map(p => ({
+      date: p.date,
+      amount: p.amount,
+      method: p.method
+    }));
+
+    // Buscar todas as entregas deste cliente (ordenadas por data desc)
+    const allDeliveries = clientDeliveries
+      .filter(d => d.clientId === clientId && d.status !== 'not_delivered')
+      .sort((a, b) => b.date.localeCompare(a.date));
+
+    // Converter entregas em faturas
+    const allInvoices: ClientInvoice[] = allDeliveries.map(delivery => {
+      const isPaid = paidUntilDate ? delivery.date <= paidUntilDate : false;
+      
+      return {
+        date: delivery.date,
+        items: delivery.items.map(item => ({
+          productId: item.productId,
+          productName: item.productName || 'Produto',
+          quantity: item.quantity,
+          unitPrice: item.unitPrice || 0,
+          totalPrice: item.totalPrice || (item.quantity * (item.unitPrice || 0)),
+          isExtra: (item as any).isExtra || false,
+          isSubstitute: (item as any).isSubstitute || false
+        })),
+        totalValue: delivery.totalValue,
+        isPaid,
+        deliveryId: delivery.id
+      };
+    });
+
+    const unpaidInvoices = allInvoices.filter(inv => !inv.isPaid);
+    const paidInvoices = allInvoices.filter(inv => inv.isPaid);
+
+    // Calcular débito total
+    const { total: totalDebt, daysCount: daysUnpaid } = calculateClientDebt(client);
+
+    return {
+      clientId,
+      clientName: client.name,
+      paymentFrequency: client.paymentFrequency || 'Diário',
+      lastPaymentDate: paymentHistory.length > 0 ? paymentHistory[paymentHistory.length - 1].date : null,
+      paidUntilDate,
+      totalDebt,
+      daysUnpaid,
+      allInvoices,
+      unpaidInvoices,
+      paidInvoices,
+      paymentHistory
     };
   };
 
@@ -2142,7 +2248,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       addUser, addClient, updateClient, updateClientsOrder, updateProduct, addProduct, deleteProduct, addRoute, deleteRoute,
       getRoutesByDriver, getClientsByDriver, getAllClients, getDrivers,
       updateDailyProduction, getDailyRecord,
-      calculateClientDebt, getClientPaymentInfo, registerPayment, toggleSkippedDate, updateClientPrice, updatePricesForRoute,
+      calculateClientDebt, getClientPaymentInfo, getClientConsumptionHistory, registerPayment, toggleSkippedDate, updateClientPrice, updatePricesForRoute,
       createDailyLoad, updateDailyLoad, completeDailyLoad, getDailyLoadByDriver, getDailyLoadsByDate, getDailyLoadReport, getProductionSuggestions,
       generateDailyDeliveries, updateDeliveryStatus, addExtraToDelivery, removeExtraFromDelivery, substituteProductInDelivery, revertSubstituteInDelivery, adjustQuantityInDelivery, getDeliveriesByDriver, getDriverDailySummary, getAdminDeliveryReport, getScheduledClientsForDay,
       recordDynamicDelivery, getDynamicClientHistory, getDynamicClientPrediction, getDynamicLoadSummary, getDynamicClientsForDriver,

@@ -535,3 +535,47 @@ export interface ClientPaymentSummary {
   totalDebt: number; // Saldo devedor atual
 }
 
+// Fatura/Entrega individual do cliente
+export interface ClientInvoice {
+  date: string;
+  items: {
+    productId: string;
+    productName: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+    isExtra?: boolean;
+    isSubstitute?: boolean;
+  }[];
+  totalValue: number;
+  isPaid: boolean;
+  deliveryId: string;
+}
+
+// Histórico completo de consumo do cliente
+export interface ClientConsumptionHistory {
+  clientId: string;
+  clientName: string;
+  paymentFrequency: 'Diário' | 'Semanal' | 'Mensal' | 'Personalizado';
+  lastPaymentDate: string | null;
+  paidUntilDate: string | null;
+  totalDebt: number;
+  daysUnpaid: number;
+  
+  // Todas as faturas (entregas) - ordenadas por data desc
+  allInvoices: ClientInvoice[];
+  
+  // Faturas em aberto (não pagas)
+  unpaidInvoices: ClientInvoice[];
+  
+  // Faturas pagas
+  paidInvoices: ClientInvoice[];
+  
+  // Histórico de pagamentos
+  paymentHistory: {
+    date: string;
+    amount: number;
+    method: string;
+  }[];
+}
+

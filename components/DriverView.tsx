@@ -2,8 +2,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { Plus, User, MapPin, Phone, Search, Map, Save, X, Navigation, CreditCard, Loader2, Calendar, AlertCircle, Tag, FileText, RotateCcw, Calculator, CheckCircle, Sparkles, Copy, Check, GripVertical, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
-import { Client, Route, DeliverySchedule, Product } from '../types';
+import { Plus, User, MapPin, Phone, Search, Map, Save, X, Navigation, CreditCard, Loader2, Calendar, AlertCircle, Tag, FileText, RotateCcw, Calculator, CheckCircle, Sparkles, Copy, Check, GripVertical, ArrowUpDown, ChevronUp, ChevronDown, Receipt, ChevronLeft, ChevronRight, Package } from 'lucide-react';
+import { Client, Route, DeliverySchedule, Product, ClientConsumptionHistory } from '../types';
 import SmartDeliveryMap from './SmartDeliveryMap';
 
 // Componente auxiliar para isolar o estado de adição por linha
@@ -272,6 +272,7 @@ export const DriverView: React.FC = () => {
     deleteRoute,
     products,
     calculateClientDebt,
+    getClientConsumptionHistory,
     registerPayment,
     toggleSkippedDate,
     updateClientsOrder
@@ -280,6 +281,8 @@ export const DriverView: React.FC = () => {
   // Modals
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [isRouteModalOpen, setIsRouteModalOpen] = useState(false);
+  const [showConsumptionModal, setShowConsumptionModal] = useState(false);
+  const [consumptionData, setConsumptionData] = useState<ClientConsumptionHistory | null>(null);
   
   // States
   const [searchTerm, setSearchTerm] = useState('');
@@ -1622,6 +1625,22 @@ export const DriverView: React.FC = () => {
                             <CreditCard size={18} />
                             Confirmar Recebimento (Zerar Dívida)
                         </button>
+                        
+                        {/* Botão Ver Consumo/Faturas */}
+                        {editingClientId && (
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              const history = getClientConsumptionHistory(editingClientId);
+                              setConsumptionData(history);
+                              setShowConsumptionModal(true);
+                            }}
+                            className="w-full mt-2 py-2 bg-purple-600 text-white rounded-lg font-bold shadow hover:bg-purple-700 transition-colors flex justify-center items-center gap-2"
+                          >
+                            <Receipt size={18} />
+                            Ver Consumo / Faturas
+                          </button>
+                        )}
                     </div>
 
                     {/* Checkboxes Options */}
@@ -1785,6 +1804,166 @@ export const DriverView: React.FC = () => {
               >
                 <Save size={18} />
                 <span>Salvar Cliente</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Consumo/Faturas */}
+      {showConsumptionModal && consumptionData && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50" onClick={() => setShowConsumptionModal(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="bg-gradient-to-r from-purple-600 to-purple-800 px-6 py-4 flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Receipt size={24} />
+                  Consumo / Faturas
+                </h2>
+                <p className="text-purple-200 text-sm">{consumptionData.clientName}</p>
+              </div>
+              <button onClick={() => setShowConsumptionModal(false)} className="text-white/80 hover:text-white">
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Resumo */}
+            <div className="bg-purple-50 px-6 py-4 border-b border-purple-100">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center">
+                  <p className="text-xs text-purple-600 uppercase font-semibold">Frequência</p>
+                  <p className="text-lg font-bold text-purple-800">{consumptionData.paymentFrequency}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-purple-600 uppercase font-semibold">Pago até</p>
+                  <p className="text-lg font-bold text-purple-800">
+                    {consumptionData.paidUntilDate 
+                      ? new Date(consumptionData.paidUntilDate).toLocaleDateString('pt-PT')
+                      : 'Nunca'}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-purple-600 uppercase font-semibold">Dias em aberto</p>
+                  <p className="text-lg font-bold text-red-600">{consumptionData.daysUnpaid}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-red-600 uppercase font-semibold">Total em aberto</p>
+                  <p className="text-2xl font-bold text-red-600">€ {consumptionData.totalDebt.toFixed(2)}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Conteúdo com scroll */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              
+              {/* Faturas em Aberto */}
+              {consumptionData.unpaidInvoices.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-bold text-red-700 mb-3 flex items-center gap-2">
+                    <AlertCircle size={20} />
+                    Faturas em Aberto ({consumptionData.unpaidInvoices.length})
+                  </h3>
+                  <div className="space-y-3">
+                    {consumptionData.unpaidInvoices.map((invoice, idx) => (
+                      <div key={idx} className="bg-red-50 border border-red-200 rounded-xl p-4">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="font-bold text-red-800">
+                            {new Date(invoice.date).toLocaleDateString('pt-PT', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                          </span>
+                          <span className="text-lg font-bold text-red-600">€ {invoice.totalValue.toFixed(2)}</span>
+                        </div>
+                        <div className="space-y-1">
+                          {invoice.items.map((item, itemIdx) => (
+                            <div key={itemIdx} className="flex justify-between text-sm text-red-700">
+                              <span className="flex items-center gap-2">
+                                <Package size={14} />
+                                {item.quantity}x {item.productName}
+                                {item.isExtra && <span className="text-xs bg-orange-200 text-orange-700 px-1.5 py-0.5 rounded">Extra</span>}
+                                {item.isSubstitute && <span className="text-xs bg-blue-200 text-blue-700 px-1.5 py-0.5 rounded">Substituto</span>}
+                              </span>
+                              <span>€ {item.totalPrice.toFixed(2)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Histórico de Pagamentos */}
+              {consumptionData.paymentHistory.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-bold text-green-700 mb-3 flex items-center gap-2">
+                    <CheckCircle size={20} />
+                    Histórico de Pagamentos ({consumptionData.paymentHistory.length})
+                  </h3>
+                  <div className="bg-green-50 border border-green-200 rounded-xl divide-y divide-green-200">
+                    {consumptionData.paymentHistory.slice().reverse().map((payment, idx) => (
+                      <div key={idx} className="flex justify-between items-center p-3">
+                        <div>
+                          <span className="font-medium text-green-800">
+                            {new Date(payment.date).toLocaleDateString('pt-PT')}
+                          </span>
+                          <span className="text-xs text-green-600 ml-2">({payment.method})</span>
+                        </div>
+                        <span className="font-bold text-green-700">€ {payment.amount.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Faturas Pagas (colapsável) */}
+              {consumptionData.paidInvoices.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-bold text-gray-600 mb-3 flex items-center gap-2">
+                    <Receipt size={20} />
+                    Entregas Pagas ({consumptionData.paidInvoices.length})
+                  </h3>
+                  <div className="space-y-2">
+                    {consumptionData.paidInvoices.slice(0, 10).map((invoice, idx) => (
+                      <div key={idx} className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-gray-700">
+                            {new Date(invoice.date).toLocaleDateString('pt-PT')}
+                          </span>
+                          <span className="text-sm font-bold text-gray-600">€ {invoice.totalValue.toFixed(2)}</span>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {invoice.items.map(i => `${i.quantity}x ${i.productName}`).join(', ')}
+                        </div>
+                      </div>
+                    ))}
+                    {consumptionData.paidInvoices.length > 10 && (
+                      <p className="text-sm text-gray-500 text-center">
+                        ... e mais {consumptionData.paidInvoices.length - 10} entregas pagas
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Mensagem se não houver dados */}
+              {consumptionData.allInvoices.length === 0 && (
+                <div className="text-center py-12">
+                  <Receipt className="mx-auto text-gray-300 mb-4" size={64} />
+                  <p className="text-gray-500 text-lg">Nenhuma entrega registrada ainda.</p>
+                  <p className="text-gray-400 text-sm mt-2">
+                    As entregas aparecerão aqui quando forem realizadas através de "Entregas do Dia".
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => setShowConsumptionModal(false)}
+                className="w-full py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-colors"
+              >
+                Fechar
               </button>
             </div>
           </div>
