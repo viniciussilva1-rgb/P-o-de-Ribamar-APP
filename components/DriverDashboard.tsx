@@ -28,6 +28,7 @@ const DriverDashboard: React.FC = () => {
 
   const [expandedRoutes, setExpandedRoutes] = useState<Set<string>>(new Set());
   const [filterType, setFilterType] = useState<'all' | 'monthly' | 'weekly' | 'daily'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'pending' | 'overdue'>('all');
 
   if (!currentUser) return null;
 
@@ -261,9 +262,14 @@ const DriverDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Cards de Resumo */}
+      {/* Cards de Resumo - Clicáveis */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <button
+          onClick={() => setStatusFilter(statusFilter === 'all' ? 'all' : 'all')}
+          className={`bg-white rounded-xl p-4 shadow-sm border-2 transition-all text-left ${
+            statusFilter === 'all' ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-100 hover:border-blue-300'
+          }`}
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs text-gray-500 uppercase">Total Clientes</p>
@@ -273,9 +279,17 @@ const DriverDashboard: React.FC = () => {
               <Users className="text-blue-600" size={24} />
             </div>
           </div>
-        </div>
+          {statusFilter === 'all' && (
+            <p className="text-xs text-blue-600 mt-2 font-medium">✓ Mostrando todos</p>
+          )}
+        </button>
 
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <button
+          onClick={() => setStatusFilter(statusFilter === 'paid' ? 'all' : 'paid')}
+          className={`bg-white rounded-xl p-4 shadow-sm border-2 transition-all text-left ${
+            statusFilter === 'paid' ? 'border-green-500 ring-2 ring-green-200' : 'border-gray-100 hover:border-green-300'
+          }`}
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs text-gray-500 uppercase">Em Dia</p>
@@ -285,9 +299,17 @@ const DriverDashboard: React.FC = () => {
               <CheckCircle className="text-green-600" size={24} />
             </div>
           </div>
-        </div>
+          {statusFilter === 'paid' && (
+            <p className="text-xs text-green-600 mt-2 font-medium">✓ Filtrando em dia</p>
+          )}
+        </button>
 
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <button
+          onClick={() => setStatusFilter(statusFilter === 'pending' ? 'all' : 'pending')}
+          className={`bg-white rounded-xl p-4 shadow-sm border-2 transition-all text-left ${
+            statusFilter === 'pending' ? 'border-amber-500 ring-2 ring-amber-200' : 'border-gray-100 hover:border-amber-300'
+          }`}
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs text-gray-500 uppercase">Pendentes</p>
@@ -297,9 +319,17 @@ const DriverDashboard: React.FC = () => {
               <Clock className="text-amber-600" size={24} />
             </div>
           </div>
-        </div>
+          {statusFilter === 'pending' && (
+            <p className="text-xs text-amber-600 mt-2 font-medium">✓ Filtrando pendentes</p>
+          )}
+        </button>
 
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <button
+          onClick={() => setStatusFilter(statusFilter === 'overdue' ? 'all' : 'overdue')}
+          className={`bg-white rounded-xl p-4 shadow-sm border-2 transition-all text-left ${
+            statusFilter === 'overdue' ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-100 hover:border-red-300'
+          }`}
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs text-gray-500 uppercase">Em Atraso</p>
@@ -309,7 +339,10 @@ const DriverDashboard: React.FC = () => {
               <AlertTriangle className="text-red-600" size={24} />
             </div>
           </div>
-        </div>
+          {statusFilter === 'overdue' && (
+            <p className="text-xs text-red-600 mt-2 font-medium">✓ Filtrando em atraso</p>
+          )}
+        </button>
       </div>
 
       {/* Cards por Tipo de Pagamento */}
@@ -376,7 +409,7 @@ const DriverDashboard: React.FC = () => {
         </h3>
 
         {Array.from(clientsByRouteAndStatus.entries()).map(([routeId, routeData]) => {
-          // Filtrar clientes baseado no filtro selecionado
+          // Filtrar clientes baseado no filtro de frequência
           let clientsToShow: { pending: any[]; overdue: any[]; paid: any[] };
           
           if (filterType === 'monthly') {
@@ -394,8 +427,18 @@ const DriverDashboard: React.FC = () => {
             };
           }
 
-          const totalPending = clientsToShow.pending.length + clientsToShow.overdue.length;
-          const totalPaid = clientsToShow.paid.length;
+          // Aplicar filtro de status
+          let filteredClients = { ...clientsToShow };
+          if (statusFilter === 'paid') {
+            filteredClients = { pending: [], overdue: [], paid: clientsToShow.paid };
+          } else if (statusFilter === 'pending') {
+            filteredClients = { pending: clientsToShow.pending, overdue: [], paid: [] };
+          } else if (statusFilter === 'overdue') {
+            filteredClients = { pending: [], overdue: clientsToShow.overdue, paid: [] };
+          }
+
+          const totalPending = filteredClients.pending.length + filteredClients.overdue.length;
+          const totalPaid = filteredClients.paid.length;
           const totalInRoute = totalPending + totalPaid;
 
           if (totalInRoute === 0) return null;
@@ -425,19 +468,19 @@ const DriverDashboard: React.FC = () => {
                 <div className="flex items-center gap-3">
                   {/* Mini badges de status */}
                   <div className="hidden sm:flex items-center gap-2">
-                    {clientsToShow.overdue.length > 0 && (
+                    {filteredClients.overdue.length > 0 && (
                       <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
-                        {clientsToShow.overdue.length} atraso
+                        {filteredClients.overdue.length} atraso
                       </span>
                     )}
-                    {clientsToShow.pending.length > 0 && (
+                    {filteredClients.pending.length > 0 && (
                       <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
-                        {clientsToShow.pending.length} pendente
+                        {filteredClients.pending.length} pendente
                       </span>
                     )}
-                    {clientsToShow.paid.length > 0 && (
+                    {filteredClients.paid.length > 0 && (
                       <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                        {clientsToShow.paid.length} ok
+                        {filteredClients.paid.length} ok
                       </span>
                     )}
                   </div>
@@ -450,21 +493,21 @@ const DriverDashboard: React.FC = () => {
                   <div className="pt-4 space-y-3">
                     {/* Em Atraso */}
                     {renderClientList(
-                      clientsToShow.overdue,
+                      filteredClients.overdue,
                       '🚨 Em Atraso',
                       'bg-red-50'
                     )}
                     
                     {/* Pendentes */}
                     {renderClientList(
-                      clientsToShow.pending,
+                      filteredClients.pending,
                       '⏳ Pagamento Pendente',
                       'bg-amber-50'
                     )}
                     
                     {/* Em Dia */}
                     {renderClientList(
-                      clientsToShow.paid,
+                      filteredClients.paid,
                       '✅ Em Dia',
                       'bg-green-50'
                     )}
