@@ -1201,10 +1201,10 @@ const DriverDailyDeliveries: React.FC = () => {
                           )}
                           
                           <div className="mt-2 flex items-center gap-4">
-                            {/* Para clientes dinâmicos pendentes, mostrar "Valor estimado" */}
+                            {/* Para clientes dinâmicos pendentes sem itens, não mostrar valor */}
                             {isClientDynamic(delivery.clientId) && delivery.status === 'pending' && delivery.items.length === 0 ? (
-                              <span className="text-sm font-medium text-purple-600">
-                                Valor estimado (IA): €{delivery.totalValue.toFixed(2)}
+                              <span className="text-sm text-gray-400 italic">
+                                Selecione os produtos na entrega →
                               </span>
                             ) : (
                               <span className="text-sm font-medium text-green-600">
