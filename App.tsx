@@ -31,7 +31,7 @@ const AppContent: React.FC = () => {
       if (currentUser.role === UserRole.ADMIN && activeTab === 'my-clients') {
         setActiveTab('drivers');
       } else if (currentUser.role === UserRole.DRIVER && activeTab === 'drivers') {
-        setActiveTab('daily-load');
+        setActiveTab('dashboard');
       }
     }
   }, [currentUser]);
