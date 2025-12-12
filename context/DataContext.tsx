@@ -48,6 +48,7 @@ interface DataContextType {
   clientDeliveries: ClientDelivery[];
   generateDailyDeliveries: (driverId: string, date: string) => Promise<ClientDelivery[]>;
   updateDeliveryStatus: (deliveryId: string, status: DeliveryStatus, reason?: string) => Promise<void>;
+  updateDynamicDeliveryItems: (deliveryId: string, items: { productId: string; quantity: number; price: number }[]) => Promise<void>;
   addExtraToDelivery: (deliveryId: string, extraItems: { productId: string; productName: string; quantity: number; unitPrice: number }[]) => Promise<void>;
   removeExtraFromDelivery: (deliveryId: string, productId: string) => Promise<void>;
   substituteProductInDelivery: (deliveryId: string, originalProductId: string, originalQuantityToReplace: number, newProductId: string, newQuantity: number) => Promise<void>;
@@ -1208,6 +1209,37 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     await updateDoc(doc(db, 'client_deliveries', deliveryId), updates);
   };
 
+  // Atualizar itens de uma entrega dinâmica
+  const updateDynamicDeliveryItems = async (
+    deliveryId: string, 
+    items: { productId: string; quantity: number; price: number }[]
+  ): Promise<void> => {
+    const delivery = clientDeliveries.find(d => d.id === deliveryId);
+    if (!delivery) return;
+    
+    // Converter itens para o formato correto com nome do produto
+    const deliveryItems = items.map(item => {
+      const product = products.find(p => p.id === item.productId);
+      const totalPrice = item.price * item.quantity;
+      return {
+        productId: item.productId,
+        productName: product?.name || 'Produto',
+        quantity: item.quantity,
+        unitPrice: item.price,
+        totalPrice: parseFloat(totalPrice.toFixed(2))
+      };
+    });
+    
+    // Calcular valor total
+    const totalValue = deliveryItems.reduce((sum, item) => sum + item.totalPrice, 0);
+    
+    await updateDoc(doc(db, 'client_deliveries', deliveryId), {
+      items: deliveryItems,
+      totalValue: parseFloat(totalValue.toFixed(2)),
+      updatedAt: new Date().toISOString()
+    });
+  };
+
   // Adicionar itens extras a uma entrega
   const addExtraToDelivery = async (
     deliveryId: string, 
@@ -2295,7 +2327,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       updateDailyProduction, getDailyRecord,
       calculateClientDebt, getClientPaymentInfo, getClientConsumptionHistory, registerPayment, toggleSkippedDate, updateClientPrice, updatePricesForRoute,
       createDailyLoad, updateDailyLoad, completeDailyLoad, getDailyLoadByDriver, getDailyLoadsByDate, getDailyLoadReport, getProductionSuggestions,
-      generateDailyDeliveries, updateDeliveryStatus, addExtraToDelivery, removeExtraFromDelivery, substituteProductInDelivery, revertSubstituteInDelivery, adjustQuantityInDelivery, getDeliveriesByDriver, getDriverDailySummary, getAdminDeliveryReport, getScheduledClientsForDay,
+      generateDailyDeliveries, updateDeliveryStatus, updateDynamicDeliveryItems, addExtraToDelivery, removeExtraFromDelivery, substituteProductInDelivery, revertSubstituteInDelivery, adjustQuantityInDelivery, getDeliveriesByDriver, getDriverDailySummary, getAdminDeliveryReport, getScheduledClientsForDay,
       recordDynamicDelivery, getDynamicClientHistory, getDynamicClientPrediction, getDynamicLoadSummary, getDynamicClientsForDriver,
       saveDailyCashFund, getDailyCashFund, registerDailyPayment, getDailyPaymentsByDriver, getClientPaymentSummaries,
       saveDailyDriverClosure, getDailyDriverClosure, calculateDailyClosureData,

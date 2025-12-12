@@ -45,7 +45,8 @@ const DriverDailyDeliveries: React.FC = () => {
     registerDailyPayment,
     calculateClientDebt,
     getClientPaymentInfo,
-    getClientConsumptionHistory
+    getClientConsumptionHistory,
+    updateDynamicDeliveryItems
   } = useData();
   
   const today = new Date().toISOString().split('T')[0];
@@ -281,6 +282,9 @@ const DriverDailyDeliveries: React.FC = () => {
     
     setProcessingId(deliveryId);
     try {
+      // Primeiro, atualizar os itens da entrega no client_deliveries
+      await updateDynamicDeliveryItems(deliveryId, itemsWithQuantity);
+      
       // Registrar consumo dinâmico (histórico para IA)
       await recordDynamicDelivery(delivery.clientId, currentUser.id, itemsWithQuantity);
       
