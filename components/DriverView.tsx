@@ -273,6 +273,7 @@ export const DriverView: React.FC = () => {
     products,
     calculateClientDebt,
     getClientConsumptionHistory,
+    getClientPaymentInfo,
     registerPayment,
     toggleSkippedDate,
     updateClientsOrder
@@ -296,6 +297,9 @@ export const DriverView: React.FC = () => {
   const [calcDateFrom, setCalcDateFrom] = useState<string>('');
   const [calcDateTo, setCalcDateTo] = useState<string>('');
   const [calcDailyValue, setCalcDailyValue] = useState<number>(0);
+  const [showPeriodCalendar, setShowPeriodCalendar] = useState(false);
+  const [periodCalendarMonth, setPeriodCalendarMonth] = useState(new Date());
+  const [selectingDateType, setSelectingDateType] = useState<'from' | 'to'>('from');
   
   // Route Form
   const [newRouteName, setNewRouteName] = useState('');
@@ -1548,30 +1552,182 @@ export const DriverView: React.FC = () => {
                            <span className="text-xs text-gray-400">Último Pagamento: {clientForm.lastPaymentDate ? new Date(clientForm.lastPaymentDate).toLocaleDateString() : 'Nunca'}</span>
                        </div>
                        
-                       {/* Campos de data para cálculo do papel */}
+                       {/* Campos de data para cálculo do papel - COM CALENDÁRIO VISUAL */}
                        {clientForm.leaveReceipt && (
                          <div className="mb-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
                            <p className="text-xs font-semibold text-amber-700 mb-2">📋 Período para o Papel:</p>
-                           <div className="grid grid-cols-2 gap-3">
+                           <div className="grid grid-cols-2 gap-3 mb-2">
                              <div>
                                <label className="block text-xs text-amber-600 mb-1">De:</label>
-                               <input 
-                                 type="date"
-                                 className="w-full p-2 border border-amber-300 rounded-lg bg-white text-gray-900 text-sm"
-                                 value={calcDateFrom}
-                                 onChange={e => setCalcDateFrom(e.target.value)}
-                               />
+                               <button
+                                 type="button"
+                                 onClick={() => { setSelectingDateType('from'); setShowPeriodCalendar(true); }}
+                                 className="w-full p-2 border border-amber-300 rounded-lg bg-white text-gray-900 text-sm text-left hover:bg-amber-50"
+                               >
+                                 {calcDateFrom ? new Date(calcDateFrom).toLocaleDateString('pt-PT') : 'Selecionar...'}
+                               </button>
                              </div>
                              <div>
                                <label className="block text-xs text-amber-600 mb-1">Até:</label>
-                               <input 
-                                 type="date"
-                                 className="w-full p-2 border border-amber-300 rounded-lg bg-white text-gray-900 text-sm"
-                                 value={calcDateTo}
-                                 onChange={e => setCalcDateTo(e.target.value)}
-                               />
+                               <button
+                                 type="button"
+                                 onClick={() => { setSelectingDateType('to'); setShowPeriodCalendar(true); }}
+                                 className="w-full p-2 border border-amber-300 rounded-lg bg-white text-gray-900 text-sm text-left hover:bg-amber-50"
+                               >
+                                 {calcDateTo ? new Date(calcDateTo).toLocaleDateString('pt-PT') : 'Selecionar...'}
+                               </button>
                              </div>
                            </div>
+                           
+                           {/* Calendário Visual */}
+                           {showPeriodCalendar && editingClientId && (
+                             <div className="mt-3 bg-white rounded-lg border border-amber-300 p-3">
+                               {(() => {
+                                 const paymentInfo = getClientPaymentInfo(editingClientId);
+                                 return (
+                                   <>
+                                     {/* Header do calendário */}
+                                     <div className="flex justify-between items-center mb-3">
+                                       <button
+                                         type="button"
+                                         onClick={() => {
+                                           const newMonth = new Date(periodCalendarMonth);
+                                           newMonth.setMonth(newMonth.getMonth() - 1);
+                                           setPeriodCalendarMonth(newMonth);
+                                         }}
+                                         className="p-1 hover:bg-gray-100 rounded"
+                                       >
+                                         <ChevronLeft size={20} />
+                                       </button>
+                                       <span className="font-semibold text-gray-700 capitalize">
+                                         {periodCalendarMonth.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' })}
+                                       </span>
+                                       <button
+                                         type="button"
+                                         onClick={() => {
+                                           const newMonth = new Date(periodCalendarMonth);
+                                           newMonth.setMonth(newMonth.getMonth() + 1);
+                                           setPeriodCalendarMonth(newMonth);
+                                         }}
+                                         className="p-1 hover:bg-gray-100 rounded"
+                                       >
+                                         <ChevronRight size={20} />
+                                       </button>
+                                     </div>
+                                     
+                                     {/* Dias da semana */}
+                                     <div className="grid grid-cols-7 gap-1 text-center mb-1">
+                                       {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((day, i) => (
+                                         <div key={i} className="text-xs font-medium text-gray-500 py-1">{day}</div>
+                                       ))}
+                                     </div>
+                                     
+                                     {/* Dias do mês */}
+                                     <div className="grid grid-cols-7 gap-1">
+                                       {(() => {
+                                         const year = periodCalendarMonth.getFullYear();
+                                         const month = periodCalendarMonth.getMonth();
+                                         const firstDay = new Date(year, month, 1);
+                                         const lastDay = new Date(year, month + 1, 0);
+                                         const today = new Date();
+                                         today.setHours(0, 0, 0, 0);
+                                         
+                                         const days = [];
+                                         
+                                         // Dias vazios antes do primeiro dia do mês
+                                         for (let i = 0; i < firstDay.getDay(); i++) {
+                                           days.push(<div key={`empty-${i}`} className="w-8 h-8"></div>);
+                                         }
+                                         
+                                         // Dias do mês
+                                         for (let day = 1; day <= lastDay.getDate(); day++) {
+                                           const dateObj = new Date(year, month, day);
+                                           const dateStr = dateObj.toISOString().split('T')[0];
+                                           const isFuture = dateObj > today;
+                                           const isPaid = paymentInfo.paidDates.includes(dateStr);
+                                           const isUnpaid = paymentInfo.unpaidDates.includes(dateStr);
+                                           const isSelectedFrom = calcDateFrom === dateStr;
+                                           const isSelectedTo = calcDateTo === dateStr;
+                                           const isInRange = calcDateFrom && calcDateTo && dateStr >= calcDateFrom && dateStr <= calcDateTo;
+                                           
+                                           let bgClass = 'bg-gray-50 hover:bg-gray-100';
+                                           let ringClass = '';
+                                           
+                                           if (isSelectedFrom || isSelectedTo) {
+                                             bgClass = 'bg-amber-500 text-white hover:bg-amber-600';
+                                           } else if (isInRange) {
+                                             bgClass = 'bg-amber-100 hover:bg-amber-200';
+                                           } else if (isFuture) {
+                                             bgClass = 'bg-gray-100 text-gray-400';
+                                           } else if (isPaid) {
+                                             ringClass = 'ring-2 ring-green-500 ring-inset';
+                                             bgClass = 'bg-green-50 hover:bg-green-100 text-green-700';
+                                           } else if (isUnpaid) {
+                                             ringClass = 'ring-2 ring-red-500 ring-inset';
+                                             bgClass = 'bg-red-50 hover:bg-red-100 text-red-700';
+                                           }
+                                           
+                                           days.push(
+                                             <button
+                                               key={day}
+                                               type="button"
+                                               onClick={() => {
+                                                 if (!isFuture) {
+                                                   if (selectingDateType === 'from') {
+                                                     setCalcDateFrom(dateStr);
+                                                     setSelectingDateType('to');
+                                                   } else {
+                                                     setCalcDateTo(dateStr);
+                                                     setShowPeriodCalendar(false);
+                                                   }
+                                                 }
+                                               }}
+                                               disabled={isFuture}
+                                               className={`w-8 h-8 rounded-full text-xs font-medium transition-all ${bgClass} ${ringClass} ${isFuture ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                                             >
+                                               {day}
+                                             </button>
+                                           );
+                                         }
+                                         
+                                         return days;
+                                       })()}
+                                     </div>
+                                     
+                                     {/* Legenda */}
+                                     <div className="mt-3 pt-3 border-t border-gray-200 flex flex-wrap gap-2 text-xs">
+                                       <div className="flex items-center gap-1">
+                                         <div className="w-3 h-3 rounded-full ring-2 ring-green-500 ring-inset bg-green-50"></div>
+                                         <span className="text-gray-600">Pago</span>
+                                       </div>
+                                       <div className="flex items-center gap-1">
+                                         <div className="w-3 h-3 rounded-full ring-2 ring-red-500 ring-inset bg-red-50"></div>
+                                         <span className="text-gray-600">Deve</span>
+                                       </div>
+                                       <div className="flex items-center gap-1">
+                                         <div className="w-3 h-3 rounded-full bg-amber-500"></div>
+                                         <span className="text-gray-600">Selecionado</span>
+                                       </div>
+                                     </div>
+                                     
+                                     {/* Texto indicativo */}
+                                     <p className="text-xs text-amber-600 mt-2 text-center">
+                                       {selectingDateType === 'from' ? 'Selecione a data inicial' : 'Selecione a data final'}
+                                     </p>
+                                     
+                                     {/* Botão fechar */}
+                                     <button
+                                       type="button"
+                                       onClick={() => setShowPeriodCalendar(false)}
+                                       className="w-full mt-2 py-1.5 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-gray-200"
+                                     >
+                                       Fechar
+                                     </button>
+                                   </>
+                                 );
+                               })()}
+                             </div>
+                           )}
                          </div>
                        )}
 
