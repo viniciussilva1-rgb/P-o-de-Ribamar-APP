@@ -221,6 +221,53 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => unsubscribe();
   }, []);
 
+  // 7.1 Corrigir nomes de produtos genéricos nas entregas existentes
+  useEffect(() => {
+    if (products.length === 0 || clientDeliveries.length === 0) return;
+    
+    const fixProductNames = async () => {
+      const deliveriesToFix = clientDeliveries.filter(d => 
+        d.items && d.items.some(item => 
+          item.productName === 'Produto' && item.productId
+        )
+      );
+      
+      if (deliveriesToFix.length === 0) return;
+      
+      console.log(`[Fix] Corrigindo nomes de produtos em ${deliveriesToFix.length} entregas...`);
+      
+      for (const delivery of deliveriesToFix) {
+        const updatedItems = delivery.items.map(item => {
+          if (item.productName === 'Produto' && item.productId) {
+            const product = products.find(p => p.id === item.productId);
+            if (product) {
+              return { ...item, productName: product.name };
+            }
+          }
+          return item;
+        });
+        
+        // Só atualizar se houve mudança
+        const hasChanges = updatedItems.some((item, idx) => 
+          item.productName !== delivery.items[idx].productName
+        );
+        
+        if (hasChanges) {
+          try {
+            await updateDoc(doc(db, 'client_deliveries', delivery.id), {
+              items: updatedItems
+            });
+            console.log(`[Fix] Entrega ${delivery.id} corrigida`);
+          } catch (err) {
+            console.error(`[Fix] Erro ao corrigir entrega ${delivery.id}:`, err);
+          }
+        }
+      }
+    };
+    
+    fixProductNames();
+  }, [products, clientDeliveries.length]); // Executar quando produtos carregarem
+
   // 8. Dynamic Consumption Records (Histórico de Escolha Dinâmica)
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'dynamic_consumption'), (snapshot) => {
