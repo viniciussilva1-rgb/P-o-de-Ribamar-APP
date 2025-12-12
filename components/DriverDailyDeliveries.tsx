@@ -280,16 +280,17 @@ const DriverDailyDeliveries: React.FC = () => {
       return;
     }
     
+    console.log('[handleConfirmDynamicDelivery] Itens a salvar:', itemsWithQuantity);
+    
     setProcessingId(deliveryId);
     try {
-      // Primeiro, atualizar os itens da entrega no client_deliveries
+      // Atualizar os itens E marcar como entregue (tudo numa única operação)
       await updateDynamicDeliveryItems(deliveryId, itemsWithQuantity);
       
       // Registrar consumo dinâmico (histórico para IA)
       await recordDynamicDelivery(delivery.clientId, currentUser.id, itemsWithQuantity);
       
-      // Atualizar status da entrega como entregue
-      await updateDeliveryStatus(deliveryId, 'delivered');
+      // NÃO chamar updateDeliveryStatus - já foi feito em updateDynamicDeliveryItems
       
       setEditingDynamicDelivery(null);
       setDynamicDeliveryItems([]);

@@ -1238,18 +1238,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     deliveryId: string, 
     items: { productId: string; quantity: number; price: number }[]
   ): Promise<void> => {
-    const delivery = clientDeliveries.find(d => d.id === deliveryId);
-    if (!delivery) return;
+    // Buscar diretamente do Firestore para garantir dados atualizados
+    const deliveryRef = doc(db, 'client_deliveries', deliveryId);
     
     // Converter itens para o formato correto com nome do produto
     const deliveryItems = items.map(item => {
       const product = products.find(p => p.id === item.productId);
-      const totalPrice = item.price * item.quantity;
+      const totalPrice = (item.price || 0) * (item.quantity || 0);
       return {
         productId: item.productId,
         productName: product?.name || 'Produto',
-        quantity: item.quantity,
-        unitPrice: item.price,
+        quantity: item.quantity || 0,
+        unitPrice: item.price || 0,
         totalPrice: parseFloat(totalPrice.toFixed(2))
       };
     });
@@ -1257,11 +1257,19 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Calcular valor total
     const totalValue = deliveryItems.reduce((sum, item) => sum + item.totalPrice, 0);
     
-    await updateDoc(doc(db, 'client_deliveries', deliveryId), {
+    console.log('[updateDynamicDeliveryItems] Salvando itens:', deliveryItems);
+    console.log('[updateDynamicDeliveryItems] Total:', totalValue);
+    
+    // Salvar itens E marcar como entregue numa única operação
+    await updateDoc(deliveryRef, {
       items: deliveryItems,
       totalValue: parseFloat(totalValue.toFixed(2)),
+      status: 'delivered',
+      deliveredAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
+    
+    console.log('[updateDynamicDeliveryItems] Salvo com sucesso!');
   };
 
   // Adicionar itens extras a uma entrega
