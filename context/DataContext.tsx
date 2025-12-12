@@ -28,6 +28,7 @@ interface DataContextType {
   getDailyRecord: (date: string, productId: string) => DailyProductionRecord;
   
   calculateClientDebt: (client: Client) => { total: number, daysCount: number, details: string[] };
+  getClientPaymentInfo: (clientId: string) => { lastPaymentDate: string | null; lastPaymentAmount: number | null; paidUntilDate: string | null; unpaidDates: string[]; paidDates: string[] };
   registerPayment: (clientId: string, amount: number, method: string) => void;
   toggleSkippedDate: (clientId: string, date: string) => void;
   updateClientPrice: (clientId: string, productId: string, newPrice: number, userRole: UserRole) => void;
@@ -487,6 +488,79 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     return { total, daysCount, details };
+  };
+
+  // Obter informações de pagamento do cliente para o modal
+  const getClientPaymentInfo = (clientId: string) => {
+    const client = clients.find(c => c.id === clientId);
+    if (!client) {
+      return {
+        lastPaymentDate: null,
+        lastPaymentAmount: null,
+        paidUntilDate: null,
+        unpaidDates: [],
+        paidDates: []
+      };
+    }
+
+    // Último pagamento
+    const paymentHistory = client.paymentHistory || [];
+    const lastPayment = paymentHistory.length > 0 
+      ? paymentHistory[paymentHistory.length - 1] 
+      : null;
+
+    // Data até quando está pago (lastPaymentDate é a data até quando está pago)
+    const paidUntilDate = client.lastPaymentDate || null;
+
+    // Calcular datas pagas e não pagas (últimos 60 dias)
+    const paidDates: string[] = [];
+    const unpaidDates: string[] = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Data de início (60 dias atrás ou data de criação do cliente)
+    const startLimit = new Date();
+    startLimit.setDate(startLimit.getDate() - 60);
+    
+    const clientCreatedDate = new Date(client.createdAt.split('T')[0]);
+    const startDate = clientCreatedDate > startLimit ? clientCreatedDate : startLimit;
+
+    const currentDate = new Date(startDate);
+    
+    while (currentDate <= today) {
+      const dateStr = currentDate.toISOString().split('T')[0];
+      
+      // Verificar se é dia de entrega
+      const dayIndex = currentDate.getDay();
+      const mapKeys = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
+      const dayKey = mapKeys[dayIndex] as keyof DeliverySchedule;
+      const scheduledItems = client.deliverySchedule?.[dayKey];
+      
+      // Se tem entrega programada para este dia
+      if (scheduledItems && scheduledItems.length > 0) {
+        // Verificar se foi pulado (não entregue)
+        if (client.skippedDates?.includes(dateStr)) {
+          // Dia pulado - não conta
+        } else {
+          // Verificar se está pago
+          if (paidUntilDate && dateStr <= paidUntilDate) {
+            paidDates.push(dateStr);
+          } else {
+            unpaidDates.push(dateStr);
+          }
+        }
+      }
+      
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    return {
+      lastPaymentDate: lastPayment?.date || null,
+      lastPaymentAmount: lastPayment?.amount || null,
+      paidUntilDate,
+      unpaidDates,
+      paidDates
+    };
   };
 
   const registerPayment = async (clientId: string, amount: number, method: string) => {
@@ -2059,7 +2133,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       addUser, addClient, updateClient, updateClientsOrder, updateProduct, addProduct, deleteProduct, addRoute, deleteRoute,
       getRoutesByDriver, getClientsByDriver, getAllClients, getDrivers,
       updateDailyProduction, getDailyRecord,
-      calculateClientDebt, registerPayment, toggleSkippedDate, updateClientPrice, updatePricesForRoute,
+      calculateClientDebt, getClientPaymentInfo, registerPayment, toggleSkippedDate, updateClientPrice, updatePricesForRoute,
       createDailyLoad, updateDailyLoad, completeDailyLoad, getDailyLoadByDriver, getDailyLoadsByDate, getDailyLoadReport, getProductionSuggestions,
       generateDailyDeliveries, updateDeliveryStatus, addExtraToDelivery, removeExtraFromDelivery, substituteProductInDelivery, revertSubstituteInDelivery, adjustQuantityInDelivery, getDeliveriesByDriver, getDriverDailySummary, getAdminDeliveryReport, getScheduledClientsForDay,
       recordDynamicDelivery, getDynamicClientHistory, getDynamicClientPrediction, getDynamicLoadSummary, getDynamicClientsForDriver,

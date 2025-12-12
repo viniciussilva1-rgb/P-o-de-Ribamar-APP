@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { ClientDelivery, DeliveryStatus, Client, DynamicClientPrediction } from '../types';
 import { 
   Package, Truck, CheckCircle, XCircle, Clock, MapPin, Phone, 
-  User, AlertCircle, Loader2, Calendar, ChevronDown, ChevronRight,
+  User, AlertCircle, Loader2, Calendar, ChevronDown, ChevronRight, ChevronLeft,
   DollarSign, ClipboardList, RefreshCw, Send, Filter, Users,
   Sparkles, Edit3, Plus, Minus, Save, CreditCard, Banknote, X,
   ShoppingBag, ArrowLeftRight, Trash2
@@ -43,7 +43,8 @@ const DriverDailyDeliveries: React.FC = () => {
     getDynamicClientHistory,
     recordDynamicDelivery,
     registerDailyPayment,
-    calculateClientDebt
+    calculateClientDebt,
+    getClientPaymentInfo
   } = useData();
   
   const today = new Date().toISOString().split('T')[0];
@@ -103,6 +104,17 @@ const DriverDailyDeliveries: React.FC = () => {
   const [adjustOriginalQty, setAdjustOriginalQty] = useState<number>(0);
   const [adjustNewQty, setAdjustNewQty] = useState<string>('');
   const [savingAdjust, setSavingAdjust] = useState(false);
+
+  // Estados para informações de pagamento no modal
+  const [paymentInfo, setPaymentInfo] = useState<{
+    lastPaymentDate: string | null;
+    lastPaymentAmount: number | null;
+    paidUntilDate: string | null;
+    unpaidDates: string[];
+    paidDates: string[];
+  } | null>(null);
+  const [showCustomCalendar, setShowCustomCalendar] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(new Date());
 
   // Clientes dinâmicos
   const dynamicClients = currentUser?.id ? getDynamicClientsForDriver(currentUser.id) : [];
@@ -287,11 +299,19 @@ const DriverDailyDeliveries: React.FC = () => {
       const debt = calculateClientDebt(client);
       setClientDebt(debt.total);
       setPaymentAmount(debt.total > 0 ? debt.total.toFixed(2) : '');
+      
+      // Carregar informações de pagamento
+      const info = getClientPaymentInfo(clientId);
+      setPaymentInfo(info);
+      
+      // Se tem data paga até, usar como default, senão usar hoje
+      setPaidUntilDate(info.paidUntilDate || new Date().toISOString().split('T')[0]);
     }
     setPaymentClientId(clientId);
     setPaymentClientName(clientName);
-    setPaidUntilDate(new Date().toISOString().split('T')[0]);
     setPaymentMethod('Dinheiro');
+    setShowCustomCalendar(false);
+    setCalendarMonth(new Date());
     setShowPaymentModal(true);
   };
 
@@ -1308,7 +1328,7 @@ const DriverDailyDeliveries: React.FC = () => {
       {/* Modal de Pagamento */}
       {showPaymentModal && paymentClientId && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-xl">
+          <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
               <Banknote className="text-amber-600" size={20} />
               Receber Pagamento
@@ -1318,6 +1338,35 @@ const DriverDailyDeliveries: React.FC = () => {
               <p className="text-gray-600 text-sm mb-1">Cliente:</p>
               <p className="font-semibold text-gray-800">{paymentClientName}</p>
             </div>
+
+            {/* Informações de Pagamento */}
+            {paymentInfo && (
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Último pagamento:</span>
+                  <span className="text-sm font-medium">
+                    {paymentInfo.lastPaymentDate 
+                      ? `${new Date(paymentInfo.lastPaymentDate).toLocaleDateString('pt-PT')} - €${paymentInfo.lastPaymentAmount?.toFixed(2) || '0.00'}`
+                      : 'Nenhum registado'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Pago até:</span>
+                  <span className={`text-sm font-medium ${paymentInfo.paidUntilDate ? 'text-green-600' : 'text-gray-400'}`}>
+                    {paymentInfo.paidUntilDate 
+                      ? new Date(paymentInfo.paidUntilDate).toLocaleDateString('pt-PT')
+                      : 'Não definido'}
+                  </span>
+                </div>
+                {paymentInfo.unpaidDates.length > 0 && (
+                  <div className="pt-2 border-t border-gray-200">
+                    <span className="text-sm text-red-600 font-medium">
+                      ⚠️ {paymentInfo.unpaidDates.length} dia(s) por pagar
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Mostrar dívida atual */}
             {clientDebt > 0 ? (
@@ -1382,19 +1431,139 @@ const DriverDailyDeliveries: React.FC = () => {
                 </div>
               </div>
 
-              {/* Data até quando fica pago */}
+              {/* Data até quando fica pago - Calendário Personalizado */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Pago até (data)
                 </label>
-                <input
-                  type="date"
-                  value={paidUntilDate}
-                  onChange={(e) => setPaidUntilDate(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                />
+                <div className="relative">
+                  <button
+                    onClick={() => setShowCustomCalendar(!showCustomCalendar)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-left flex items-center justify-between"
+                  >
+                    <span>{paidUntilDate ? new Date(paidUntilDate).toLocaleDateString('pt-PT') : 'Selecionar data...'}</span>
+                    <Calendar size={18} className="text-gray-400" />
+                  </button>
+                  
+                  {/* Calendário Personalizado */}
+                  {showCustomCalendar && paymentInfo && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 p-3">
+                      {/* Header do calendário */}
+                      <div className="flex items-center justify-between mb-3">
+                        <button
+                          onClick={() => {
+                            const newMonth = new Date(calendarMonth);
+                            newMonth.setMonth(newMonth.getMonth() - 1);
+                            setCalendarMonth(newMonth);
+                          }}
+                          className="p-1 hover:bg-gray-100 rounded"
+                        >
+                          <ChevronLeft size={20} />
+                        </button>
+                        <span className="font-medium">
+                          {calendarMonth.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' })}
+                        </span>
+                        <button
+                          onClick={() => {
+                            const newMonth = new Date(calendarMonth);
+                            newMonth.setMonth(newMonth.getMonth() + 1);
+                            setCalendarMonth(newMonth);
+                          }}
+                          className="p-1 hover:bg-gray-100 rounded"
+                        >
+                          <ChevronRight size={20} />
+                        </button>
+                      </div>
+                      
+                      {/* Dias da semana */}
+                      <div className="grid grid-cols-7 gap-1 mb-2 text-center">
+                        {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((day, i) => (
+                          <div key={i} className="text-xs font-medium text-gray-500 py-1">{day}</div>
+                        ))}
+                      </div>
+                      
+                      {/* Dias do mês */}
+                      <div className="grid grid-cols-7 gap-1">
+                        {(() => {
+                          const year = calendarMonth.getFullYear();
+                          const month = calendarMonth.getMonth();
+                          const firstDay = new Date(year, month, 1);
+                          const lastDay = new Date(year, month + 1, 0);
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          
+                          const days = [];
+                          
+                          // Dias vazios antes do primeiro dia do mês
+                          for (let i = 0; i < firstDay.getDay(); i++) {
+                            days.push(<div key={`empty-${i}`} className="w-8 h-8"></div>);
+                          }
+                          
+                          // Dias do mês
+                          for (let day = 1; day <= lastDay.getDate(); day++) {
+                            const dateObj = new Date(year, month, day);
+                            const dateStr = dateObj.toISOString().split('T')[0];
+                            const isFuture = dateObj > today;
+                            const isPaid = paymentInfo.paidDates.includes(dateStr);
+                            const isUnpaid = paymentInfo.unpaidDates.includes(dateStr);
+                            const isSelected = paidUntilDate === dateStr;
+                            
+                            let bgClass = 'bg-gray-50 hover:bg-gray-100';
+                            let ringClass = '';
+                            
+                            if (isSelected) {
+                              bgClass = 'bg-amber-500 text-white hover:bg-amber-600';
+                            } else if (isFuture) {
+                              bgClass = 'bg-gray-100 text-gray-400';
+                            } else if (isPaid) {
+                              ringClass = 'ring-2 ring-green-500 ring-inset';
+                              bgClass = 'bg-green-50 hover:bg-green-100 text-green-700';
+                            } else if (isUnpaid) {
+                              ringClass = 'ring-2 ring-red-500 ring-inset';
+                              bgClass = 'bg-red-50 hover:bg-red-100 text-red-700';
+                            }
+                            
+                            days.push(
+                              <button
+                                key={day}
+                                onClick={() => {
+                                  if (!isFuture) {
+                                    setPaidUntilDate(dateStr);
+                                    setShowCustomCalendar(false);
+                                  }
+                                }}
+                                disabled={isFuture}
+                                className={`w-8 h-8 rounded-full text-sm font-medium transition-all ${bgClass} ${ringClass} ${isFuture ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                              >
+                                {day}
+                              </button>
+                            );
+                          }
+                          
+                          return days;
+                        })()}
+                      </div>
+                      
+                      {/* Legenda */}
+                      <div className="mt-3 pt-3 border-t border-gray-200 flex flex-wrap gap-3 text-xs">
+                        <div className="flex items-center gap-1">
+                          <div className="w-4 h-4 rounded-full ring-2 ring-green-500 ring-inset bg-green-50"></div>
+                          <span className="text-gray-600">Pago</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <div className="w-4 h-4 rounded-full ring-2 ring-red-500 ring-inset bg-red-50"></div>
+                          <span className="text-gray-600">Por pagar</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <div className="w-4 h-4 rounded-full bg-gray-100"></div>
+                          <span className="text-gray-600">Sem entrega</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  Deixe em branco se não souber a data exata
+                  Clique para ver o calendário com dias pagos e por pagar
                 </p>
               </div>
             </div>
@@ -1408,6 +1577,7 @@ const DriverDailyDeliveries: React.FC = () => {
                   setPaymentClientName('');
                   setPaymentAmount('');
                   setClientDebt(0);
+                  setPaymentInfo(null);
                 }}
                 className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
               >
