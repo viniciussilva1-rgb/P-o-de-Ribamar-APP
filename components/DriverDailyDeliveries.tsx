@@ -1201,12 +1201,8 @@ const DriverDailyDeliveries: React.FC = () => {
                           )}
                           
                           <div className="mt-2 flex items-center gap-4">
-                            {/* Para clientes dinâmicos pendentes sem itens, não mostrar valor */}
-                            {isClientDynamic(delivery.clientId) && delivery.status === 'pending' && delivery.items.length === 0 ? (
-                              <span className="text-sm text-gray-400 italic">
-                                Selecione os produtos na entrega →
-                              </span>
-                            ) : (
+                            {/* Para clientes dinâmicos pendentes sem itens, não mostrar valor (já tem a mensagem roxa acima) */}
+                            {!(isClientDynamic(delivery.clientId) && delivery.status === 'pending' && delivery.items.length === 0) && (
                               <span className="text-sm font-medium text-green-600">
                                 Valor: €{delivery.totalValue.toFixed(2)}
                               </span>
