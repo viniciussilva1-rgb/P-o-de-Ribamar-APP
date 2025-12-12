@@ -1765,10 +1765,19 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     await setDoc(doc(db, 'daily_payments_received', paymentId), paymentData);
     
-    // Também atualiza o lastPaymentDate do cliente
+    // Também atualiza o lastPaymentDate do cliente (pago até) e adiciona ao histórico
     if (client) {
+      const paymentHistoryEntry = {
+        date: today, // Data em que o pagamento foi feito
+        amount,
+        method
+      };
+      
+      const existingHistory = client.paymentHistory || [];
+      
       await updateDoc(doc(db, 'clients', clientId), {
-        lastPaymentDate: today,
+        lastPaymentDate: paidUntil || today, // Data até quando está pago (selecionada pelo entregador)
+        paymentHistory: [...existingHistory, paymentHistoryEntry],
         currentBalance: 0
       });
     }
