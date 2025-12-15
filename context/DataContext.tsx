@@ -654,6 +654,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Mas não adicionar aqui, pois já está no client.skippedDates
     } else {
       // Para clientes normais, usar o schedule
+      // Primeiro, buscar todas as entregas confirmadas deste cliente
+      const deliveredEntriesForClient = clientDeliveries.filter(d => 
+        d.clientId === clientId && d.status === 'delivered'
+      );
+      const deliveredDatesSet = new Set(deliveredEntriesForClient.map(d => d.date));
+      
       while (currentDate <= today) {
         const dateStr = currentDate.toISOString().split('T')[0];
         
@@ -665,9 +671,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         
         // Se tem entrega programada para este dia
         if (scheduledItems && scheduledItems.length > 0) {
-          // Verificar se foi pulado (não entregue)
-          if (client.skippedDates?.includes(dateStr)) {
-            // Dia pulado - não conta
+          // Verificar se a entrega foi realmente realizada (status 'delivered')
+          const wasDelivered = deliveredDatesSet.has(dateStr);
+          
+          // Verificar se foi pulado (não entregue) - MAS só se não foi entregue depois
+          if (client.skippedDates?.includes(dateStr) && !wasDelivered) {
+            // Dia pulado e não foi entregue - não conta
           } else if (isDateInVacation(dateStr, client.vacationPeriods)) {
             // Dia de férias - não conta
           } else {
@@ -686,7 +695,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Filtrar skippedDates para o período relevante (60 dias)
     // Para clientes dinâmicos: usar entregas com status 'not_delivered'
-    // Para clientes normais: usar client.skippedDates
+    // Para clientes normais: usar client.skippedDates MAS verificar se não foi entregue depois
     let relevantSkippedDates: string[] = [];
     
     if (client.isDynamicChoice) {
@@ -700,9 +709,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       relevantSkippedDates = notDeliveredEntries.map(d => d.date);
     } else {
       // Para normais, usar skippedDates do cliente
+      // MAS excluir datas onde a entrega foi confirmada (status 'delivered')
+      const deliveredDatesForClient = clientDeliveries
+        .filter(d => d.clientId === clientId && d.status === 'delivered')
+        .map(d => d.date);
+      
       relevantSkippedDates = (client.skippedDates || []).filter(dateStr => {
         const date = new Date(dateStr);
-        return date >= startDate && date <= today;
+        // Deve estar no período E não ter sido entregue
+        return date >= startDate && date <= today && !deliveredDatesForClient.includes(dateStr);
       });
     }
 
