@@ -630,20 +630,28 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     // Para clientes dinâmicos, usar as entregas reais (client_deliveries)
     if (client.isDynamicChoice) {
-      const clientDeliveriesForCalendar = clientDeliveries.filter(d => 
+      // Buscar todas as entregas deste cliente no período
+      const allClientDeliveries = clientDeliveries.filter(d => 
         d.clientId === clientId && 
-        d.status === 'delivered' &&
         d.date >= startDate.toISOString().split('T')[0] &&
         d.date <= today.toISOString().split('T')[0]
       );
       
-      clientDeliveriesForCalendar.forEach(delivery => {
+      // Separar por status
+      const deliveredDates = allClientDeliveries.filter(d => d.status === 'delivered');
+      const notDeliveredDates = allClientDeliveries.filter(d => d.status === 'not_delivered');
+      
+      // Entregas realizadas vão para paidDates ou unpaidDates
+      deliveredDates.forEach(delivery => {
         if (paidUntilDate && delivery.date <= paidUntilDate) {
           paidDates.push(delivery.date);
         } else {
           unpaidDates.push(delivery.date);
         }
       });
+      
+      // Entregas não realizadas vão para skippedDates (será retornado depois)
+      // Mas não adicionar aqui, pois já está no client.skippedDates
     } else {
       // Para clientes normais, usar o schedule
       while (currentDate <= today) {
@@ -677,10 +685,26 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     // Filtrar skippedDates para o período relevante (60 dias)
-    const relevantSkippedDates = (client.skippedDates || []).filter(dateStr => {
-      const date = new Date(dateStr);
-      return date >= startDate && date <= today;
-    });
+    // Para clientes dinâmicos: usar entregas com status 'not_delivered'
+    // Para clientes normais: usar client.skippedDates
+    let relevantSkippedDates: string[] = [];
+    
+    if (client.isDynamicChoice) {
+      // Para dinâmicos, buscar entregas não realizadas
+      const notDeliveredEntries = clientDeliveries.filter(d => 
+        d.clientId === clientId && 
+        d.status === 'not_delivered' &&
+        d.date >= startDate.toISOString().split('T')[0] &&
+        d.date <= today.toISOString().split('T')[0]
+      );
+      relevantSkippedDates = notDeliveredEntries.map(d => d.date);
+    } else {
+      // Para normais, usar skippedDates do cliente
+      relevantSkippedDates = (client.skippedDates || []).filter(dateStr => {
+        const date = new Date(dateStr);
+        return date >= startDate && date <= today;
+      });
+    }
 
     return {
       lastPaymentDate: lastDailyPayment?.date || lastPayment?.date || null,

@@ -1672,13 +1672,14 @@ export const DriverView: React.FC = () => {
                                              bgClass = 'bg-amber-100 hover:bg-amber-200';
                                            } else if (isFuture) {
                                              bgClass = 'bg-gray-100 text-gray-400';
+                                           } else if (isPaid) {
+                                             // Dias pagos têm prioridade - mostrar em verde
+                                             ringClass = 'ring-2 ring-green-500 ring-inset';
+                                             bgClass = 'bg-green-50 hover:bg-green-100 text-green-700';
                                            } else if (isSkipped) {
                                              // Dias não entregues - mostrar em laranja
                                              ringClass = 'ring-2 ring-orange-400 ring-inset';
                                              bgClass = 'bg-orange-50 hover:bg-orange-100 text-orange-700';
-                                           } else if (isPaid) {
-                                             ringClass = 'ring-2 ring-green-500 ring-inset';
-                                             bgClass = 'bg-green-50 hover:bg-green-100 text-green-700';
                                            } else if (isUnpaid) {
                                              ringClass = 'ring-2 ring-red-500 ring-inset';
                                              bgClass = 'bg-red-50 hover:bg-red-100 text-red-700';
