@@ -28,7 +28,7 @@ interface DataContextType {
   getDailyRecord: (date: string, productId: string) => DailyProductionRecord;
   
   calculateClientDebt: (client: Client) => { total: number, daysCount: number, details: string[] };
-  getClientPaymentInfo: (clientId: string) => { lastPaymentDate: string | null; lastPaymentAmount: number | null; paidUntilDate: string | null; unpaidDates: string[]; paidDates: string[] };
+  getClientPaymentInfo: (clientId: string) => { lastPaymentDate: string | null; lastPaymentAmount: number | null; paidUntilDate: string | null; unpaidDates: string[]; paidDates: string[]; skippedDates: string[] };
   getClientConsumptionHistory: (clientId: string) => ClientConsumptionHistory;
   registerPayment: (clientId: string, amount: number, method: string) => void;
   toggleSkippedDate: (clientId: string, date: string) => void;
@@ -592,7 +592,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         lastPaymentAmount: null,
         paidUntilDate: null,
         unpaidDates: [],
-        paidDates: []
+        paidDates: [],
+        skippedDates: []
       };
     }
 
@@ -675,12 +676,19 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     }
 
+    // Filtrar skippedDates para o período relevante (60 dias)
+    const relevantSkippedDates = (client.skippedDates || []).filter(dateStr => {
+      const date = new Date(dateStr);
+      return date >= startDate && date <= today;
+    });
+
     return {
       lastPaymentDate: lastDailyPayment?.date || lastPayment?.date || null,
       lastPaymentAmount: lastDailyPayment?.amount || lastPayment?.amount || null,
       paidUntilDate,
       unpaidDates,
-      paidDates
+      paidDates,
+      skippedDates: relevantSkippedDates
     };
   };
 

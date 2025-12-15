@@ -1658,6 +1658,7 @@ export const DriverView: React.FC = () => {
                                            const isFuture = dateObj > today;
                                            const isPaid = paymentInfo.paidDates.includes(dateStr);
                                            const isUnpaid = paymentInfo.unpaidDates.includes(dateStr);
+                                           const isSkipped = paymentInfo.skippedDates?.includes(dateStr);
                                            const isSelectedFrom = calcDateFrom === dateStr;
                                            const isSelectedTo = calcDateTo === dateStr;
                                            const isInRange = calcDateFrom && calcDateTo && dateStr >= calcDateFrom && dateStr <= calcDateTo;
@@ -1671,6 +1672,10 @@ export const DriverView: React.FC = () => {
                                              bgClass = 'bg-amber-100 hover:bg-amber-200';
                                            } else if (isFuture) {
                                              bgClass = 'bg-gray-100 text-gray-400';
+                                           } else if (isSkipped) {
+                                             // Dias não entregues - mostrar em laranja
+                                             ringClass = 'ring-2 ring-orange-400 ring-inset';
+                                             bgClass = 'bg-orange-50 hover:bg-orange-100 text-orange-700';
                                            } else if (isPaid) {
                                              ringClass = 'ring-2 ring-green-500 ring-inset';
                                              bgClass = 'bg-green-50 hover:bg-green-100 text-green-700';
@@ -1715,6 +1720,10 @@ export const DriverView: React.FC = () => {
                                        <div className="flex items-center gap-1">
                                          <div className="w-3 h-3 rounded-full ring-2 ring-red-500 ring-inset bg-red-50"></div>
                                          <span className="text-gray-600">Deve</span>
+                                       </div>
+                                       <div className="flex items-center gap-1">
+                                         <div className="w-3 h-3 rounded-full ring-2 ring-orange-400 ring-inset bg-orange-50"></div>
+                                         <span className="text-gray-600">Não entregue</span>
                                        </div>
                                        <div className="flex items-center gap-1">
                                          <div className="w-3 h-3 rounded-full bg-amber-500"></div>

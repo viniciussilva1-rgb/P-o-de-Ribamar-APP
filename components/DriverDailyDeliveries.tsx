@@ -1519,6 +1519,7 @@ const DriverDailyDeliveries: React.FC = () => {
                             const isFuture = dateObj > today;
                             const isPaid = paymentInfo.paidDates.includes(dateStr);
                             const isUnpaid = paymentInfo.unpaidDates.includes(dateStr);
+                            const isSkipped = paymentInfo.skippedDates?.includes(dateStr);
                             const isSelected = paidUntilDate === dateStr;
                             
                             let bgClass = 'bg-gray-50 hover:bg-gray-100';
@@ -1528,6 +1529,10 @@ const DriverDailyDeliveries: React.FC = () => {
                               bgClass = 'bg-amber-500 text-white hover:bg-amber-600';
                             } else if (isFuture) {
                               bgClass = 'bg-gray-100 text-gray-400';
+                            } else if (isSkipped) {
+                              // Dias não entregues (skipped) - mostrar em amarelo/laranja
+                              ringClass = 'ring-2 ring-orange-400 ring-inset';
+                              bgClass = 'bg-orange-50 hover:bg-orange-100 text-orange-700';
                             } else if (isPaid) {
                               ringClass = 'ring-2 ring-green-500 ring-inset';
                               bgClass = 'bg-green-50 hover:bg-green-100 text-green-700';
@@ -1566,6 +1571,10 @@ const DriverDailyDeliveries: React.FC = () => {
                         <div className="flex items-center gap-1">
                           <div className="w-4 h-4 rounded-full ring-2 ring-red-500 ring-inset bg-red-50"></div>
                           <span className="text-gray-600">Por pagar</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <div className="w-4 h-4 rounded-full ring-2 ring-orange-400 ring-inset bg-orange-50"></div>
+                          <span className="text-gray-600">Não entregue</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <div className="w-4 h-4 rounded-full bg-gray-100"></div>
