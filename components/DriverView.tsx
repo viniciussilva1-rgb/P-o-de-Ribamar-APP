@@ -2,8 +2,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { Plus, User, MapPin, Phone, Search, Map, Save, X, Navigation, CreditCard, Loader2, Calendar, AlertCircle, Tag, FileText, RotateCcw, Calculator, CheckCircle, Sparkles, Copy, Check, GripVertical, ArrowUpDown, ChevronUp, ChevronDown, Receipt, ChevronLeft, ChevronRight, Package } from 'lucide-react';
-import { Client, Route, DeliverySchedule, Product, ClientConsumptionHistory } from '../types';
+import { Plus, User, MapPin, Phone, Search, Map, Save, X, Navigation, CreditCard, Loader2, Calendar, AlertCircle, Tag, FileText, RotateCcw, Calculator, CheckCircle, Sparkles, Copy, Check, GripVertical, ArrowUpDown, ChevronUp, ChevronDown, Receipt, ChevronLeft, ChevronRight, Package, Plane, Trash2 } from 'lucide-react';
+import { Client, Route, DeliverySchedule, Product, ClientConsumptionHistory, VacationPeriod } from '../types';
 import SmartDeliveryMap from './SmartDeliveryMap';
 
 // Componente auxiliar para isolar o estado de adição por linha
@@ -288,8 +288,13 @@ export const DriverView: React.FC = () => {
   // States
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRouteFilter, setSelectedRouteFilter] = useState<string>('all');
-  const [activeTab, setActiveTab] = useState<'geral' | 'entrega' | 'pagamento' | 'obs' | 'falhas' | 'precos'>('geral');
+  const [activeTab, setActiveTab] = useState<'geral' | 'entrega' | 'pagamento' | 'obs' | 'falhas' | 'precos' | 'ferias'>('geral');
   const [isLocating, setIsLocating] = useState(false);
+  
+  // States for Vacation
+  const [vacationStartDate, setVacationStartDate] = useState('');
+  const [vacationEndDate, setVacationEndDate] = useState('');
+  const [vacationReason, setVacationReason] = useState('');
   
   // States for Payment Calculation
   const [calculatedTotal, setCalculatedTotal] = useState<number | null>(null);
@@ -524,9 +529,13 @@ export const DriverView: React.FC = () => {
     setCalcDateTo('');
     setCalcDailyValue(0);
     setCalculatedDays(0);
+    // Reset vacation form
+    setVacationStartDate('');
+    setVacationEndDate('');
+    setVacationReason('');
     if (client) {
       setEditingClientId(client.id);
-      setClientForm({ ...client, deliverySchedule: client.deliverySchedule || {}, customPrices: client.customPrices || {} });
+      setClientForm({ ...client, deliverySchedule: client.deliverySchedule || {}, customPrices: client.customPrices || {}, vacationPeriods: client.vacationPeriods || [] });
     } else {
       setEditingClientId(null);
       setClientForm({ ...initialClientState, routeId: myRoutes.length > 0 ? myRoutes[0].id : '' });
@@ -539,11 +548,12 @@ export const DriverView: React.FC = () => {
     e.preventDefault();
     
     if (editingClientId) {
-      // Garantir que deliverySchedule seja incluído na atualização
+      // Garantir que deliverySchedule e vacationPeriods sejam incluídos na atualização
       const updateData = {
         ...clientForm,
         deliverySchedule: clientForm.deliverySchedule || {},
         customPrices: clientForm.customPrices || {},
+        vacationPeriods: clientForm.vacationPeriods || [],
       };
       updateClient(editingClientId, updateData);
     } else {
@@ -566,6 +576,7 @@ export const DriverView: React.FC = () => {
         isDynamicChoice: clientForm.isDynamicChoice || false,
         deliverySchedule: clientForm.deliverySchedule || {},
         customPrices: clientForm.customPrices || {},
+        vacationPeriods: clientForm.vacationPeriods || [],
         createdAt: new Date().toISOString()
       };
       addClient(newClient);
@@ -1252,6 +1263,7 @@ export const DriverView: React.FC = () => {
                 { id: 'geral', label: 'Geral', icon: <User size={14} /> },
                 { id: 'entrega', label: 'Entrega', icon: <Calendar size={14} /> },
                 { id: 'pagamento', label: 'Modo de Pagamento', icon: <CreditCard size={14} /> },
+                { id: 'ferias', label: 'Férias', icon: <Package size={14} /> },
                 { id: 'obs', label: 'Obs', icon: null },
                 { id: 'falhas', label: 'Falhas', icon: <AlertCircle size={14} /> },
                 { id: 'precos', label: 'Preços', icon: <Tag size={14} /> },
@@ -1925,6 +1937,183 @@ export const DriverView: React.FC = () => {
                            </tbody>
                         </table>
                      </div>
+                  </div>
+                )}
+
+                {activeTab === 'ferias' && (
+                  <div className="space-y-4 animate-in fade-in duration-200">
+                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                      <h4 className="font-bold text-blue-800 mb-2 flex items-center gap-2">
+                        <Plane size={18} />
+                        Períodos de Férias
+                      </h4>
+                      <p className="text-sm text-blue-700 mb-4">
+                        Configure os períodos em que o cliente está de férias. Durante esses dias, 
+                        o cliente <strong>não aparecerá</strong> nas entregas do dia e <strong>não será cobrado</strong>.
+                      </p>
+                      
+                      {/* Formulário para adicionar período */}
+                      <div className="bg-white rounded-lg p-4 border border-blue-200 mb-4">
+                        <h5 className="text-sm font-semibold text-gray-700 mb-3">Adicionar Novo Período</h5>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">Data de Início</label>
+                            <input
+                              type="date"
+                              value={vacationStartDate}
+                              onChange={(e) => setVacationStartDate(e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">Data de Fim</label>
+                            <input
+                              type="date"
+                              value={vacationEndDate}
+                              onChange={(e) => setVacationEndDate(e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">Motivo (opcional)</label>
+                            <input
+                              type="text"
+                              value={vacationReason}
+                              onChange={(e) => setVacationReason(e.target.value)}
+                              placeholder="Ex: Férias, Viagem..."
+                              className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                            />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!vacationStartDate || !vacationEndDate) {
+                              alert('Por favor, selecione as datas de início e fim.');
+                              return;
+                            }
+                            if (vacationEndDate < vacationStartDate) {
+                              alert('A data de fim deve ser maior ou igual à data de início.');
+                              return;
+                            }
+                            const newPeriod: VacationPeriod = {
+                              id: Date.now().toString(),
+                              startDate: vacationStartDate,
+                              endDate: vacationEndDate,
+                              reason: vacationReason || undefined,
+                              createdAt: new Date().toISOString()
+                            };
+                            const currentPeriods = clientForm.vacationPeriods || [];
+                            setClientForm({
+                              ...clientForm,
+                              vacationPeriods: [...currentPeriods, newPeriod]
+                            });
+                            // Limpar formulário
+                            setVacationStartDate('');
+                            setVacationEndDate('');
+                            setVacationReason('');
+                          }}
+                          className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm font-medium"
+                        >
+                          <Plus size={16} />
+                          Adicionar Período
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Lista de períodos existentes */}
+                    <div className="space-y-2">
+                      <h5 className="font-semibold text-gray-700 text-sm flex items-center gap-2">
+                        <Calendar size={16} />
+                        Períodos Programados
+                      </h5>
+                      {clientForm.vacationPeriods && clientForm.vacationPeriods.length > 0 ? (
+                        <div className="space-y-2">
+                          {clientForm.vacationPeriods
+                            .sort((a, b) => a.startDate.localeCompare(b.startDate))
+                            .map(period => {
+                              const startDate = new Date(period.startDate);
+                              const endDate = new Date(period.endDate);
+                              const today = new Date();
+                              today.setHours(0, 0, 0, 0);
+                              
+                              const isActive = today >= startDate && today <= endDate;
+                              const isPast = endDate < today;
+                              const isFuture = startDate > today;
+                              
+                              // Calcular duração
+                              const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+                              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                              
+                              let statusBadge = null;
+                              let borderColor = 'border-gray-200';
+                              let bgColor = 'bg-white';
+                              
+                              if (isActive) {
+                                statusBadge = <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-medium">Em andamento</span>;
+                                borderColor = 'border-green-300';
+                                bgColor = 'bg-green-50';
+                              } else if (isPast) {
+                                statusBadge = <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">Passado</span>;
+                              } else if (isFuture) {
+                                statusBadge = <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-medium">Agendado</span>;
+                                borderColor = 'border-blue-200';
+                                bgColor = 'bg-blue-50/50';
+                              }
+                              
+                              return (
+                                <div
+                                  key={period.id}
+                                  className={`p-3 rounded-lg border ${borderColor} ${bgColor} flex items-center justify-between`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isActive ? 'bg-green-200' : isFuture ? 'bg-blue-200' : 'bg-gray-200'}`}>
+                                      <Plane size={18} className={isActive ? 'text-green-700' : isFuture ? 'text-blue-700' : 'text-gray-600'} />
+                                    </div>
+                                    <div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium text-gray-800">
+                                          {startDate.toLocaleDateString('pt-PT')} - {endDate.toLocaleDateString('pt-PT')}
+                                        </span>
+                                        {statusBadge}
+                                      </div>
+                                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                                        <span>{diffDays} dia{diffDays > 1 ? 's' : ''}</span>
+                                        {period.reason && (
+                                          <>
+                                            <span>•</span>
+                                            <span>{period.reason}</span>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const updatedPeriods = (clientForm.vacationPeriods || []).filter(p => p.id !== period.id);
+                                      setClientForm({
+                                        ...clientForm,
+                                        vacationPeriods: updatedPeriods
+                                      });
+                                    }}
+                                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                    title="Remover período"
+                                  >
+                                    <Trash2 size={18} />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                          <Plane size={32} className="mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">Nenhum período de férias cadastrado</p>
+                          <p className="text-xs mt-1">Adicione períodos acima para que o cliente não apareça nas entregas</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 

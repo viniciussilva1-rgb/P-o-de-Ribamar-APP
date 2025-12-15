@@ -480,6 +480,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // --- AUTOMATED BILLING LOGIC (Same logic, using Firestore data) ---
 
+  // Helper: Verificar se uma data está dentro de um período de férias
+  const isDateInVacation = (dateStr: string, vacationPeriods?: { startDate: string; endDate: string }[]): boolean => {
+    if (!vacationPeriods || vacationPeriods.length === 0) return false;
+    return vacationPeriods.some(period => dateStr >= period.startDate && dateStr <= period.endDate);
+  };
+
   const calculateClientDebt = (client: Client) => {
     let total = 0;
     let daysCount = 0;
@@ -537,9 +543,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     while (currentDate <= today) {
         const dateStr = currentDate.toISOString().split('T')[0];
         
+        // Pular se está nas datas puladas
         if (client.skippedDates && client.skippedDates.includes(dateStr)) {
             currentDate.setDate(currentDate.getDate() + 1);
             continue; 
+        }
+        
+        // Pular se está em período de férias
+        if (isDateInVacation(dateStr, client.vacationPeriods)) {
+            currentDate.setDate(currentDate.getDate() + 1);
+            continue;
         }
 
         const dayIndex = currentDate.getDay();
@@ -646,6 +659,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           // Verificar se foi pulado (não entregue)
           if (client.skippedDates?.includes(dateStr)) {
             // Dia pulado - não conta
+          } else if (isDateInVacation(dateStr, client.vacationPeriods)) {
+            // Dia de férias - não conta
           } else {
             // Verificar se está pago
             if (paidUntilDate && dateStr <= paidUntilDate) {
@@ -682,6 +697,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         paidUntilDate: null,
         totalDebt: 0,
         daysUnpaid: 0,
+        credit: 0,
+        hasFutureCredit: false,
         allInvoices: [],
         unpaidInvoices: [],
         paidInvoices: [],
@@ -1170,6 +1187,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       // Verificar se está nos dias pulados
       if (client.skippedDates?.includes(date)) return false;
+      
+      // Verificar se está em período de férias
+      if (isDateInVacation(date, client.vacationPeriods)) return false;
       
       // Clientes dinâmicos sempre aparecem (eles escolhem na hora)
       if (client.isDynamicChoice) return true;

@@ -29,6 +29,15 @@ export interface ScheduleChange {
   schedule: DeliverySchedule;  // O agendamento que passou a valer a partir dessa data
 }
 
+// Período de férias do cliente
+export interface VacationPeriod {
+  id: string;           // ID único do período
+  startDate: string;    // Data de início (YYYY-MM-DD)
+  endDate: string;      // Data de fim (YYYY-MM-DD)
+  reason?: string;      // Motivo opcional (férias, viagem, etc.)
+  createdAt: string;    // Quando foi registrado
+}
+
 export interface DeliverySchedule {
   seg?: DeliveryItem[];
   ter?: DeliveryItem[];
@@ -82,6 +91,9 @@ export interface Client {
 
   // Exceptions
   skippedDates?: string[]; // Array of 'YYYY-MM-DD' where delivery was skipped
+  
+  // Períodos de férias (cliente não recebe entrega e não é cobrado)
+  vacationPeriods?: VacationPeriod[];
 
   // Delivery Schedule (para clientes normais)
   deliverySchedule?: DeliverySchedule;
