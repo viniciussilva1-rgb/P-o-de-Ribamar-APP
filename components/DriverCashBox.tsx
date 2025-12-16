@@ -65,6 +65,15 @@ const DriverCashBox: React.FC = () => {
   const [closureObservations, setClosureObservations] = useState('');
   const [savingClosure, setSavingClosure] = useState(false);
   
+  // Contagem detalhada de moedas e notas
+  const [showDetailedCount, setShowDetailedCount] = useState(false);
+  const [coinCounts, setCoinCounts] = useState({
+    cent1: 0, cent2: 0, cent5: 0, cent10: 0, cent20: 0, cent50: 0, euro1: 0, euro2: 0
+  });
+  const [noteCounts, setNoteCounts] = useState({
+    note5: 0, note10: 0, note20: 0, note50: 0, note100: 0, note200: 0, note500: 0
+  });
+  
   // Payment Registration States
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedClientForPayment, setSelectedClientForPayment] = useState<string>('');
@@ -73,7 +82,38 @@ const DriverCashBox: React.FC = () => {
   const [paidUntilDate, setPaidUntilDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [savingPayment, setSavingPayment] = useState(false);
   const [clientSearchTerm, setClientSearchTerm] = useState('');
-  const [showClientSuggestions, setShowClientSuggestions] = useState(false);
+  
+  // Cálculo de moedas
+  const totalCoins = useMemo(() => {
+    return (
+      coinCounts.cent1 * 0.01 +
+      coinCounts.cent2 * 0.02 +
+      coinCounts.cent5 * 0.05 +
+      coinCounts.cent10 * 0.10 +
+      coinCounts.cent20 * 0.20 +
+      coinCounts.cent50 * 0.50 +
+      coinCounts.euro1 * 1.00 +
+      coinCounts.euro2 * 2.00
+    );
+  }, [coinCounts]);
+  
+  // Cálculo de notas
+  const totalNotes = useMemo(() => {
+    return (
+      noteCounts.note5 * 5 +
+      noteCounts.note10 * 10 +
+      noteCounts.note20 * 20 +
+      noteCounts.note50 * 50 +
+      noteCounts.note100 * 100 +
+      noteCounts.note200 * 200 +
+      noteCounts.note500 * 500
+    );
+  }, [noteCounts]);
+  
+  // Total calculado de moedas + notas
+  const calculatedTotal = useMemo(() => {
+    return totalCoins + totalNotes;
+  }, [totalCoins, totalNotes]);  const [showClientSuggestions, setShowClientSuggestions] = useState(false);
 
   // Expandable route sections
   const [expandedRoutes, setExpandedRoutes] = useState<Set<string>>(new Set());
@@ -120,11 +160,27 @@ const DriverCashBox: React.FC = () => {
     if (dailyClosure) {
       setCountedAmount(dailyClosure.countedAmount.toString());
       setClosureObservations(dailyClosure.observations || '');
+      // Carregar contagem detalhada se existir
+      if (dailyClosure.coinDetails) {
+        setCoinCounts(dailyClosure.coinDetails as typeof coinCounts);
+      }
+      if (dailyClosure.noteDetails) {
+        setNoteCounts(dailyClosure.noteDetails as typeof noteCounts);
+      }
     } else {
       setCountedAmount('');
       setClosureObservations('');
+      setCoinCounts({ cent1: 0, cent2: 0, cent5: 0, cent10: 0, cent20: 0, cent50: 0, euro1: 0, euro2: 0 });
+      setNoteCounts({ note5: 0, note10: 0, note20: 0, note50: 0, note100: 0, note200: 0, note500: 0 });
     }
   }, [dailyClosure]);
+  
+  // Atualizar o valor total quando contagem detalhada muda
+  React.useEffect(() => {
+    if (showDetailedCount && calculatedTotal > 0) {
+      setCountedAmount(calculatedTotal.toFixed(2));
+    }
+  }, [calculatedTotal, showDetailedCount]);
 
   const handleSaveFund = async () => {
     const amount = parseFloat(fundAmount) || 0;
@@ -146,7 +202,7 @@ const DriverCashBox: React.FC = () => {
   };
 
   const handleSaveClosure = async () => {
-    const amount = parseFloat(countedAmount) || 0;
+    const amount = showDetailedCount ? calculatedTotal : (parseFloat(countedAmount) || 0);
     if (amount < 0) {
       alert('O valor não pode ser negativo');
       return;
@@ -154,7 +210,15 @@ const DriverCashBox: React.FC = () => {
     
     setSavingClosure(true);
     try {
-      await saveDailyDriverClosure(driverId, selectedDate, amount, closureObservations || undefined);
+      // Preparar dados detalhados se estiver usando contagem detalhada
+      const detailedCount = showDetailedCount ? {
+        totalCoins,
+        totalNotes,
+        coinDetails: coinCounts,
+        noteDetails: noteCounts
+      } : undefined;
+      
+      await saveDailyDriverClosure(driverId, selectedDate, amount, closureObservations || undefined, detailedCount);
       // Sucesso - não mostra alert
     } catch (error) {
       console.error('Erro ao salvar fecho:', error);
@@ -577,26 +641,152 @@ const DriverCashBox: React.FC = () => {
                 </div>
               )}
 
-              {/* Campo de Contagem */}
-              <div className="max-w-md">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Valor Contado no Caixa (€)
-                </label>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  pattern="[0-9]*[.,]?[0-9]*"
-                  value={countedAmount}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(',', '.');
-                    if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                      setCountedAmount(val);
-                    }
-                  }}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent text-lg"
-                  placeholder="0.00"
-                />
+              {/* Toggle para contagem detalhada */}
+              <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
+                <button
+                  onClick={() => setShowDetailedCount(!showDetailedCount)}
+                  className={`relative w-14 h-7 rounded-full transition-colors ${
+                    showDetailedCount ? 'bg-amber-500' : 'bg-gray-300'
+                  }`}
+                >
+                  <span className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                    showDetailedCount ? 'translate-x-7' : 'translate-x-0'
+                  }`} />
+                </button>
+                <div>
+                  <p className="font-medium text-gray-800">Contagem Detalhada</p>
+                  <p className="text-sm text-gray-500">Contar moedas e notas separadamente</p>
+                </div>
               </div>
+
+              {/* Contagem Detalhada de Moedas e Notas */}
+              {showDetailedCount ? (
+                <div className="space-y-6">
+                  {/* Moedas */}
+                  <div className="bg-gradient-to-br from-amber-50 to-yellow-50 p-5 rounded-2xl border border-amber-200">
+                    <h4 className="text-lg font-semibold text-amber-800 mb-4 flex items-center gap-2">
+                      <span className="text-2xl">🪙</span> Moedas
+                    </h4>
+                    <div className="grid grid-cols-4 gap-3">
+                      {[
+                        { key: 'cent1', label: '1c', value: 0.01 },
+                        { key: 'cent2', label: '2c', value: 0.02 },
+                        { key: 'cent5', label: '5c', value: 0.05 },
+                        { key: 'cent10', label: '10c', value: 0.10 },
+                        { key: 'cent20', label: '20c', value: 0.20 },
+                        { key: 'cent50', label: '50c', value: 0.50 },
+                        { key: 'euro1', label: '€1', value: 1.00 },
+                        { key: 'euro2', label: '€2', value: 2.00 },
+                      ].map(coin => (
+                        <div key={coin.key} className="bg-white rounded-xl p-3 shadow-sm border border-amber-100">
+                          <p className="text-xs text-gray-500 text-center mb-1">{coin.label}</p>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min="0"
+                            value={coinCounts[coin.key as keyof typeof coinCounts] || ''}
+                            onChange={(e) => setCoinCounts(prev => ({
+                              ...prev,
+                              [coin.key]: parseInt(e.target.value) || 0
+                            }))}
+                            className="w-full text-center text-lg font-bold border-0 bg-transparent focus:ring-0"
+                            placeholder="0"
+                          />
+                          <p className="text-xs text-amber-600 text-center">
+                            {formatCurrency((coinCounts[coin.key as keyof typeof coinCounts] || 0) * coin.value)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4 p-3 bg-amber-100 rounded-xl">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium text-amber-800">Total em Moedas:</span>
+                        <span className="text-xl font-bold text-amber-700">{formatCurrency(totalCoins)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Notas */}
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-5 rounded-2xl border border-green-200">
+                    <h4 className="text-lg font-semibold text-green-800 mb-4 flex items-center gap-2">
+                      <span className="text-2xl">💵</span> Notas
+                    </h4>
+                    <div className="grid grid-cols-4 gap-3">
+                      {[
+                        { key: 'note5', label: '€5', color: 'bg-gray-100' },
+                        { key: 'note10', label: '€10', color: 'bg-red-50' },
+                        { key: 'note20', label: '€20', color: 'bg-blue-50' },
+                        { key: 'note50', label: '€50', color: 'bg-orange-50' },
+                        { key: 'note100', label: '€100', color: 'bg-green-50' },
+                        { key: 'note200', label: '€200', color: 'bg-yellow-50' },
+                        { key: 'note500', label: '€500', color: 'bg-purple-50' },
+                      ].map(note => (
+                        <div key={note.key} className={`${note.color} rounded-xl p-3 shadow-sm border border-green-100`}>
+                          <p className="text-xs text-gray-600 text-center mb-1 font-medium">{note.label}</p>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min="0"
+                            value={noteCounts[note.key as keyof typeof noteCounts] || ''}
+                            onChange={(e) => setNoteCounts(prev => ({
+                              ...prev,
+                              [note.key]: parseInt(e.target.value) || 0
+                            }))}
+                            className="w-full text-center text-lg font-bold border-0 bg-transparent focus:ring-0"
+                            placeholder="0"
+                          />
+                          <p className="text-xs text-green-600 text-center">
+                            {formatCurrency((noteCounts[note.key as keyof typeof noteCounts] || 0) * parseInt(note.label.replace('€', '')))}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4 p-3 bg-green-100 rounded-xl">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium text-green-800">Total em Notas:</span>
+                        <span className="text-xl font-bold text-green-700">{formatCurrency(totalNotes)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Total Geral */}
+                  <div className="bg-gradient-to-r from-amber-500 to-amber-600 p-5 rounded-2xl text-white">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-amber-100 text-sm">Total Contado</p>
+                        <p className="text-xs text-amber-200 mt-1">Moedas + Notas</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-3xl font-bold">{formatCurrency(calculatedTotal)}</p>
+                        <p className="text-xs text-amber-200">
+                          {formatCurrency(totalCoins)} + {formatCurrency(totalNotes)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Campo de Contagem Simples */
+                <div className="max-w-md">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Valor Contado no Caixa (€)
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    pattern="[0-9]*[.,]?[0-9]*"
+                    value={countedAmount}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(',', '.');
+                      if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                        setCountedAmount(val);
+                      }
+                    }}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent text-lg"
+                    placeholder="0.00"
+                  />
+                </div>
+              )}
 
               {/* Resultado */}
               {countedAmount !== '' && parseFloat(countedAmount) > 0 && (
@@ -653,7 +843,7 @@ const DriverCashBox: React.FC = () => {
 
               <button
                 onClick={handleSaveClosure}
-                disabled={savingClosure || countedAmount <= 0}
+                disabled={savingClosure || parseFloat(countedAmount) <= 0}
                 className="w-full max-w-md py-3 bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {savingClosure ? (

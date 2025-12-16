@@ -432,6 +432,29 @@ export interface DailyDriverClosure {
   cashFundAmount: number; // Fundo de caixa inicial
   countedAmount: number; // Valor contado pelo entregador no final
   
+  // Detalhamento da contagem
+  totalCoins?: number; // Total em moedas
+  totalNotes?: number; // Total em notas
+  coinDetails?: { // Detalhamento das moedas
+    cent1?: number;   // 1 cêntimo
+    cent2?: number;   // 2 cêntimos
+    cent5?: number;   // 5 cêntimos
+    cent10?: number;  // 10 cêntimos
+    cent20?: number;  // 20 cêntimos
+    cent50?: number;  // 50 cêntimos
+    euro1?: number;   // 1 euro
+    euro2?: number;   // 2 euros
+  };
+  noteDetails?: { // Detalhamento das notas
+    note5?: number;   // 5 euros
+    note10?: number;  // 10 euros
+    note20?: number;  // 20 euros
+    note50?: number;  // 50 euros
+    note100?: number; // 100 euros
+    note200?: number; // 200 euros
+    note500?: number; // 500 euros
+  };
+  
   // Valores calculados automaticamente
   totalReceivedCash: number; // Total recebido em dinheiro no dia
   totalReceivedMbway: number; // Total recebido em MBWay

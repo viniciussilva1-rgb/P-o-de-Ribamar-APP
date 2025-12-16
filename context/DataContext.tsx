@@ -83,7 +83,7 @@ interface DataContextType {
   getClientPaymentSummaries: (driverId: string) => ClientPaymentSummary[];
   
   // Fecho Diário
-  saveDailyDriverClosure: (driverId: string, date: string, countedAmount: number, observations?: string) => Promise<void>;
+  saveDailyDriverClosure: (driverId: string, date: string, countedAmount: number, observations?: string, detailedCount?: { totalCoins: number; totalNotes: number; coinDetails: Record<string, number>; noteDetails: Record<string, number> }) => Promise<void>;
   getDailyDriverClosure: (driverId: string, date: string) => DailyDriverClosure | undefined;
   calculateDailyClosureData: (driverId: string, date: string) => Omit<DailyDriverClosure, 'id' | 'countedAmount' | 'difference' | 'status' | 'observations' | 'createdAt' | 'updatedAt'>;
   
@@ -2219,7 +2219,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   // Salvar Fecho Diário
-  const saveDailyDriverClosure = async (driverId: string, date: string, countedAmount: number, observations?: string): Promise<void> => {
+  const saveDailyDriverClosure = async (
+    driverId: string, 
+    date: string, 
+    countedAmount: number, 
+    observations?: string,
+    detailedCount?: { totalCoins: number; totalNotes: number; coinDetails: Record<string, number>; noteDetails: Record<string, number> }
+  ): Promise<void> => {
     const closureId = `closure-${driverId}-${date}`;
     const now = new Date().toISOString();
     
@@ -2250,6 +2256,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Só incluir observations se tiver valor
     if (observations && observations.trim()) {
       closureData.observations = observations;
+    }
+    
+    // Incluir contagem detalhada se fornecida
+    if (detailedCount) {
+      closureData.totalCoins = detailedCount.totalCoins;
+      closureData.totalNotes = detailedCount.totalNotes;
+      closureData.coinDetails = detailedCount.coinDetails;
+      closureData.noteDetails = detailedCount.noteDetails;
     }
     
     await setDoc(doc(db, 'daily_driver_closures', closureId), closureData);
@@ -2415,10 +2429,30 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   // Confirmar Fecho Semanal (Admin)
+  // settlementId pode ser: "settlement-{driverId}-{weekStartDate}" ou apenas o driverId
   const confirmWeeklySettlement = async (settlementId: string, adminId: string, observations?: string): Promise<void> => {
-    const parts = settlementId.split('-');
-    const driverId = parts[1];
-    const weekStartDate = parts.slice(2).join('-');
+    let driverId: string;
+    let weekStartDate: string;
+    
+    // Verificar formato do settlementId
+    if (settlementId.startsWith('settlement-')) {
+      const parts = settlementId.split('-');
+      driverId = parts[1];
+      // Verificar se o terceiro elemento é uma data válida ou timestamp
+      const potentialDate = parts.slice(2).join('-');
+      const parsedDate = new Date(potentialDate);
+      
+      if (isNaN(parsedDate.getTime()) || potentialDate.length > 10) {
+        // É um timestamp, não uma data - usar data de hoje
+        weekStartDate = new Date().toISOString().split('T')[0];
+      } else {
+        weekStartDate = potentialDate;
+      }
+    } else {
+      // settlementId é apenas o driverId
+      driverId = settlementId;
+      weekStartDate = new Date().toISOString().split('T')[0];
+    }
     
     // Verificar se já existe um fecho confirmado para esta semana
     const existingConfirmed = weeklySettlements.find(
@@ -2428,13 +2462,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const calculatedData = calculateWeeklySettlement(driverId, weekStartDate);
     const now = new Date().toISOString();
     
+    // Criar ID único usando timestamp
+    const uniqueSettlementId = `settlement-${driverId}-${weekStartDate}-${Date.now()}`;
+    
     if (existingConfirmed) {
       // Já existe um fecho confirmado - criar um NOVO fecho parcial
-      // Usa timestamp para garantir ID único
-      const newSettlementId = `settlement-${driverId}-${weekStartDate}-${Date.now()}`;
-      
       const newSettlement: WeeklyDriverSettlement = {
-        id: newSettlementId,
+        id: uniqueSettlementId,
         ...calculatedData,
         status: 'confirmed',
         confirmedAt: now,
@@ -2444,11 +2478,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         ...(observations && observations.trim() !== '' ? { observations } : {})
       };
       
-      await setDoc(doc(db, 'weekly_settlements', newSettlementId), newSettlement);
+      await setDoc(doc(db, 'weekly_settlements', uniqueSettlementId), newSettlement);
     } else {
-      // Primeiro fecho da semana - usar ID original
+      // Primeiro fecho da semana
       const newSettlement: WeeklyDriverSettlement = {
-        id: settlementId,
+        id: uniqueSettlementId,
         ...calculatedData,
         status: 'confirmed',
         confirmedAt: now,
@@ -2458,7 +2492,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         ...(observations && observations.trim() !== '' ? { observations } : {})
       };
       
-      await setDoc(doc(db, 'weekly_settlements', settlementId), newSettlement);
+      await setDoc(doc(db, 'weekly_settlements', uniqueSettlementId), newSettlement);
     }
   };
 
