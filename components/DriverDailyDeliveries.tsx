@@ -21,6 +21,126 @@ const getDayKey = (date: string): 'dom' | 'seg' | 'ter' | 'qua' | 'qui' | 'sex' 
   return mapKeys[new Date(date).getDay()];
 };
 
+// ========== TIPOS E FUNÇÕES DO CALENDÁRIO DE PAGAMENTOS ==========
+
+// Status possíveis de cada dia no calendário
+export type CalendarDayStatus = 
+  | 'paid'         // Verde: dia pago (data <= paidThrough)
+  | 'to_pay'       // Laranja: a pagar (data > paidThrough e <= hoje)
+  | 'no_bread'     // Vermelho: cliente não quis pão (marcado pelo entregador)
+  | 'no_delivery'  // Cinza: sem entrega (feriado, sem rota, etc.)
+  | 'future';      // Futuro: data > hoje
+
+export interface CalendarDayInfo {
+  date: string;           // YYYY-MM-DD
+  status: CalendarDayStatus;
+  hasDelivery: boolean;   // Se tem entrega programada para este dia
+  value?: number;         // Valor da entrega (se houver)
+}
+
+/**
+ * Computa o status de cada dia do calendário com base nas regras de negócio
+ * 
+ * @param visibleDays Array de datas visíveis no calendário (YYYY-MM-DD)
+ * @param paidThrough Data até onde está pago (YYYY-MM-DD) ou null
+ * @param todayStr Data de hoje (YYYY-MM-DD)
+ * @param deliveryDates Datas com entrega programada
+ * @param noBreadDates Datas marcadas como "cliente não quis pão"
+ * @returns Map de data -> CalendarDayInfo
+ */
+export const computeCalendarStatuses = (
+  visibleDays: string[],
+  paidThrough: string | null,
+  todayStr: string,
+  deliveryDates: string[],
+  noBreadDates: string[]
+): Map<string, CalendarDayInfo> => {
+  const result = new Map<string, CalendarDayInfo>();
+  
+  // Converter para comparação de datas sem horário
+  const todayDate = new Date(todayStr);
+  todayDate.setHours(0, 0, 0, 0);
+  
+  const paidThroughDate = paidThrough ? new Date(paidThrough) : null;
+  if (paidThroughDate) {
+    paidThroughDate.setHours(0, 0, 0, 0);
+  }
+  
+  const deliverySet = new Set(deliveryDates);
+  const noBreadSet = new Set(noBreadDates);
+  
+  for (const dateStr of visibleDays) {
+    const currentDate = new Date(dateStr);
+    currentDate.setHours(0, 0, 0, 0);
+    
+    const hasDelivery = deliverySet.has(dateStr);
+    const isNoBread = noBreadSet.has(dateStr);
+    const isFuture = currentDate > todayDate;
+    const isPaid = paidThroughDate && currentDate <= paidThroughDate;
+    
+    let status: CalendarDayStatus;
+    
+    if (isFuture) {
+      // Futuro: sem marcação de cobrança
+      status = 'future';
+    } else if (isNoBread) {
+      // Vermelho: cliente não quis pão (prioridade sobre pago/a pagar)
+      status = 'no_bread';
+    } else if (!hasDelivery) {
+      // Cinza: sem entrega (feriado, sem rota)
+      status = 'no_delivery';
+    } else if (isPaid) {
+      // Verde: pago (data <= paidThrough, inclusivo)
+      status = 'paid';
+    } else {
+      // Laranja: a pagar (data > paidThrough e <= hoje)
+      status = 'to_pay';
+    }
+    
+    result.set(dateStr, {
+      date: dateStr,
+      status,
+      hasDelivery
+    });
+  }
+  
+  return result;
+};
+
+/**
+ * Calcula o valor total do intervalo (lastPaidThrough, newPaidThrough]
+ * Ou seja, do dia APÓS o último pago até a nova data (inclusivo)
+ * 
+ * @param invoices Lista de faturas/entregas com data e valor
+ * @param lastPaidThrough Data até onde estava pago anteriormente (YYYY-MM-DD) ou null
+ * @param newPaidThrough Nova data "pago até" selecionada (YYYY-MM-DD)
+ * @returns Valor total do intervalo
+ */
+export const computeAmountForRange = (
+  invoices: { date: string; totalValue: number }[],
+  lastPaidThrough: string | null,
+  newPaidThrough: string
+): number => {
+  // Filtrar faturas no intervalo (lastPaidThrough, newPaidThrough]
+  // Ou seja: data > lastPaidThrough AND data <= newPaidThrough
+  const relevantInvoices = invoices.filter(invoice => {
+    const invoiceDate = invoice.date;
+    
+    // Se não tinha pago até nenhuma data, incluir todas até newPaidThrough
+    if (!lastPaidThrough) {
+      return invoiceDate <= newPaidThrough;
+    }
+    
+    // Intervalo: (lastPaidThrough, newPaidThrough]
+    // Estritamente MAIOR que lastPaidThrough (exclui o dia anterior)
+    // Menor ou IGUAL a newPaidThrough (inclui a nova data)
+    return invoiceDate > lastPaidThrough && invoiceDate <= newPaidThrough;
+  });
+  
+  // Somar valores
+  return relevantInvoices.reduce((sum, inv) => sum + inv.totalValue, 0);
+};
+
 const DriverDailyDeliveries: React.FC = () => {
   const { currentUser } = useAuth();
   const { 
@@ -114,9 +234,15 @@ const DriverDailyDeliveries: React.FC = () => {
     paidUntilDate: string | null;
     unpaidDates: string[];
     paidDates: string[];
+    skippedDates?: string[];
   } | null>(null);
   const [showCustomCalendar, setShowCustomCalendar] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
+
+  // Estados para atualização otimista do calendário
+  const [optimisticPaidUntil, setOptimisticPaidUntil] = useState<string | null>(null);
+  const [serverPaidUntil, setServerPaidUntil] = useState<string | null>(null);
+  const [clientConsumptionHistory, setClientConsumptionHistory] = useState<ClientConsumptionHistory | null>(null);
 
   // Estados para modal de consumo/faturas
   const [showConsumptionModal, setShowConsumptionModal] = useState(false);
@@ -308,14 +434,34 @@ const DriverDailyDeliveries: React.FC = () => {
     if (client) {
       const debt = calculateClientDebt(client);
       setClientDebt(debt.total);
-      setPaymentAmount(debt.total > 0 ? debt.total.toFixed(2) : '');
       
       // Carregar informações de pagamento
       const info = getClientPaymentInfo(clientId);
       setPaymentInfo(info);
       
-      // Se tem data paga até, usar como default, senão usar hoje
-      setPaidUntilDate(info.paidUntilDate || new Date().toISOString().split('T')[0]);
+      // Carregar histórico de consumo para cálculo de valores
+      const history = getClientConsumptionHistory(clientId);
+      setClientConsumptionHistory(history);
+      
+      // Configurar estados para atualização otimista
+      const confirmedPaidUntil = info.paidUntilDate || null;
+      setServerPaidUntil(confirmedPaidUntil);
+      setOptimisticPaidUntil(confirmedPaidUntil);
+      
+      // Data inicial do "pago até" é a data atual confirmada ou hoje
+      setPaidUntilDate(confirmedPaidUntil || new Date().toISOString().split('T')[0]);
+      
+      // Calcular valor inicial baseado no intervalo
+      // Se já tem paidUntil, calcular valor de hoje (se não estiver pago)
+      // Senão, usar dívida total
+      if (confirmedPaidUntil) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const invoices = history.allInvoices.map(inv => ({ date: inv.date, totalValue: inv.totalValue }));
+        const amountToPay = computeAmountForRange(invoices, confirmedPaidUntil, todayStr);
+        setPaymentAmount(amountToPay > 0 ? amountToPay.toFixed(2) : '');
+      } else {
+        setPaymentAmount(debt.total > 0 ? debt.total.toFixed(2) : '');
+      }
     }
     setPaymentClientId(clientId);
     setPaymentClientName(clientName);
@@ -323,6 +469,25 @@ const DriverDailyDeliveries: React.FC = () => {
     setShowCustomCalendar(false);
     setCalendarMonth(new Date());
     setShowPaymentModal(true);
+  };
+
+  // Handler para seleção otimista de data no calendário
+  const handleOptimisticDateSelect = (dateStr: string) => {
+    // Atualização otimista: atualiza imediatamente o UI
+    setOptimisticPaidUntil(dateStr);
+    setPaidUntilDate(dateStr);
+    
+    // Calcular novo valor baseado no intervalo (serverPaidUntil, dateStr]
+    if (clientConsumptionHistory) {
+      const invoices = clientConsumptionHistory.allInvoices.map(inv => ({ 
+        date: inv.date, 
+        totalValue: inv.totalValue 
+      }));
+      const newAmount = computeAmountForRange(invoices, serverPaidUntil, dateStr);
+      setPaymentAmount(newAmount > 0 ? newAmount.toFixed(2) : '0.00');
+    }
+    
+    setShowCustomCalendar(false);
   };
 
   // Registrar pagamento
@@ -335,17 +500,40 @@ const DriverDailyDeliveries: React.FC = () => {
       return;
     }
     
+    // Guardar estado para possível rollback
+    const previousPaidUntil = serverPaidUntil;
+    
     setSavingPayment(true);
     try {
       await registerDailyPayment(currentUser.id, paymentClientId, amount, paymentMethod, paidUntilDate);
+      
+      // Sucesso: limpar estados
       setShowPaymentModal(false);
       setPaymentClientId('');
       setPaymentClientName('');
       setPaymentAmount('');
       setClientDebt(0);
+      setOptimisticPaidUntil(null);
+      setServerPaidUntil(null);
+      setClientConsumptionHistory(null);
     } catch (err) {
       console.error('Erro ao registrar pagamento:', err);
       setError('Erro ao registrar pagamento');
+      
+      // Rollback: reverter para o último estado confirmado
+      setOptimisticPaidUntil(previousPaidUntil);
+      setPaidUntilDate(previousPaidUntil || new Date().toISOString().split('T')[0]);
+      
+      // Recalcular valor para o estado anterior
+      if (clientConsumptionHistory && previousPaidUntil) {
+        const invoices = clientConsumptionHistory.allInvoices.map(inv => ({ 
+          date: inv.date, 
+          totalValue: inv.totalValue 
+        }));
+        const todayStr = new Date().toISOString().split('T')[0];
+        const revertedAmount = computeAmountForRange(invoices, previousPaidUntil, todayStr);
+        setPaymentAmount(revertedAmount > 0 ? revertedAmount.toFixed(2) : '');
+      }
     } finally {
       setSavingPayment(false);
     }
@@ -1458,7 +1646,7 @@ const DriverDailyDeliveries: React.FC = () => {
                     <Calendar size={18} className="text-gray-400" />
                   </button>
                   
-                  {/* Calendário Personalizado */}
+                  {/* Calendário Personalizado com Atualização Otimista */}
                   {showCustomCalendar && paymentInfo && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 p-3">
                       {/* Header do calendário */}
@@ -1495,15 +1683,39 @@ const DriverDailyDeliveries: React.FC = () => {
                         ))}
                       </div>
                       
-                      {/* Dias do mês */}
+                      {/* Dias do mês com computeCalendarStatuses */}
                       <div className="grid grid-cols-7 gap-1">
                         {(() => {
                           const year = calendarMonth.getFullYear();
                           const month = calendarMonth.getMonth();
                           const firstDay = new Date(year, month, 1);
                           const lastDay = new Date(year, month + 1, 0);
-                          const today = new Date();
-                          today.setHours(0, 0, 0, 0);
+                          const todayStr = new Date().toISOString().split('T')[0];
+                          
+                          // Usar optimisticPaidUntil para atualização imediata
+                          const effectivePaidThrough = optimisticPaidUntil || paidUntilDate || null;
+                          
+                          // Gerar array de datas visíveis
+                          const visibleDays: string[] = [];
+                          for (let day = 1; day <= lastDay.getDate(); day++) {
+                            const dateObj = new Date(year, month, day);
+                            visibleDays.push(dateObj.toISOString().split('T')[0]);
+                          }
+                          
+                          // Datas com entrega programada (paidDates + unpaidDates)
+                          const deliveryDates = [...paymentInfo.paidDates, ...paymentInfo.unpaidDates];
+                          
+                          // Datas "não quis pão" (skippedDates)
+                          const noBreadDates = paymentInfo.skippedDates || [];
+                          
+                          // Computar status de cada dia
+                          const calendarStatuses = computeCalendarStatuses(
+                            visibleDays,
+                            effectivePaidThrough,
+                            todayStr,
+                            deliveryDates,
+                            noBreadDates
+                          );
                           
                           const days = [];
                           
@@ -1516,30 +1728,47 @@ const DriverDailyDeliveries: React.FC = () => {
                           for (let day = 1; day <= lastDay.getDate(); day++) {
                             const dateObj = new Date(year, month, day);
                             const dateStr = dateObj.toISOString().split('T')[0];
-                            const isFuture = dateObj > today;
-                            const isPaid = paymentInfo.paidDates.includes(dateStr);
-                            const isUnpaid = paymentInfo.unpaidDates.includes(dateStr);
-                            const isSkipped = paymentInfo.skippedDates?.includes(dateStr);
+                            const dayInfo = calendarStatuses.get(dateStr);
+                            const status = dayInfo?.status || 'no_delivery';
                             const isSelected = paidUntilDate === dateStr;
+                            const isFuture = status === 'future';
                             
+                            // Mapear status para classes CSS
+                            // Verde (paid): pago
+                            // Laranja (to_pay): a pagar
+                            // Vermelho (no_bread): não quis pão
+                            // Cinza (no_delivery/future): sem entrega ou futuro
                             let bgClass = 'bg-gray-50 hover:bg-gray-100';
                             let ringClass = '';
                             
                             if (isSelected) {
                               bgClass = 'bg-amber-500 text-white hover:bg-amber-600';
-                            } else if (isFuture) {
-                              bgClass = 'bg-gray-100 text-gray-400';
-                            } else if (isPaid) {
-                              // Dias pagos têm prioridade - mostrar em verde
-                              ringClass = 'ring-2 ring-green-500 ring-inset';
-                              bgClass = 'bg-green-50 hover:bg-green-100 text-green-700';
-                            } else if (isSkipped) {
-                              // Dias não entregues (skipped) - mostrar em amarelo/laranja
-                              ringClass = 'ring-2 ring-orange-400 ring-inset';
-                              bgClass = 'bg-orange-50 hover:bg-orange-100 text-orange-700';
-                            } else if (isUnpaid) {
-                              ringClass = 'ring-2 ring-red-500 ring-inset';
-                              bgClass = 'bg-red-50 hover:bg-red-100 text-red-700';
+                            } else {
+                              switch (status) {
+                                case 'paid':
+                                  // Verde: pago (data <= paidThrough)
+                                  ringClass = 'ring-2 ring-green-500 ring-inset';
+                                  bgClass = 'bg-green-50 hover:bg-green-100 text-green-700';
+                                  break;
+                                case 'to_pay':
+                                  // Laranja: a pagar (data > paidThrough e <= hoje)
+                                  ringClass = 'ring-2 ring-orange-400 ring-inset';
+                                  bgClass = 'bg-orange-50 hover:bg-orange-100 text-orange-700';
+                                  break;
+                                case 'no_bread':
+                                  // Vermelho: não quis pão
+                                  ringClass = 'ring-2 ring-red-500 ring-inset';
+                                  bgClass = 'bg-red-50 hover:bg-red-100 text-red-700';
+                                  break;
+                                case 'no_delivery':
+                                  // Cinza: sem entrega
+                                  bgClass = 'bg-gray-100 text-gray-500';
+                                  break;
+                                case 'future':
+                                  // Futuro: desabilitado
+                                  bgClass = 'bg-gray-100 text-gray-400';
+                                  break;
+                              }
                             }
                             
                             days.push(
@@ -1547,8 +1776,8 @@ const DriverDailyDeliveries: React.FC = () => {
                                 key={day}
                                 onClick={() => {
                                   if (!isFuture) {
-                                    setPaidUntilDate(dateStr);
-                                    setShowCustomCalendar(false);
+                                    // Atualização otimista: atualiza imediatamente
+                                    handleOptimisticDateSelect(dateStr);
                                   }
                                 }}
                                 disabled={isFuture}
@@ -1563,19 +1792,19 @@ const DriverDailyDeliveries: React.FC = () => {
                         })()}
                       </div>
                       
-                      {/* Legenda */}
+                      {/* Legenda atualizada */}
                       <div className="mt-3 pt-3 border-t border-gray-200 flex flex-wrap gap-3 text-xs">
                         <div className="flex items-center gap-1">
                           <div className="w-4 h-4 rounded-full ring-2 ring-green-500 ring-inset bg-green-50"></div>
                           <span className="text-gray-600">Pago</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <div className="w-4 h-4 rounded-full ring-2 ring-red-500 ring-inset bg-red-50"></div>
-                          <span className="text-gray-600">Por pagar</span>
+                          <div className="w-4 h-4 rounded-full ring-2 ring-orange-400 ring-inset bg-orange-50"></div>
+                          <span className="text-gray-600">A pagar</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <div className="w-4 h-4 rounded-full ring-2 ring-orange-400 ring-inset bg-orange-50"></div>
-                          <span className="text-gray-600">Não entregue</span>
+                          <div className="w-4 h-4 rounded-full ring-2 ring-red-500 ring-inset bg-red-50"></div>
+                          <span className="text-gray-600">Não quis pão</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <div className="w-4 h-4 rounded-full bg-gray-100"></div>
@@ -1615,6 +1844,9 @@ const DriverDailyDeliveries: React.FC = () => {
                   setPaymentAmount('');
                   setClientDebt(0);
                   setPaymentInfo(null);
+                  setOptimisticPaidUntil(null);
+                  setServerPaidUntil(null);
+                  setClientConsumptionHistory(null);
                 }}
                 className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
               >
