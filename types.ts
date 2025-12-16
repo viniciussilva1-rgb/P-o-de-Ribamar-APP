@@ -545,6 +545,40 @@ export interface WeeklyDriverSettlement {
     paymentDates: string[];
   }[];
   
+  // === NOVOS CAMPOS: Valor Entregue pelo Entregador ===
+  // Valor efetivamente entregue ao administrador
+  amountDelivered?: number;
+  
+  // Diferença entre o esperado e o entregue
+  settlementDifference?: number;
+  
+  // Detalhes da contagem de dinheiro entregue
+  deliveredCoins?: number; // Total em moedas
+  deliveredNotes?: number; // Total em notas
+  
+  // Detalhes por denominação de moedas
+  coinDetails?: {
+    cent1?: number;   // 1 cêntimo
+    cent2?: number;   // 2 cêntimos
+    cent5?: number;   // 5 cêntimos
+    cent10?: number;  // 10 cêntimos
+    cent20?: number;  // 20 cêntimos
+    cent50?: number;  // 50 cêntimos
+    euro1?: number;   // 1 euro
+    euro2?: number;   // 2 euros
+  };
+  
+  // Detalhes por denominação de notas
+  noteDetails?: {
+    note5?: number;   // 5 euros
+    note10?: number;  // 10 euros
+    note20?: number;  // 20 euros
+    note50?: number;  // 50 euros
+    note100?: number; // 100 euros
+    note200?: number; // 200 euros
+    note500?: number; // 500 euros
+  };
+  
   // Status
   status: 'pending' | 'confirmed';
   confirmedAt?: string;

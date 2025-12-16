@@ -89,8 +89,14 @@ interface DataContextType {
   
   // Fecho Semanal (Admin)
   getWeeklySettlement: (driverId: string, weekStartDate: string) => WeeklyDriverSettlement | undefined;
-  calculateWeeklySettlement: (driverId: string, weekStartDate: string) => Omit<WeeklyDriverSettlement, 'id' | 'status' | 'confirmedAt' | 'confirmedBy' | 'observations' | 'createdAt' | 'updatedAt'>;
-  confirmWeeklySettlement: (settlementId: string, adminId: string, observations?: string) => Promise<void>;
+  calculateWeeklySettlement: (driverId: string, weekStartDate: string) => Omit<WeeklyDriverSettlement, 'id' | 'status' | 'confirmedAt' | 'confirmedBy' | 'observations' | 'createdAt' | 'updatedAt' | 'amountDelivered' | 'settlementDifference' | 'deliveredCoins' | 'deliveredNotes' | 'coinDetails' | 'noteDetails'>;
+  confirmWeeklySettlement: (settlementId: string, adminId: string, observations?: string, deliveryData?: {
+    amountDelivered: number;
+    deliveredCoins?: number;
+    deliveredNotes?: number;
+    coinDetails?: Record<string, number>;
+    noteDetails?: Record<string, number>;
+  }) => Promise<void>;
   getAllPendingSettlements: () => WeeklyDriverSettlement[];
   getSettlementHistory: (driverId: string) => WeeklyDriverSettlement[];
   getLastConfirmedSettlement: (driverId: string) => WeeklyDriverSettlement | undefined;
@@ -2430,7 +2436,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Confirmar Fecho Semanal (Admin)
   // settlementId pode ser: "settlement-{driverId}-{weekStartDate}" ou apenas o driverId
-  const confirmWeeklySettlement = async (settlementId: string, adminId: string, observations?: string): Promise<void> => {
+  const confirmWeeklySettlement = async (
+    settlementId: string, 
+    adminId: string, 
+    observations?: string,
+    deliveryData?: {
+      amountDelivered: number;
+      deliveredCoins?: number;
+      deliveredNotes?: number;
+      coinDetails?: Record<string, number>;
+      noteDetails?: Record<string, number>;
+    }
+  ): Promise<void> => {
     let driverId: string;
     let weekStartDate: string;
     
@@ -2465,35 +2482,36 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Criar ID único usando timestamp
     const uniqueSettlementId = `settlement-${driverId}-${weekStartDate}-${Date.now()}`;
     
-    if (existingConfirmed) {
-      // Já existe um fecho confirmado - criar um NOVO fecho parcial
-      const newSettlement: WeeklyDriverSettlement = {
-        id: uniqueSettlementId,
-        ...calculatedData,
-        status: 'confirmed',
-        confirmedAt: now,
-        confirmedBy: adminId,
-        createdAt: now,
-        updatedAt: now,
-        ...(observations && observations.trim() !== '' ? { observations } : {})
-      };
-      
-      await setDoc(doc(db, 'weekly_settlements', uniqueSettlementId), newSettlement);
-    } else {
-      // Primeiro fecho da semana
-      const newSettlement: WeeklyDriverSettlement = {
-        id: uniqueSettlementId,
-        ...calculatedData,
-        status: 'confirmed',
-        confirmedAt: now,
-        confirmedBy: adminId,
-        createdAt: now,
-        updatedAt: now,
-        ...(observations && observations.trim() !== '' ? { observations } : {})
-      };
-      
-      await setDoc(doc(db, 'weekly_settlements', uniqueSettlementId), newSettlement);
+    // Calcular diferença se houver dados de entrega
+    let settlementDifference: number | undefined;
+    if (deliveryData?.amountDelivered !== undefined) {
+      // A diferença é baseada no valor em dinheiro (cashTotal), não no totalToSettle
+      settlementDifference = parseFloat((deliveryData.amountDelivered - calculatedData.cashTotal).toFixed(2));
     }
+    
+    // Preparar dados do fecho
+    const settlementData: WeeklyDriverSettlement = {
+      id: uniqueSettlementId,
+      ...calculatedData,
+      status: 'confirmed',
+      confirmedAt: now,
+      confirmedBy: adminId,
+      createdAt: now,
+      updatedAt: now,
+      // Adicionar dados de entrega se fornecidos
+      ...(deliveryData && {
+        amountDelivered: deliveryData.amountDelivered,
+        settlementDifference,
+        deliveredCoins: deliveryData.deliveredCoins,
+        deliveredNotes: deliveryData.deliveredNotes,
+        coinDetails: deliveryData.coinDetails,
+        noteDetails: deliveryData.noteDetails,
+      }),
+      // Adicionar observações se fornecidas
+      ...(observations && observations.trim() !== '' ? { observations } : {})
+    };
+    
+    await setDoc(doc(db, 'weekly_settlements', uniqueSettlementId), settlementData);
   };
 
   // Obter todos os fechos pendentes

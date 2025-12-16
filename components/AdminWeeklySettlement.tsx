@@ -13,6 +13,7 @@ import {
   ArrowRightLeft,
   MapPin,
   TrendingUp,
+  TrendingDown,
   FileText,
   ChevronDown,
   ChevronUp,
@@ -45,6 +46,65 @@ const AdminWeeklySettlement: React.FC = () => {
   const [selectedSettlement, setSelectedSettlement] = useState<WeeklyDriverSettlement | null>(null);
   const [settlementObservations, setSettlementObservations] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  // Estados para contagem detalhada do dinheiro entregue
+  const [deliveredAmount, setDeliveredAmount] = useState<string>('');
+  const [showDetailedCount, setShowDetailedCount] = useState(false);
+  const [coinCounts, setCoinCounts] = useState({
+    cent1: 0, cent2: 0, cent5: 0, cent10: 0, cent20: 0, cent50: 0, euro1: 0, euro2: 0
+  });
+  const [noteCounts, setNoteCounts] = useState({
+    note5: 0, note10: 0, note20: 0, note50: 0, note100: 0, note200: 0, note500: 0
+  });
+  
+  // Cálculo de moedas
+  const totalCoins = useMemo(() => {
+    return (
+      coinCounts.cent1 * 0.01 +
+      coinCounts.cent2 * 0.02 +
+      coinCounts.cent5 * 0.05 +
+      coinCounts.cent10 * 0.10 +
+      coinCounts.cent20 * 0.20 +
+      coinCounts.cent50 * 0.50 +
+      coinCounts.euro1 * 1.00 +
+      coinCounts.euro2 * 2.00
+    );
+  }, [coinCounts]);
+  
+  // Cálculo de notas
+  const totalNotes = useMemo(() => {
+    return (
+      noteCounts.note5 * 5 +
+      noteCounts.note10 * 10 +
+      noteCounts.note20 * 20 +
+      noteCounts.note50 * 50 +
+      noteCounts.note100 * 100 +
+      noteCounts.note200 * 200 +
+      noteCounts.note500 * 500
+    );
+  }, [noteCounts]);
+  
+  // Total calculado de moedas + notas
+  const calculatedTotal = useMemo(() => {
+    return totalCoins + totalNotes;
+  }, [totalCoins, totalNotes]);
+  
+  // Atualizar o valor total quando contagem detalhada muda
+  React.useEffect(() => {
+    if (showDetailedCount && calculatedTotal > 0) {
+      setDeliveredAmount(calculatedTotal.toFixed(2));
+    }
+  }, [calculatedTotal, showDetailedCount]);
+  
+  // Resetar estados quando fecha o formulário de confirmação
+  const resetConfirmationForm = () => {
+    setConfirmingSettlement(null);
+    setSettlementObservations('');
+    setDeliveredAmount('');
+    setShowDetailedCount(false);
+    setCoinCounts({ cent1: 0, cent2: 0, cent5: 0, cent10: 0, cent20: 0, cent50: 0, euro1: 0, euro2: 0 });
+    setNoteCounts({ note5: 0, note10: 0, note20: 0, note50: 0, note100: 0, note200: 0, note500: 0 });
+  };
 
   if (!currentUser) return null;
 
@@ -161,9 +221,16 @@ const AdminWeeklySettlement: React.FC = () => {
     });
   }, [driversSettlements]);
 
-  const handleConfirmSettlement = async (driverId: string) => {
+  const handleConfirmSettlement = async (driverId: string, expectedCash: number) => {
     if (!currentUser || !currentUser.id) {
       alert('Erro: Usuário não autenticado. Faça login novamente.');
+      return;
+    }
+
+    const amountDelivered = showDetailedCount ? calculatedTotal : (parseFloat(deliveredAmount) || 0);
+    
+    if (amountDelivered <= 0) {
+      alert('Por favor, informe o valor entregue pelo entregador.');
       return;
     }
 
@@ -171,11 +238,23 @@ const AdminWeeklySettlement: React.FC = () => {
     try {
       // Usar timestamp para criar ID único, permitindo múltiplos fechos
       const settlementId = `settlement-${driverId}-${Date.now()}`;
-      await confirmWeeklySettlement(settlementId, currentUser.id, settlementObservations || undefined);
-      setConfirmingSettlement(null);
-      setSettlementObservations('');
+      
+      // Preparar dados da entrega
+      const deliveryData = {
+        amountDelivered,
+        settlementDifference: amountDelivered - expectedCash,
+        ...(showDetailedCount && {
+          deliveredCoins: totalCoins,
+          deliveredNotes: totalNotes,
+          coinDetails: coinCounts,
+          noteDetails: noteCounts
+        })
+      };
+      
+      await confirmWeeklySettlement(settlementId, currentUser.id, settlementObservations || undefined, deliveryData);
+      resetConfirmationForm();
       alert('Fecho confirmado com sucesso! Os valores foram zerados.');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao confirmar fecho:', error);
       alert('Erro ao confirmar fecho: ' + (error.message || 'Erro desconhecido'));
     } finally {
@@ -517,28 +596,249 @@ const AdminWeeklySettlement: React.FC = () => {
                 {hasNewValues && (
                   <div className="pt-4 border-t border-gray-200">
                     {confirmingSettlement === driver.id ? (
-                      <div className="space-y-3">
-                        <textarea
-                          value={settlementObservations}
-                          onChange={(e) => setSettlementObservations(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
-                          rows={2}
-                          placeholder="Observações do fecho (opcional)..."
-                        />
+                      <div className="space-y-4 bg-amber-50 p-4 rounded-xl border border-amber-200">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-lg font-semibold text-amber-800 flex items-center gap-2">
+                            <Calculator size={20} />
+                            Confirmar Fecho - {driver.name}
+                          </h4>
+                          <button
+                            onClick={resetConfirmationForm}
+                            className="p-1 text-gray-400 hover:text-gray-600"
+                          >
+                            <X size={18} />
+                          </button>
+                        </div>
+                        
+                        {/* Valor Esperado */}
+                        <div className="p-4 bg-amber-100 border-2 border-amber-300 rounded-xl">
+                          <p className="text-sm text-amber-700 mb-1">Valor Esperado (Dinheiro)</p>
+                          <p className="text-2xl font-bold text-amber-800">{formatCurrency(calculated.cashTotal)}</p>
+                          <p className="text-xs text-amber-600 mt-1">
+                            Este é o valor em dinheiro que o entregador deve entregar
+                          </p>
+                        </div>
+
+                        {/* Toggle para contagem detalhada */}
+                        <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200">
+                          <button
+                            onClick={() => setShowDetailedCount(!showDetailedCount)}
+                            className={`relative w-14 h-7 rounded-full transition-colors ${
+                              showDetailedCount ? 'bg-amber-500' : 'bg-gray-300'
+                            }`}
+                          >
+                            <span className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                              showDetailedCount ? 'translate-x-7' : 'translate-x-0'
+                            }`} />
+                          </button>
+                          <div>
+                            <p className="font-medium text-gray-800">Contagem Detalhada</p>
+                            <p className="text-sm text-gray-500">Contar moedas e notas separadamente</p>
+                          </div>
+                        </div>
+
+                        {/* Contagem Detalhada de Moedas e Notas */}
+                        {showDetailedCount ? (
+                          <div className="space-y-4">
+                            {/* Moedas */}
+                            <div className="bg-gradient-to-br from-amber-50 to-yellow-50 p-4 rounded-xl border border-amber-200">
+                              <h5 className="text-md font-semibold text-amber-800 mb-3 flex items-center gap-2">
+                                <span className="text-xl">🪙</span> Moedas
+                              </h5>
+                              <div className="grid grid-cols-4 gap-2">
+                                {[
+                                  { key: 'cent1', label: '1c', value: 0.01 },
+                                  { key: 'cent2', label: '2c', value: 0.02 },
+                                  { key: 'cent5', label: '5c', value: 0.05 },
+                                  { key: 'cent10', label: '10c', value: 0.10 },
+                                  { key: 'cent20', label: '20c', value: 0.20 },
+                                  { key: 'cent50', label: '50c', value: 0.50 },
+                                  { key: 'euro1', label: '€1', value: 1.00 },
+                                  { key: 'euro2', label: '€2', value: 2.00 },
+                                ].map(coin => (
+                                  <div key={coin.key} className="bg-white rounded-lg p-2 shadow-sm border border-amber-100">
+                                    <p className="text-xs text-gray-500 text-center mb-1">{coin.label}</p>
+                                    <input
+                                      type="number"
+                                      inputMode="numeric"
+                                      min="0"
+                                      value={coinCounts[coin.key as keyof typeof coinCounts] || ''}
+                                      onChange={(e) => setCoinCounts(prev => ({
+                                        ...prev,
+                                        [coin.key]: parseInt(e.target.value) || 0
+                                      }))}
+                                      className="w-full text-center text-lg font-bold border-0 bg-transparent focus:ring-0"
+                                      placeholder="0"
+                                    />
+                                    <p className="text-xs text-amber-600 text-center">
+                                      {formatCurrency((coinCounts[coin.key as keyof typeof coinCounts] || 0) * coin.value)}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="mt-3 p-2 bg-amber-100 rounded-lg">
+                                <div className="flex justify-between items-center">
+                                  <span className="font-medium text-amber-800 text-sm">Total em Moedas:</span>
+                                  <span className="text-lg font-bold text-amber-700">{formatCurrency(totalCoins)}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Notas */}
+                            <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-xl border border-green-200">
+                              <h5 className="text-md font-semibold text-green-800 mb-3 flex items-center gap-2">
+                                <span className="text-xl">💵</span> Notas
+                              </h5>
+                              <div className="grid grid-cols-4 gap-2">
+                                {[
+                                  { key: 'note5', label: '€5', color: 'bg-gray-100' },
+                                  { key: 'note10', label: '€10', color: 'bg-red-50' },
+                                  { key: 'note20', label: '€20', color: 'bg-blue-50' },
+                                  { key: 'note50', label: '€50', color: 'bg-orange-50' },
+                                  { key: 'note100', label: '€100', color: 'bg-green-50' },
+                                  { key: 'note200', label: '€200', color: 'bg-yellow-50' },
+                                  { key: 'note500', label: '€500', color: 'bg-purple-50' },
+                                ].map(note => (
+                                  <div key={note.key} className={`${note.color} rounded-lg p-2 shadow-sm border border-green-100`}>
+                                    <p className="text-xs text-gray-600 text-center mb-1 font-medium">{note.label}</p>
+                                    <input
+                                      type="number"
+                                      inputMode="numeric"
+                                      min="0"
+                                      value={noteCounts[note.key as keyof typeof noteCounts] || ''}
+                                      onChange={(e) => setNoteCounts(prev => ({
+                                        ...prev,
+                                        [note.key]: parseInt(e.target.value) || 0
+                                      }))}
+                                      className="w-full text-center text-lg font-bold border-0 bg-transparent focus:ring-0"
+                                      placeholder="0"
+                                    />
+                                    <p className="text-xs text-green-600 text-center">
+                                      {formatCurrency((noteCounts[note.key as keyof typeof noteCounts] || 0) * parseInt(note.label.replace('€', '')))}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="mt-3 p-2 bg-green-100 rounded-lg">
+                                <div className="flex justify-between items-center">
+                                  <span className="font-medium text-green-800 text-sm">Total em Notas:</span>
+                                  <span className="text-lg font-bold text-green-700">{formatCurrency(totalNotes)}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Total Geral */}
+                            <div className="bg-gradient-to-r from-amber-500 to-amber-600 p-4 rounded-xl text-white">
+                              <div className="flex justify-between items-center">
+                                <div>
+                                  <p className="text-amber-100 text-sm">Total Entregue</p>
+                                  <p className="text-xs text-amber-200 mt-1">Moedas + Notas</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-2xl font-bold">{formatCurrency(calculatedTotal)}</p>
+                                  <p className="text-xs text-amber-200">
+                                    {formatCurrency(totalCoins)} + {formatCurrency(totalNotes)}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          /* Campo de Valor Simples */
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Valor Entregue pelo Entregador (€)
+                            </label>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              pattern="[0-9]*[.,]?[0-9]*"
+                              value={deliveredAmount}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(',', '.');
+                                if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                                  setDeliveredAmount(val);
+                                }
+                              }}
+                              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent text-lg"
+                              placeholder="0.00"
+                            />
+                          </div>
+                        )}
+
+                        {/* Resultado - Diferença */}
+                        {(() => {
+                          const amountDelivered = showDetailedCount ? calculatedTotal : (parseFloat(deliveredAmount) || 0);
+                          const difference = amountDelivered - calculated.cashTotal;
+                          
+                          if (amountDelivered > 0) {
+                            return (
+                              <div className={`p-4 rounded-xl border-2 ${
+                                Math.abs(difference) < 0.01 
+                                  ? 'bg-green-50 border-green-300' 
+                                  : difference > 0 
+                                    ? 'bg-blue-50 border-blue-300'
+                                    : 'bg-red-50 border-red-300'
+                              }`}>
+                                <div className="flex items-center gap-3">
+                                  {Math.abs(difference) < 0.01 ? (
+                                    <>
+                                      <CheckCircle size={28} className="text-green-600" />
+                                      <div>
+                                        <p className="text-lg font-bold text-green-700">Valor Correto! ✓</p>
+                                        <p className="text-sm text-green-600">O entregador entregou o valor exato</p>
+                                      </div>
+                                    </>
+                                  ) : difference > 0 ? (
+                                    <>
+                                      <TrendingUp size={28} className="text-blue-600" />
+                                      <div>
+                                        <p className="text-lg font-bold text-blue-700">Sobra: {formatCurrency(difference)}</p>
+                                        <p className="text-sm text-blue-600">Entregou mais do que o esperado</p>
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <AlertCircle size={28} className="text-red-600" />
+                                      <div>
+                                        <p className="text-lg font-bold text-red-700">Falta: {formatCurrency(Math.abs(difference))}</p>
+                                        <p className="text-sm text-red-600">Entregou menos do que o esperado</p>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+
+                        {/* Observações */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Observações (opcional)
+                          </label>
+                          <textarea
+                            value={settlementObservations}
+                            onChange={(e) => setSettlementObservations(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                            rows={2}
+                            placeholder="Observações do fecho (diferenças, justificativas, etc)..."
+                          />
+                        </div>
+
+                        {/* Botões */}
                         <div className="flex gap-2">
                           <button
-                            onClick={() => {
-                              setConfirmingSettlement(null);
-                              setSettlementObservations('');
-                            }}
-                            className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100"
+                            onClick={resetConfirmationForm}
+                            className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100"
                           >
                             Cancelar
                           </button>
                           <button
-                            onClick={() => handleConfirmSettlement(driver.id)}
-                            disabled={loading}
-                            className="flex-1 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                            onClick={() => handleConfirmSettlement(driver.id, calculated.cashTotal)}
+                            disabled={loading || (showDetailedCount ? calculatedTotal <= 0 : !deliveredAmount || parseFloat(deliveredAmount) <= 0)}
+                            className="flex-1 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
                           >
                             {loading ? (
                               <RefreshCw size={18} className="animate-spin" />
@@ -715,6 +1015,123 @@ const AdminWeeklySettlement: React.FC = () => {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Dados da Entrega (valores entregues pelo entregador) */}
+              {selectedSettlement.amountDelivered !== undefined && (
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-4 rounded-lg border border-amber-200">
+                  <h4 className="text-sm font-medium text-amber-800 mb-3 flex items-center gap-2">
+                    <Banknote size={16} />
+                    Dinheiro Entregue ao Admin
+                  </h4>
+                  
+                  <div className="grid grid-cols-2 gap-4 mb-3">
+                    <div className="bg-white p-3 rounded-lg">
+                      <p className="text-xs text-gray-500">Valor Esperado</p>
+                      <p className="text-lg font-bold text-amber-600">{formatCurrency(selectedSettlement.cashTotal)}</p>
+                    </div>
+                    <div className="bg-white p-3 rounded-lg">
+                      <p className="text-xs text-gray-500">Valor Entregue</p>
+                      <p className="text-lg font-bold text-green-600">{formatCurrency(selectedSettlement.amountDelivered)}</p>
+                    </div>
+                  </div>
+                  
+                  {/* Diferença */}
+                  {selectedSettlement.settlementDifference !== undefined && (
+                    <div className={`p-3 rounded-lg ${
+                      Math.abs(selectedSettlement.settlementDifference) < 0.01 
+                        ? 'bg-green-100 border border-green-300' 
+                        : selectedSettlement.settlementDifference > 0 
+                          ? 'bg-blue-100 border border-blue-300'
+                          : 'bg-red-100 border border-red-300'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-gray-700">Diferença:</span>
+                        <span className={`font-bold ${
+                          Math.abs(selectedSettlement.settlementDifference) < 0.01 
+                            ? 'text-green-700' 
+                            : selectedSettlement.settlementDifference > 0 
+                              ? 'text-blue-700'
+                              : 'text-red-700'
+                        }`}>
+                          {selectedSettlement.settlementDifference > 0 ? '+' : ''}
+                          {formatCurrency(selectedSettlement.settlementDifference)}
+                          {Math.abs(selectedSettlement.settlementDifference) < 0.01 && ' ✓'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Detalhes da contagem (moedas e notas) */}
+                  {(selectedSettlement.deliveredCoins !== undefined || selectedSettlement.deliveredNotes !== undefined) && (
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                      {selectedSettlement.deliveredCoins !== undefined && (
+                        <div className="bg-amber-100 p-2 rounded-lg">
+                          <p className="text-xs text-amber-700">Total em Moedas</p>
+                          <p className="font-bold text-amber-800">{formatCurrency(selectedSettlement.deliveredCoins)}</p>
+                        </div>
+                      )}
+                      {selectedSettlement.deliveredNotes !== undefined && (
+                        <div className="bg-green-100 p-2 rounded-lg">
+                          <p className="text-xs text-green-700">Total em Notas</p>
+                          <p className="font-bold text-green-800">{formatCurrency(selectedSettlement.deliveredNotes)}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Detalhes por denominação */}
+                  {selectedSettlement.coinDetails && Object.keys(selectedSettlement.coinDetails).some(k => (selectedSettlement.coinDetails as any)[k] > 0) && (
+                    <div className="mt-3">
+                      <p className="text-xs text-amber-700 mb-2">Contagem de Moedas:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { key: 'cent1', label: '1c' },
+                          { key: 'cent2', label: '2c' },
+                          { key: 'cent5', label: '5c' },
+                          { key: 'cent10', label: '10c' },
+                          { key: 'cent20', label: '20c' },
+                          { key: 'cent50', label: '50c' },
+                          { key: 'euro1', label: '€1' },
+                          { key: 'euro2', label: '€2' },
+                        ].map(coin => {
+                          const count = (selectedSettlement.coinDetails as any)?.[coin.key] || 0;
+                          if (count === 0) return null;
+                          return (
+                            <span key={coin.key} className="px-2 py-1 bg-amber-200 rounded text-xs font-medium text-amber-800">
+                              {count}x {coin.label}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedSettlement.noteDetails && Object.keys(selectedSettlement.noteDetails).some(k => (selectedSettlement.noteDetails as any)[k] > 0) && (
+                    <div className="mt-3">
+                      <p className="text-xs text-green-700 mb-2">Contagem de Notas:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { key: 'note5', label: '€5' },
+                          { key: 'note10', label: '€10' },
+                          { key: 'note20', label: '€20' },
+                          { key: 'note50', label: '€50' },
+                          { key: 'note100', label: '€100' },
+                          { key: 'note200', label: '€200' },
+                          { key: 'note500', label: '€500' },
+                        ].map(note => {
+                          const count = (selectedSettlement.noteDetails as any)?.[note.key] || 0;
+                          if (count === 0) return null;
+                          return (
+                            <span key={note.key} className="px-2 py-1 bg-green-200 rounded text-xs font-medium text-green-800">
+                              {count}x {note.label}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
