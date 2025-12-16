@@ -2498,18 +2498,31 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       confirmedBy: adminId,
       createdAt: now,
       updatedAt: now,
-      // Adicionar dados de entrega se fornecidos
-      ...(deliveryData && {
-        amountDelivered: deliveryData.amountDelivered,
-        settlementDifference,
-        deliveredCoins: deliveryData.deliveredCoins,
-        deliveredNotes: deliveryData.deliveredNotes,
-        coinDetails: deliveryData.coinDetails,
-        noteDetails: deliveryData.noteDetails,
-      }),
       // Adicionar observações se fornecidas
       ...(observations && observations.trim() !== '' ? { observations } : {})
     };
+    
+    // Adicionar dados de entrega apenas se fornecidos e válidos (evitar undefined)
+    if (deliveryData) {
+      if (deliveryData.amountDelivered !== undefined) {
+        settlementData.amountDelivered = deliveryData.amountDelivered;
+      }
+      if (settlementDifference !== undefined) {
+        settlementData.settlementDifference = settlementDifference;
+      }
+      if (deliveryData.deliveredCoins !== undefined && deliveryData.deliveredCoins > 0) {
+        settlementData.deliveredCoins = deliveryData.deliveredCoins;
+      }
+      if (deliveryData.deliveredNotes !== undefined && deliveryData.deliveredNotes > 0) {
+        settlementData.deliveredNotes = deliveryData.deliveredNotes;
+      }
+      if (deliveryData.coinDetails && Object.values(deliveryData.coinDetails).some(v => v > 0)) {
+        settlementData.coinDetails = deliveryData.coinDetails;
+      }
+      if (deliveryData.noteDetails && Object.values(deliveryData.noteDetails).some(v => v > 0)) {
+        settlementData.noteDetails = deliveryData.noteDetails;
+      }
+    }
     
     await setDoc(doc(db, 'weekly_settlements', uniqueSettlementId), settlementData);
   };
