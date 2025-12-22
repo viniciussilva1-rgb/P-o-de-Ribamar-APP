@@ -740,6 +740,30 @@ const DriverDailyDeliveries: React.FC = () => {
     }
   };
 
+  // Badge de status de PAGAMENTO (separado do status de entrega)
+  // Mostra se a entrega está paga ou a pagar
+  const getPaymentStatusBadge = (clientId: string, deliveryDate: string, deliveryStatus: DeliveryStatus) => {
+    // Só mostrar badge de pagamento para entregas que foram concluídas (delivered)
+    if (deliveryStatus !== 'delivered') return null;
+    
+    const paymentInfo = getClientPaymentInfo(clientId);
+    const isPaid = paymentInfo.paidDates.includes(deliveryDate);
+    
+    if (isPaid) {
+      return (
+        <span className="flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium" title="Pagamento confirmado">
+          € Pago
+        </span>
+      );
+    } else {
+      return (
+        <span className="flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium" title="Aguardando pagamento">
+          € A pagar
+        </span>
+      );
+    }
+  };
+
   // Filtrar entregas por status E por rota
   const filteredDeliveries = deliveries.filter(d => {
     const matchesStatus = statusFilter === 'all' || d.status === statusFilter;
@@ -1169,7 +1193,7 @@ const DriverDailyDeliveries: React.FC = () => {
                     <div key={delivery.id} className={`p-4 ${isClientDynamic(delivery.clientId) ? 'border-l-4 border-purple-400' : ''}`}>
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <User size={16} className="text-gray-400" />
                             <span className="font-medium text-gray-800">{delivery.clientName}</span>
                             {isClientDynamic(delivery.clientId) && (
@@ -1179,6 +1203,7 @@ const DriverDailyDeliveries: React.FC = () => {
                               </span>
                             )}
                             {getStatusBadge(delivery.status)}
+                            {getPaymentStatusBadge(delivery.clientId, selectedDate, delivery.status)}
                           </div>
                           <div className="flex items-center gap-4 text-sm text-gray-500">
                             <span className="flex items-center gap-1">
