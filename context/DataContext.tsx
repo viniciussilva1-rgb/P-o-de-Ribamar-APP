@@ -643,9 +643,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         d.date <= today.toISOString().split('T')[0]
       );
       
-      // Separar por status
+      // IMPORTANTE: Só considerar entregas que foram realmente entregues (status 'delivered')
+      // Entregas não entregues vão para skippedDates, não para paidDates
       const deliveredDates = allClientDeliveries.filter(d => d.status === 'delivered');
-      const notDeliveredDates = allClientDeliveries.filter(d => d.status === 'not_delivered');
       
       // Entregas realizadas vão para paidDates ou unpaidDates
       deliveredDates.forEach(delivery => {
@@ -657,7 +657,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
       
       // Entregas não realizadas vão para skippedDates (será retornado depois)
-      // Mas não adicionar aqui, pois já está no client.skippedDates
+      // Não adicionar a paidDates nem unpaidDates
     } else {
       // Para clientes normais, usar o schedule
       // Primeiro, buscar todas as entregas confirmadas deste cliente
@@ -665,6 +665,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         d.clientId === clientId && d.status === 'delivered'
       );
       const deliveredDatesSet = new Set(deliveredEntriesForClient.map(d => d.date));
+      
+      // Buscar entregas não entregues
+      const notDeliveredEntriesForClient = clientDeliveries.filter(d => 
+        d.clientId === clientId && d.status === 'not_delivered'
+      );
+      const notDeliveredDatesSet = new Set(notDeliveredEntriesForClient.map(d => d.date));
       
       while (currentDate <= today) {
         const dateStr = currentDate.toISOString().split('T')[0];
@@ -677,18 +683,28 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         
         // Se tem entrega programada para este dia
         if (scheduledItems && scheduledItems.length > 0) {
+          // Verificar se foi pulado/não entregue (skippedDates ou status 'not_delivered')
+          const isSkipped = client.skippedDates?.includes(dateStr) || notDeliveredDatesSet.has(dateStr);
+          
           // Verificar se a entrega foi realmente realizada (status 'delivered')
           const wasDelivered = deliveredDatesSet.has(dateStr);
           
-          // Verificar se foi pulado (não entregue) - MAS só se não foi entregue depois
-          if (client.skippedDates?.includes(dateStr) && !wasDelivered) {
-            // Dia pulado e não foi entregue - não conta
+          // Se foi pulado/não entregue E não foi entregue depois, é skipped (não conta como pago nem em aberto)
+          if (isSkipped && !wasDelivered) {
+            // Dia pulado/não entregue - NÃO adicionar a paidDates nem unpaidDates
+            // Vai aparecer como skippedDates (cinza)
           } else if (isDateInVacation(dateStr, client.vacationPeriods)) {
             // Dia de férias - não conta
           } else {
-            // Verificar se está pago
+            // Dia normal com entrega programada
+            // Só marcar como pago se foi realmente entregue OU se é um dia futuro/sem registro de entrega
+            // Para dias passados com paidUntilDate, verificar se houve entrega real
             if (paidUntilDate && dateStr <= paidUntilDate) {
-              paidDates.push(dateStr);
+              // Se temos registro de entrega, usar ele; senão, assumir que foi entregue (compatibilidade)
+              if (wasDelivered || !notDeliveredDatesSet.has(dateStr)) {
+                paidDates.push(dateStr);
+              }
+              // Se foi marcado como não entregue, não adicionar a paidDates (vai para skipped)
             } else {
               unpaidDates.push(dateStr);
             }
@@ -701,7 +717,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Filtrar skippedDates para o período relevante (60 dias)
     // Para clientes dinâmicos: usar entregas com status 'not_delivered'
-    // Para clientes normais: usar client.skippedDates MAS verificar se não foi entregue depois
+    // Para clientes normais: combinar client.skippedDates + entregas 'not_delivered'
     let relevantSkippedDates: string[] = [];
     
     if (client.isDynamicChoice) {
@@ -714,15 +730,27 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       );
       relevantSkippedDates = notDeliveredEntries.map(d => d.date);
     } else {
-      // Para normais, usar skippedDates do cliente
-      // MAS excluir datas onde a entrega foi confirmada (status 'delivered')
+      // Para normais, combinar:
+      // 1. skippedDates do cliente
+      // 2. entregas com status 'not_delivered'
+      // MAS excluir datas onde a entrega foi confirmada depois (status 'delivered')
       const deliveredDatesForClient = clientDeliveries
         .filter(d => d.clientId === clientId && d.status === 'delivered')
         .map(d => d.date);
       
-      relevantSkippedDates = (client.skippedDates || []).filter(dateStr => {
+      const notDeliveredDatesForClient = clientDeliveries
+        .filter(d => d.clientId === clientId && d.status === 'not_delivered')
+        .map(d => d.date);
+      
+      // Combinar skippedDates + not_delivered, removendo duplicados
+      const allSkippedDates = new Set([
+        ...(client.skippedDates || []),
+        ...notDeliveredDatesForClient
+      ]);
+      
+      relevantSkippedDates = Array.from(allSkippedDates).filter(dateStr => {
         const date = new Date(dateStr);
-        // Deve estar no período E não ter sido entregue
+        // Deve estar no período E não ter sido entregue depois
         return date >= startDate && date <= today && !deliveredDatesForClient.includes(dateStr);
       });
     }
