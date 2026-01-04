@@ -22,7 +22,9 @@ import {
   Check,
   X,
   History,
-  Eye
+  Eye,
+  Trash2,
+  Loader2
 } from 'lucide-react';
 
 const AdminWeeklySettlement: React.FC = () => {
@@ -32,6 +34,7 @@ const AdminWeeklySettlement: React.FC = () => {
     calculateWeeklySettlement,
     getWeeklySettlement,
     confirmWeeklySettlement,
+    cancelWeeklySettlement,
     getSettlementHistory,
     getLastConfirmedSettlement,
     routes
@@ -46,6 +49,7 @@ const AdminWeeklySettlement: React.FC = () => {
   const [selectedSettlement, setSelectedSettlement] = useState<WeeklyDriverSettlement | null>(null);
   const [settlementObservations, setSettlementObservations] = useState('');
   const [loading, setLoading] = useState(false);
+  const [cancellingSettlementId, setCancellingSettlementId] = useState<string | null>(null);
   
   // Estados para contagem detalhada do dinheiro entregue
   const [deliveredAmount, setDeliveredAmount] = useState<string>('');
@@ -262,6 +266,27 @@ const AdminWeeklySettlement: React.FC = () => {
     }
   };
 
+  // Cancelar/Eliminar um fecho do histórico
+  const handleCancelSettlement = async (settlementId: string, amount: number) => {
+    if (!window.confirm(`Tem certeza que deseja cancelar este fecho de ${formatCurrency(amount)}?\n\nEsta ação não pode ser desfeita e os valores voltarão a aparecer no próximo fecho.`)) {
+      return;
+    }
+    
+    setCancellingSettlementId(settlementId);
+    try {
+      await cancelWeeklySettlement(settlementId);
+      // Se o settlement que está sendo visualizado foi cancelado, fechar o modal
+      if (selectedSettlement?.id === settlementId) {
+        setSelectedSettlement(null);
+      }
+    } catch (error: any) {
+      console.error('Erro ao cancelar fecho:', error);
+      alert('Erro ao cancelar fecho: ' + (error.message || 'Erro desconhecido'));
+    } finally {
+      setCancellingSettlementId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -457,6 +482,9 @@ const AdminWeeklySettlement: React.FC = () => {
                   <History size={16} />
                   Histórico de Fechos
                 </h4>
+                <p className="text-xs text-gray-500 mb-2">
+                  💡 Clique no ícone de lixeira para cancelar um fecho feito por engano
+                </p>
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {history.map((settlement, index) => (
                     <div 
@@ -464,7 +492,7 @@ const AdminWeeklySettlement: React.FC = () => {
                       className="bg-white p-3 rounded-lg border border-blue-200"
                     >
                       <div className="flex items-center justify-between">
-                        <div>
+                        <div className="flex-1">
                           <p className="text-sm font-medium text-gray-800">
                             {formatDateTime(settlement.confirmedAt || settlement.createdAt || '')}
                           </p>
@@ -472,11 +500,28 @@ const AdminWeeklySettlement: React.FC = () => {
                             <p className="text-xs text-gray-500 italic mt-1">"{settlement.observations}"</p>
                           )}
                         </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-green-600">{formatCurrency(settlement.totalReceived)}</p>
-                          <p className="text-xs text-gray-500">
-                            {formatCurrency(settlement.cashTotal)} em dinheiro
-                          </p>
+                        <div className="text-right flex items-center gap-3">
+                          <div>
+                            <p className="font-semibold text-green-600">{formatCurrency(settlement.totalReceived)}</p>
+                            <p className="text-xs text-gray-500">
+                              {formatCurrency(settlement.cashTotal)} em dinheiro
+                            </p>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCancelSettlement(settlement.id, settlement.totalReceived);
+                            }}
+                            disabled={cancellingSettlementId === settlement.id}
+                            className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors disabled:opacity-50"
+                            title="Cancelar este fecho"
+                          >
+                            {cancellingSettlementId === settlement.id ? (
+                              <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                              <Trash2 size={16} />
+                            )}
+                          </button>
                         </div>
                       </div>
                       <button
@@ -1188,12 +1233,31 @@ const AdminWeeklySettlement: React.FC = () => {
 
             {/* Footer do Modal */}
             <div className="p-4 border-t border-gray-200 bg-gray-50">
-              <button
-                onClick={() => setSelectedSettlement(null)}
-                className="w-full py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-              >
-                Fechar
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleCancelSettlement(selectedSettlement.id, selectedSettlement.totalReceived)}
+                  disabled={cancellingSettlementId === selectedSettlement.id}
+                  className="flex-1 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {cancellingSettlementId === selectedSettlement.id ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Cancelando...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 size={16} />
+                      Cancelar Fecho
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setSelectedSettlement(null)}
+                  className="flex-1 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                  Fechar
+                </button>
+              </div>
             </div>
           </div>
         </div>

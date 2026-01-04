@@ -99,6 +99,7 @@ interface DataContextType {
     coinDetails?: Record<string, number>;
     noteDetails?: Record<string, number>;
   }) => Promise<void>;
+  cancelWeeklySettlement: (settlementId: string) => Promise<void>;
   getAllPendingSettlements: () => WeeklyDriverSettlement[];
   getSettlementHistory: (driverId: string) => WeeklyDriverSettlement[];
   getLastConfirmedSettlement: (driverId: string) => WeeklyDriverSettlement | undefined;
@@ -2597,6 +2598,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     await setDoc(doc(db, 'weekly_settlements', uniqueSettlementId), settlementData);
   };
 
+  // Cancelar/Eliminar um fecho semanal
+  const cancelWeeklySettlement = async (settlementId: string): Promise<void> => {
+    await deleteDoc(doc(db, 'weekly_settlements', settlementId));
+  };
+
   // Obter todos os fechos pendentes
   const getAllPendingSettlements = (): WeeklyDriverSettlement[] => {
     return weeklySettlements.filter(s => s.status === 'pending');
@@ -2631,7 +2637,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       recordDynamicDelivery, getDynamicClientHistory, getDynamicClientPrediction, getDynamicLoadSummary, getDynamicClientsForDriver,
       saveDailyCashFund, getDailyCashFund, registerDailyPayment, cancelDailyPayment, getDailyPaymentsByDriver, getPaymentsByClient, getClientPaymentSummaries,
       saveDailyDriverClosure, getDailyDriverClosure, calculateDailyClosureData,
-      getWeeklySettlement, calculateWeeklySettlement, confirmWeeklySettlement, getAllPendingSettlements, getSettlementHistory, getLastConfirmedSettlement
+      getWeeklySettlement, calculateWeeklySettlement, confirmWeeklySettlement, cancelWeeklySettlement, getAllPendingSettlements, getSettlementHistory, getLastConfirmedSettlement
     }}>
       {children}
     </DataContext.Provider>
