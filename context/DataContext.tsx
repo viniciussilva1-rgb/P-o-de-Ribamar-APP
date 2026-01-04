@@ -81,6 +81,7 @@ interface DataContextType {
   registerDailyPayment: (driverId: string, clientId: string, amount: number, method: string, paidUntil?: string) => Promise<void>;
   cancelDailyPayment: (paymentId: string, clientId: string) => Promise<void>;
   getDailyPaymentsByDriver: (driverId: string, date: string) => DailyPaymentReceived[];
+  getPaymentsByClient: (clientId: string) => DailyPaymentReceived[];
   getClientPaymentSummaries: (driverId: string) => ClientPaymentSummary[];
   
   // Fecho Diário
@@ -2204,6 +2205,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return dailyPaymentsReceived.filter(p => p.driverId === driverId && p.date === date);
   };
 
+  // Obter todos os pagamentos de um cliente
+  const getPaymentsByClient = (clientId: string): DailyPaymentReceived[] => {
+    return dailyPaymentsReceived
+      .filter(p => p.clientId === clientId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt)); // Mais recentes primeiro
+  };
+
   // Obter resumo de pagamentos de todos os clientes de um entregador
   const getClientPaymentSummaries = (driverId: string): ClientPaymentSummary[] => {
     const driverClients = clients.filter(c => c.driverId === driverId && c.status === 'ACTIVE');
@@ -2621,7 +2629,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       createDailyLoad, updateDailyLoad, completeDailyLoad, getDailyLoadByDriver, getDailyLoadsByDate, getDailyLoadReport, getProductionSuggestions,
       generateDailyDeliveries, updateDeliveryStatus, updateDynamicDeliveryItems, addExtraToDelivery, removeExtraFromDelivery, substituteProductInDelivery, revertSubstituteInDelivery, adjustQuantityInDelivery, getDeliveriesByDriver, getDriverDailySummary, getAdminDeliveryReport, getScheduledClientsForDay,
       recordDynamicDelivery, getDynamicClientHistory, getDynamicClientPrediction, getDynamicLoadSummary, getDynamicClientsForDriver,
-      saveDailyCashFund, getDailyCashFund, registerDailyPayment, cancelDailyPayment, getDailyPaymentsByDriver, getClientPaymentSummaries,
+      saveDailyCashFund, getDailyCashFund, registerDailyPayment, cancelDailyPayment, getDailyPaymentsByDriver, getPaymentsByClient, getClientPaymentSummaries,
       saveDailyDriverClosure, getDailyDriverClosure, calculateDailyClosureData,
       getWeeklySettlement, calculateWeeklySettlement, confirmWeeklySettlement, getAllPendingSettlements, getSettlementHistory, getLastConfirmedSettlement
     }}>

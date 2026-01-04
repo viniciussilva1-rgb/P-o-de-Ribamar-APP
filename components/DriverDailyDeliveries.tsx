@@ -165,6 +165,7 @@ const DriverDailyDeliveries: React.FC = () => {
     registerDailyPayment,
     cancelDailyPayment,
     getDailyPaymentsByDriver,
+    getPaymentsByClient,
     calculateClientDebt,
     getClientPaymentInfo,
     getClientConsumptionHistory,
@@ -250,6 +251,7 @@ const DriverDailyDeliveries: React.FC = () => {
   // Estados para modal de consumo/faturas
   const [showConsumptionModal, setShowConsumptionModal] = useState(false);
   const [consumptionData, setConsumptionData] = useState<ClientConsumptionHistory | null>(null);
+  const [cancellingPaymentId, setCancellingPaymentId] = useState<string | null>(null);
 
   // Clientes dinâmicos
   const dynamicClients = currentUser?.id ? getDynamicClientsForDriver(currentUser.id) : [];
@@ -360,6 +362,26 @@ const DriverDailyDeliveries: React.FC = () => {
       setError('Erro ao cancelar pagamento.');
     } finally {
       setProcessingId(null);
+    }
+  };
+
+  // Cancelar pagamento do histórico (no modal de consumo)
+  const handleCancelPaymentFromHistory = async (paymentId: string, clientId: string, amount: number) => {
+    if (!window.confirm(`Tem certeza que deseja cancelar o pagamento de €${amount.toFixed(2)}?\n\nEsta ação não pode ser desfeita.`)) {
+      return;
+    }
+    
+    setCancellingPaymentId(paymentId);
+    try {
+      await cancelDailyPayment(paymentId, clientId);
+      // Atualizar os dados do consumo após cancelar
+      const updatedHistory = getClientConsumptionHistory(clientId);
+      setConsumptionData(updatedHistory);
+    } catch (err) {
+      console.error('Erro ao cancelar pagamento:', err);
+      setError('Erro ao cancelar pagamento.');
+    } finally {
+      setCancellingPaymentId(null);
     }
   };
 
@@ -2586,27 +2608,78 @@ const DriverDailyDeliveries: React.FC = () => {
               )}
 
               {/* Histórico de Pagamentos */}
-              {consumptionData.paymentHistory.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-bold text-green-700 mb-3 flex items-center gap-2">
-                    <CheckCircle size={20} />
-                    Histórico de Pagamentos ({consumptionData.paymentHistory.length})
-                  </h3>
-                  <div className="bg-green-50 border border-green-200 rounded-xl divide-y divide-green-200">
-                    {consumptionData.paymentHistory.slice().reverse().map((payment, idx) => (
-                      <div key={idx} className="flex justify-between items-center p-3">
-                        <div>
-                          <span className="font-medium text-green-800">
-                            {new Date(payment.date).toLocaleDateString('pt-PT')}
-                          </span>
-                          <span className="text-xs text-green-600 ml-2">({payment.method})</span>
+              {(() => {
+                const clientPayments = getPaymentsByClient(consumptionData.clientId);
+                return clientPayments.length > 0 ? (
+                  <div>
+                    <h3 className="text-lg font-bold text-green-700 mb-3 flex items-center gap-2">
+                      <CheckCircle size={20} />
+                      Histórico de Pagamentos ({clientPayments.length})
+                    </h3>
+                    <p className="text-xs text-gray-500 mb-2">
+                      💡 Clique no X para cancelar um pagamento registrado por engano
+                    </p>
+                    <div className="bg-green-50 border border-green-200 rounded-xl divide-y divide-green-200">
+                      {clientPayments.map((payment) => (
+                        <div key={payment.id} className="flex justify-between items-center p-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-green-800">
+                                {new Date(payment.date).toLocaleDateString('pt-PT')}
+                              </span>
+                              <span className="text-xs text-green-600">({payment.method})</span>
+                              {payment.paidUntil && payment.paidUntil !== payment.date && (
+                                <span className="text-xs bg-green-200 text-green-700 px-2 py-0.5 rounded-full">
+                                  Pago até {new Date(payment.paidUntil).toLocaleDateString('pt-PT')}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs text-gray-500">
+                              Registrado às {new Date(payment.createdAt).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-green-700">€ {payment.amount.toFixed(2)}</span>
+                            <button
+                              onClick={() => handleCancelPaymentFromHistory(payment.id, consumptionData.clientId, payment.amount)}
+                              disabled={cancellingPaymentId === payment.id}
+                              className="p-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors disabled:opacity-50"
+                              title="Cancelar este pagamento"
+                            >
+                              {cancellingPaymentId === payment.id ? (
+                                <Loader2 size={16} className="animate-spin" />
+                              ) : (
+                                <X size={16} />
+                              )}
+                            </button>
+                          </div>
                         </div>
-                        <span className="font-bold text-green-700">€ {payment.amount.toFixed(2)}</span>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                ) : consumptionData.paymentHistory.length > 0 ? (
+                  // Fallback para histórico antigo (sem ID) - apenas visualização
+                  <div>
+                    <h3 className="text-lg font-bold text-green-700 mb-3 flex items-center gap-2">
+                      <CheckCircle size={20} />
+                      Histórico de Pagamentos ({consumptionData.paymentHistory.length})
+                    </h3>
+                    <div className="bg-green-50 border border-green-200 rounded-xl divide-y divide-green-200">
+                      {consumptionData.paymentHistory.slice().reverse().map((payment, idx) => (
+                        <div key={idx} className="flex justify-between items-center p-3">
+                          <div>
+                            <span className="font-medium text-green-800">
+                              {new Date(payment.date).toLocaleDateString('pt-PT')}
+                            </span>
+                            <span className="text-xs text-green-600 ml-2">({payment.method})</span>
+                          </div>
+                          <span className="font-bold text-green-700">€ {payment.amount.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null;
+              })()}
 
               {/* Faturas Pagas */}
               {consumptionData.paidInvoices.length > 0 && (
