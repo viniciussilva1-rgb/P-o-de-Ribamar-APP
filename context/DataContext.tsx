@@ -79,6 +79,7 @@ interface DataContextType {
   
   // Pagamentos Recebidos
   registerDailyPayment: (driverId: string, clientId: string, amount: number, method: string, paidUntil?: string) => Promise<void>;
+  cancelDailyPayment: (paymentId: string, clientId: string) => Promise<void>;
   getDailyPaymentsByDriver: (driverId: string, date: string) => DailyPaymentReceived[];
   getClientPaymentSummaries: (driverId: string) => ClientPaymentSummary[];
   
@@ -2165,6 +2166,39 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  // Cancelar Pagamento Recebido
+  const cancelDailyPayment = async (paymentId: string, clientId: string): Promise<void> => {
+    // Buscar o pagamento que será cancelado
+    const payment = dailyPaymentsReceived.find(p => p.id === paymentId);
+    if (!payment) return;
+    
+    // Deletar o registro de pagamento
+    await deleteDoc(doc(db, 'daily_payments_received', paymentId));
+    
+    // Recalcular o lastPaymentDate do cliente baseado nos pagamentos restantes
+    const client = clients.find(c => c.id === clientId);
+    if (client) {
+      // Pegar todos os pagamentos do cliente (exceto o que foi cancelado) ordenados por paidUntil
+      const remainingPayments = dailyPaymentsReceived
+        .filter(p => p.clientId === clientId && p.id !== paymentId)
+        .sort((a, b) => (b.paidUntil || b.date).localeCompare(a.paidUntil || a.date));
+      
+      // Remover o último item do histórico de pagamento (o mais recente)
+      const existingHistory = client.paymentHistory || [];
+      const newHistory = existingHistory.slice(0, -1);
+      
+      // O novo lastPaymentDate é o paidUntil do pagamento mais recente restante, ou null se não houver
+      const newLastPaymentDate = remainingPayments.length > 0 
+        ? remainingPayments[0].paidUntil || remainingPayments[0].date 
+        : null;
+      
+      await updateDoc(doc(db, 'clients', clientId), {
+        lastPaymentDate: newLastPaymentDate,
+        paymentHistory: newHistory
+      });
+    }
+  };
+
   // Obter pagamentos do dia de um entregador
   const getDailyPaymentsByDriver = (driverId: string, date: string): DailyPaymentReceived[] => {
     return dailyPaymentsReceived.filter(p => p.driverId === driverId && p.date === date);
@@ -2587,7 +2621,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       createDailyLoad, updateDailyLoad, completeDailyLoad, getDailyLoadByDriver, getDailyLoadsByDate, getDailyLoadReport, getProductionSuggestions,
       generateDailyDeliveries, updateDeliveryStatus, updateDynamicDeliveryItems, addExtraToDelivery, removeExtraFromDelivery, substituteProductInDelivery, revertSubstituteInDelivery, adjustQuantityInDelivery, getDeliveriesByDriver, getDriverDailySummary, getAdminDeliveryReport, getScheduledClientsForDay,
       recordDynamicDelivery, getDynamicClientHistory, getDynamicClientPrediction, getDynamicLoadSummary, getDynamicClientsForDriver,
-      saveDailyCashFund, getDailyCashFund, registerDailyPayment, getDailyPaymentsByDriver, getClientPaymentSummaries,
+      saveDailyCashFund, getDailyCashFund, registerDailyPayment, cancelDailyPayment, getDailyPaymentsByDriver, getClientPaymentSummaries,
       saveDailyDriverClosure, getDailyDriverClosure, calculateDailyClosureData,
       getWeeklySettlement, calculateWeeklySettlement, confirmWeeklySettlement, getAllPendingSettlements, getSettlementHistory, getLastConfirmedSettlement
     }}>

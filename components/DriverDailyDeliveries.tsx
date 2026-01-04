@@ -7,7 +7,7 @@ import {
   User, AlertCircle, Loader2, Calendar, ChevronDown, ChevronRight, ChevronLeft,
   DollarSign, ClipboardList, RefreshCw, Send, Filter, Users,
   Sparkles, Edit3, Plus, Minus, Save, CreditCard, Banknote, X,
-  ShoppingBag, ArrowLeftRight, Trash2, Receipt, Search
+  ShoppingBag, ArrowLeftRight, Trash2, Receipt, Search, Undo2
 } from 'lucide-react';
 
 // Helper: formatar dia da semana
@@ -163,6 +163,8 @@ const DriverDailyDeliveries: React.FC = () => {
     getDynamicClientHistory,
     recordDynamicDelivery,
     registerDailyPayment,
+    cancelDailyPayment,
+    getDailyPaymentsByDriver,
     calculateClientDebt,
     getClientPaymentInfo,
     getClientConsumptionHistory,
@@ -312,6 +314,61 @@ const DriverDailyDeliveries: React.FC = () => {
     } finally {
       setProcessingId(null);
     }
+  };
+
+  // Reverter entrega para pendente
+  const handleRevertToPending = async (deliveryId: string) => {
+    if (!window.confirm('Tem certeza que deseja reverter esta entrega para pendente?')) {
+      return;
+    }
+    setProcessingId(deliveryId);
+    try {
+      await updateDeliveryStatus(deliveryId, 'pending');
+    } catch (err) {
+      console.error('Erro ao reverter entrega:', err);
+      setError('Erro ao reverter status.');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // Cancelar pagamento
+  const handleCancelPayment = async (clientId: string, clientName: string) => {
+    if (!currentUser?.id) return;
+    
+    // Buscar pagamentos do dia para este cliente
+    const todayPayments = getDailyPaymentsByDriver(currentUser.id, selectedDate)
+      .filter(p => p.clientId === clientId);
+    
+    if (todayPayments.length === 0) {
+      setError('Nenhum pagamento encontrado para cancelar.');
+      return;
+    }
+    
+    // Se houver múltiplos pagamentos, pegar o mais recente
+    const lastPayment = todayPayments.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+    
+    if (!window.confirm(`Cancelar o último pagamento de €${lastPayment.amount.toFixed(2)} do cliente ${clientName}?`)) {
+      return;
+    }
+    
+    setProcessingId(clientId);
+    try {
+      await cancelDailyPayment(lastPayment.id, clientId);
+    } catch (err) {
+      console.error('Erro ao cancelar pagamento:', err);
+      setError('Erro ao cancelar pagamento.');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // Verificar se cliente tem pagamento hoje
+  const getClientTodayPayment = (clientId: string): number => {
+    if (!currentUser?.id) return 0;
+    const todayPayments = getDailyPaymentsByDriver(currentUser.id, selectedDate)
+      .filter(p => p.clientId === clientId);
+    return todayPayments.reduce((sum, p) => sum + p.amount, 0);
   };
 
   // Iniciar edição de entrega dinâmica
@@ -1531,13 +1588,57 @@ const DriverDailyDeliveries: React.FC = () => {
                                     {new Date(delivery.deliveredAt).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}
                                   </span>
                                 )}
-                                {/* Botão Receber Pagamento também para entregas confirmadas */}
+                                {/* Botões de ação para entrega confirmada */}
+                                <div className="flex flex-wrap gap-1 justify-end">
+                                  {/* Botão Receber Pagamento */}
+                                  <button
+                                    onClick={() => handleOpenPaymentModal(delivery.clientId, delivery.clientName)}
+                                    className="flex items-center gap-1 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 text-xs"
+                                  >
+                                    <Banknote size={12} />
+                                    Receber €
+                                  </button>
+                                  {/* Botão Cancelar Pagamento (se tiver pagamento hoje) */}
+                                  {getClientTodayPayment(delivery.clientId) > 0 && (
+                                    <button
+                                      onClick={() => handleCancelPayment(delivery.clientId, delivery.clientName)}
+                                      disabled={processingId === delivery.clientId}
+                                      className="flex items-center gap-1 px-3 py-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 text-xs"
+                                      title={`Cancelar pagamento de €${getClientTodayPayment(delivery.clientId).toFixed(2)}`}
+                                    >
+                                      <XCircle size={12} />
+                                      {processingId === delivery.clientId ? '...' : 'Cancelar €'}
+                                    </button>
+                                  )}
+                                  {/* Botão Reverter Entrega */}
+                                  <button
+                                    onClick={() => handleRevertToPending(delivery.id)}
+                                    disabled={isProcessing}
+                                    className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-xs"
+                                    title="Reverter para pendente"
+                                  >
+                                    <Undo2 size={12} />
+                                    {isProcessing ? '...' : 'Reverter'}
+                                  </button>
+                                </div>
+                              </>
+                            )}
+                            {delivery.status === 'not_delivered' && (
+                              <>
+                                {delivery.notDeliveredReason && (
+                                  <span className="text-xs text-red-500 max-w-[150px] text-right">
+                                    {delivery.notDeliveredReason}
+                                  </span>
+                                )}
+                                {/* Botão Reverter Não Entrega */}
                                 <button
-                                  onClick={() => handleOpenPaymentModal(delivery.clientId, delivery.clientName)}
-                                  className="flex items-center gap-1 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 text-xs"
+                                  onClick={() => handleRevertToPending(delivery.id)}
+                                  disabled={isProcessing}
+                                  className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-xs"
+                                  title="Reverter para pendente"
                                 >
-                                  <Banknote size={12} />
-                                  Receber €
+                                  <Undo2 size={12} />
+                                  {isProcessing ? '...' : 'Reverter'}
                                 </button>
                               </>
                             )}
