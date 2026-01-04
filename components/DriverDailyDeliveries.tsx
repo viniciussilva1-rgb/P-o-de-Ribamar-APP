@@ -7,7 +7,7 @@ import {
   User, AlertCircle, Loader2, Calendar, ChevronDown, ChevronRight, ChevronLeft,
   DollarSign, ClipboardList, RefreshCw, Send, Filter, Users,
   Sparkles, Edit3, Plus, Minus, Save, CreditCard, Banknote, X,
-  ShoppingBag, ArrowLeftRight, Trash2, Receipt
+  ShoppingBag, ArrowLeftRight, Trash2, Receipt, Search
 } from 'lucide-react';
 
 // Helper: formatar dia da semana
@@ -178,6 +178,7 @@ const DriverDailyDeliveries: React.FC = () => {
   const [expandedDelivery, setExpandedDelivery] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<DeliveryStatus | 'all'>('all');
   const [notDeliveredReason, setNotDeliveredReason] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   // Estado para edição de entrega dinâmica
@@ -764,11 +765,15 @@ const DriverDailyDeliveries: React.FC = () => {
     }
   };
 
-  // Filtrar entregas por status E por rota
+  // Filtrar entregas por status, rota E termo de pesquisa
   const filteredDeliveries = deliveries.filter(d => {
     const matchesStatus = statusFilter === 'all' || d.status === statusFilter;
     const matchesRoute = selectedRoute === 'all' || d.routeId === selectedRoute;
-    return matchesStatus && matchesRoute;
+    const matchesSearch = searchTerm === '' || 
+      d.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      d.clientAddress.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (d.clientPhone && d.clientPhone.includes(searchTerm));
+    return matchesStatus && matchesRoute && matchesSearch;
   });
 
   // Agrupar por rota (só se não tiver rota selecionada)
@@ -1007,26 +1012,54 @@ const DriverDailyDeliveries: React.FC = () => {
         </div>
       )}
 
-      {/* Filtros */}
+      {/* Filtros e Pesquisa */}
       {deliveries.length > 0 && (
-        <div className="flex items-center gap-2">
-          <Filter size={18} className="text-gray-400" />
-          <span className="text-sm text-gray-500">Filtrar:</span>
-          {(['all', 'pending', 'delivered', 'not_delivered'] as const).map(filter => (
-            <button
-              key={filter}
-              onClick={() => setStatusFilter(filter)}
-              className={`px-3 py-1 rounded-full text-sm transition-colors ${
-                statusFilter === filter
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {filter === 'all' ? 'Todos' : 
-               filter === 'pending' ? 'Pendentes' :
-               filter === 'delivered' ? 'Entregues' : 'Não Entregues'}
-            </button>
-          ))}
+        <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+          {/* Campo de Pesquisa */}
+          <div className="relative">
+            <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Pesquisar cliente por nome, endereço ou telefone para receber pagamento..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X size={18} />
+              </button>
+            )}
+          </div>
+          {searchTerm && (
+            <p className="text-sm text-blue-600">
+              <span className="font-medium">{filteredDeliveries.length}</span> cliente(s) encontrado(s) para "{searchTerm}"
+            </p>
+          )}
+          
+          {/* Filtros de Status */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Filter size={18} className="text-gray-400" />
+            <span className="text-sm text-gray-500">Filtrar:</span>
+            {(['all', 'pending', 'delivered', 'not_delivered'] as const).map(filter => (
+              <button
+                key={filter}
+                onClick={() => setStatusFilter(filter)}
+                className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                  statusFilter === filter
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {filter === 'all' ? 'Todos' : 
+                 filter === 'pending' ? 'Pendentes' :
+                 filter === 'delivered' ? 'Entregues' : 'Não Entregues'}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
