@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { Plus, User, MapPin, Phone, Search, Map, Save, X, Navigation, CreditCard, Loader2, Calendar, AlertCircle, Tag, FileText, RotateCcw, Calculator, CheckCircle, Sparkles, Copy, Check, GripVertical, ArrowUpDown, ChevronUp, ChevronDown, Receipt, ChevronLeft, ChevronRight, Package, Plane, Trash2, MessageCircle } from 'lucide-react';
+import { Plus, User, MapPin, Phone, Search, Map, Save, X, Navigation, CreditCard, Loader2, Calendar, AlertCircle, Tag, FileText, RotateCcw, Calculator, CheckCircle, Sparkles, Copy, Check, GripVertical, ArrowUpDown, ChevronUp, ChevronDown, Receipt, ChevronLeft, ChevronRight, Package, Plane, Trash2, MessageCircle, Smartphone } from 'lucide-react';
 import { Client, Route, DeliverySchedule, Product, ClientConsumptionHistory, VacationPeriod } from '../types';
 import SmartDeliveryMap from './SmartDeliveryMap';
 
@@ -930,6 +930,59 @@ export const DriverView: React.FC = () => {
     // Abrir WhatsApp Web com a mensagem
     const whatsappUrl = `https://wa.me/${phone.replace('+', '')}?text=${encodedMessage}`;
     window.open(whatsappUrl, '_blank');
+  };
+
+  // Função para enviar SMS normal
+  const handleSendSMS = () => {
+    if (!clientForm.phone) {
+      alert('O cliente não possui telefone cadastrado.');
+      return;
+    }
+
+    // Buscar dados do cliente
+    const client = myClients.find(c => c.id === editingClientId);
+    if (!client) return;
+
+    const debt = calculateClientDebt(client);
+    const lastPaymentStr = client.lastPaymentDate 
+      ? new Date(client.lastPaymentDate).toLocaleDateString('pt-PT')
+      : 'Sem pagamentos anteriores';
+
+    const today = new Date();
+    const paidUntilStr = today.toLocaleDateString('pt-PT');
+
+    // Formatar valor a pagar
+    const valorAPagar = calculatedTotal !== null ? calculatedTotal.toFixed(2) : debt.total.toFixed(2);
+    const diasEmAberto = calculatedDays > 0 ? calculatedDays : debt.daysCount;
+
+    // Montar mensagem SMS (mais curta que WhatsApp)
+    let message = `Pao de Ribamar - Cobranca\n`;
+    message += `Cliente: ${client.name}\n`;
+    message += `Valor: ${valorAPagar}EUR\n`;
+    message += `Dias em aberto: ${diasEmAberto}\n`;
+    message += `Ultimo pgto: ${lastPaymentStr}\n`;
+    message += `Pago ate: ${paidUntilStr}\n`;
+    message += `Obrigado!`;
+
+    // Formatar número de telefone
+    let phone = clientForm.phone.replace(/[\s\-\(\)]/g, '');
+    if (phone.startsWith('0')) {
+      phone = phone.substring(1);
+    }
+    if (!phone.startsWith('+')) {
+      if (phone.startsWith('351')) {
+        phone = '+' + phone;
+      } else {
+        phone = '+351' + phone;
+      }
+    }
+
+    // Codificar mensagem para URL
+    const encodedMessage = encodeURIComponent(message);
+    
+    // Abrir app de SMS com a mensagem
+    const smsUrl = `sms:${phone}?body=${encodedMessage}`;
+    window.location.href = smsUrl;
   };
 
   // Falhas Logic
@@ -1896,6 +1949,18 @@ export const DriverView: React.FC = () => {
                         >
                             <MessageCircle size={18} />
                             Enviar Cobrança via WhatsApp
+                        </button>
+
+                        {/* Botão de Enviar SMS */}
+                        <button
+                            type="button"
+                            onClick={handleSendSMS}
+                            disabled={!editingClientId || !clientForm.phone}
+                            className="w-full mt-2 py-2 bg-blue-500 disabled:bg-gray-300 text-white rounded-lg font-bold shadow hover:bg-blue-600 transition-colors flex justify-center items-center gap-2"
+                            title="Enviar resumo de pagamento via SMS"
+                        >
+                            <Smartphone size={18} />
+                            Enviar Cobrança via SMS
                         </button>
                         
                         {/* Botão Ver Consumo/Faturas */}

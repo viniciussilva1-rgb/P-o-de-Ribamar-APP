@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { User, UserRole, Client, Product, Route, DeliverySchedule } from '../types';
-import { ChevronDown, ChevronRight, UserPlus, MapPin, Phone, Truck, Calendar, Package, Pencil, Trash2, Plus, ArrowRightLeft, X, Save, Navigation, Map, Search, User as UserIcon, CreditCard, FileText, RotateCcw, Loader2, AlertCircle, Calculator, CheckCircle, DollarSign, Tag, Check, MessageCircle } from 'lucide-react';
+import { ChevronDown, ChevronRight, UserPlus, MapPin, Phone, Truck, Calendar, Package, Pencil, Trash2, Plus, ArrowRightLeft, X, Save, Navigation, Map, Search, User as UserIcon, CreditCard, FileText, RotateCcw, Loader2, AlertCircle, Calculator, CheckCircle, DollarSign, Tag, Check, MessageCircle, Smartphone } from 'lucide-react';
 
 // Função utilitária para normalizar texto (remover acentos e converter para minúsculas)
 const normalizeText = (text: string): string => {
@@ -1499,6 +1499,59 @@ export const ClientManager: React.FC = () => {
     window.open(whatsappUrl, '_blank');
   };
 
+  // Função para enviar SMS normal
+  const handleSendSMS = () => {
+    if (!clientForm.phone) {
+      alert('O cliente não possui telefone cadastrado.');
+      return;
+    }
+
+    // Buscar dados do cliente
+    const client = clients.find(c => c.id === editingClientId);
+    if (!client) return;
+
+    const debt = calculateClientDebt(client);
+    const lastPaymentStr = client.lastPaymentDate 
+      ? new Date(client.lastPaymentDate).toLocaleDateString('pt-PT')
+      : 'Sem pagamentos anteriores';
+
+    const today = new Date();
+    const paidUntilStr = today.toLocaleDateString('pt-PT');
+
+    // Formatar valor a pagar
+    const valorAPagar = calculatedTotal !== null ? calculatedTotal.toFixed(2) : debt.total.toFixed(2);
+    const diasEmAberto = calculatedDays > 0 ? calculatedDays : debt.daysCount;
+
+    // Montar mensagem SMS (mais curta que WhatsApp)
+    let message = `Pao de Ribamar - Cobranca\n`;
+    message += `Cliente: ${client.name}\n`;
+    message += `Valor: ${valorAPagar}EUR\n`;
+    message += `Dias em aberto: ${diasEmAberto}\n`;
+    message += `Ultimo pgto: ${lastPaymentStr}\n`;
+    message += `Pago ate: ${paidUntilStr}\n`;
+    message += `Obrigado!`;
+
+    // Formatar número de telefone
+    let phone = clientForm.phone.replace(/[\s\-\(\)]/g, '');
+    if (phone.startsWith('0')) {
+      phone = phone.substring(1);
+    }
+    if (!phone.startsWith('+')) {
+      if (phone.startsWith('351')) {
+        phone = '+' + phone;
+      } else {
+        phone = '+351' + phone;
+      }
+    }
+
+    // Codificar mensagem para URL
+    const encodedMessage = encodeURIComponent(message);
+    
+    // Abrir app de SMS com a mensagem
+    const smsUrl = `sms:${phone}?body=${encodedMessage}`;
+    window.location.href = smsUrl;
+  };
+
   const handleToggleSkippedDate = (date: string) => {
       if (!editingClientId) return;
       toggleSkippedDate(editingClientId, date);
@@ -2025,6 +2078,18 @@ export const ClientManager: React.FC = () => {
                         >
                             <MessageCircle size={18} />
                             Enviar Cobrança via WhatsApp
+                        </button>
+
+                       {/* Botão de Enviar SMS */}
+                       <button
+                            type="button"
+                            onClick={handleSendSMS}
+                            disabled={!editingClientId || !clientForm.phone}
+                            className="w-full mt-2 py-2 bg-blue-500 disabled:bg-gray-300 text-white rounded-lg font-bold shadow hover:bg-blue-600 transition-colors flex justify-center items-center gap-2"
+                            title="Enviar resumo de pagamento via SMS"
+                        >
+                            <Smartphone size={18} />
+                            Enviar Cobrança via SMS
                         </button>
                     </div>
 
