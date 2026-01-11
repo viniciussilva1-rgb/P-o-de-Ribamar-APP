@@ -857,13 +857,13 @@ export const DriverView: React.FC = () => {
       return;
     }
 
-    // Buscar dados do cliente
-    const client = myClients.find(c => c.id === editingClientId);
-    if (!client) return;
-
-    const debt = calculateClientDebt(client);
-    const lastPaymentStr = client.lastPaymentDate 
-      ? new Date(client.lastPaymentDate).toLocaleDateString('pt-PT')
+    // Usar dados do formulário ou buscar cliente existente
+    const client = editingClientId ? myClients.find(c => c.id === editingClientId) : null;
+    
+    // Calcular débito se houver cliente existente, senão usar valor do formulário
+    const debt = client ? calculateClientDebt(client) : { total: clientForm.currentBalance || 0, daysCount: 0 };
+    const lastPaymentStr = (client?.lastPaymentDate || clientForm.lastPaymentDate)
+      ? new Date((client?.lastPaymentDate || clientForm.lastPaymentDate)!).toLocaleDateString('pt-PT')
       : 'Sem pagamentos anteriores';
 
     // Calcular até quando fica pago se pagar hoje
@@ -872,8 +872,8 @@ export const DriverView: React.FC = () => {
 
     // Calcular quantidade de produtos por dia (se houver agendamento)
     let totalProductsPerDay = 0;
-    if (client.deliverySchedule) {
-      const schedule = client.deliverySchedule;
+    const schedule = client?.deliverySchedule || clientForm.deliverySchedule;
+    if (schedule) {
       const days = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'] as const;
       const dayProducts: number[] = [];
       days.forEach(day => {
@@ -889,12 +889,17 @@ export const DriverView: React.FC = () => {
     }
 
     // Formatar valor a pagar
-    const valorAPagar = calculatedTotal !== null ? calculatedTotal.toFixed(2) : debt.total.toFixed(2);
+    const valorAPagar = calculatedTotal !== null && calculatedTotal > 0 
+      ? calculatedTotal.toFixed(2) 
+      : (clientForm.currentBalance && clientForm.currentBalance > 0 ? clientForm.currentBalance.toFixed(2) : debt.total.toFixed(2));
     const diasEmAberto = calculatedDays > 0 ? calculatedDays : debt.daysCount;
+
+    // Nome do cliente
+    const clientName = client?.name || clientForm.name || 'Cliente';
 
     // Montar mensagem
     let message = `🥖 *Pão de Ribamar - Resumo de Pagamento*\n\n`;
-    message += `👤 *Cliente:* ${client.name}\n\n`;
+    message += `👤 *Cliente:* ${clientName}\n\n`;
     message += `💰 *Valor a Pagar:* €${valorAPagar}\n`;
     message += `📅 *Dias em aberto:* ${diasEmAberto} dias\n`;
     if (totalProductsPerDay > 0) {
@@ -939,25 +944,30 @@ export const DriverView: React.FC = () => {
       return;
     }
 
-    // Buscar dados do cliente
-    const client = myClients.find(c => c.id === editingClientId);
-    if (!client) return;
-
-    const debt = calculateClientDebt(client);
-    const lastPaymentStr = client.lastPaymentDate 
-      ? new Date(client.lastPaymentDate).toLocaleDateString('pt-PT')
+    // Usar dados do formulário ou buscar cliente existente
+    const client = editingClientId ? myClients.find(c => c.id === editingClientId) : null;
+    
+    // Calcular débito se houver cliente existente, senão usar valor do formulário
+    const debt = client ? calculateClientDebt(client) : { total: clientForm.currentBalance || 0, daysCount: 0 };
+    const lastPaymentStr = (client?.lastPaymentDate || clientForm.lastPaymentDate)
+      ? new Date((client?.lastPaymentDate || clientForm.lastPaymentDate)!).toLocaleDateString('pt-PT')
       : 'Sem pagamentos anteriores';
 
     const today = new Date();
     const paidUntilStr = today.toLocaleDateString('pt-PT');
 
     // Formatar valor a pagar
-    const valorAPagar = calculatedTotal !== null ? calculatedTotal.toFixed(2) : debt.total.toFixed(2);
+    const valorAPagar = calculatedTotal !== null && calculatedTotal > 0 
+      ? calculatedTotal.toFixed(2) 
+      : (clientForm.currentBalance && clientForm.currentBalance > 0 ? clientForm.currentBalance.toFixed(2) : debt.total.toFixed(2));
     const diasEmAberto = calculatedDays > 0 ? calculatedDays : debt.daysCount;
+
+    // Nome do cliente
+    const clientName = client?.name || clientForm.name || 'Cliente';
 
     // Montar mensagem SMS (mais curta que WhatsApp)
     let message = `Pao de Ribamar - Cobranca\n`;
-    message += `Cliente: ${client.name}\n`;
+    message += `Cliente: ${clientName}\n`;
     message += `Valor: ${valorAPagar}EUR\n`;
     message += `Dias em aberto: ${diasEmAberto}\n`;
     message += `Ultimo pgto: ${lastPaymentStr}\n`;
@@ -1943,7 +1953,7 @@ export const DriverView: React.FC = () => {
                         <button
                             type="button"
                             onClick={handleSendPaymentMessage}
-                            disabled={!editingClientId || !clientForm.phone}
+                            disabled={!clientForm.phone}
                             className="w-full mt-2 py-2 bg-green-500 disabled:bg-gray-300 text-white rounded-lg font-bold shadow hover:bg-green-600 transition-colors flex justify-center items-center gap-2"
                             title="Enviar resumo de pagamento via WhatsApp"
                         >
@@ -1955,7 +1965,7 @@ export const DriverView: React.FC = () => {
                         <button
                             type="button"
                             onClick={handleSendSMS}
-                            disabled={!editingClientId || !clientForm.phone}
+                            disabled={!clientForm.phone}
                             className="w-full mt-2 py-2 bg-blue-500 disabled:bg-gray-300 text-white rounded-lg font-bold shadow hover:bg-blue-600 transition-colors flex justify-center items-center gap-2"
                             title="Enviar resumo de pagamento via SMS"
                         >
