@@ -1072,14 +1072,34 @@ export const ProductionAnalysis: React.FC = () => {
   // Estado para os itens de produção do dia
   const [productionItems, setProductionItems] = useState<Record<string, { produced: number; leftover: number }>>({});
   
+  // Estado para modo empelo (x30 unidades)
+  const [empeloMode, setEmpeloMode] = useState<Record<string, boolean>>({});
+  
+  // Flag para controlar se o usuário está editando (evita reset ao atualizar Firebase)
+  const [isEditing, setIsEditing] = useState(false);
+  const [lastLoadedDate, setLastLoadedDate] = useState<string>('');
+  
   // Filtro para dia da semana na comparação
   const [selectedDayOfWeek, setSelectedDayOfWeek] = useState<number>(new Date().getDay());
   
   // Dias da semana
   const daysOfWeek = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
   
-  // Carregar dados existentes quando mudar a data
+  // Toggle para modo empelo
+  const toggleEmpeloMode = (productId: string) => {
+    setEmpeloMode(prev => ({
+      ...prev,
+      [productId]: !prev[productId]
+    }));
+  };
+  
+  // Carregar dados existentes quando mudar a data (não recarregar se estiver editando a mesma data)
   React.useEffect(() => {
+    // Só recarregar se mudou a data ou não está editando
+    if (currentDate === lastLoadedDate && isEditing) {
+      return;
+    }
+    
     const existingRecord = getProductionAnalysisByDate(currentDate);
     if (existingRecord) {
       const items: Record<string, { produced: number; leftover: number }> = {};
@@ -1097,21 +1117,29 @@ export const ProductionAnalysis: React.FC = () => {
       setProductionItems(items);
       setObservations('');
     }
-  }, [currentDate, productionAnalysis]);
+    setLastLoadedDate(currentDate);
+    setIsEditing(false);
+  }, [currentDate, products.length]); // Removido productionAnalysis para evitar reset durante edição
   
   // Handler para atualizar produção
-  const handleProductionChange = (productId: string, value: number) => {
+  const handleProductionChange = (productId: string, value: number, isEmpelo: boolean = false) => {
+    setIsEditing(true);
+    // Se em modo empelo, multiplicar por 30
+    const finalValue = isEmpelo ? value * 30 : value;
     setProductionItems(prev => ({
       ...prev,
-      [productId]: { ...prev[productId], produced: value }
+      [productId]: { ...(prev[productId] || { produced: 0, leftover: 0 }), produced: finalValue }
     }));
   };
   
   // Handler para atualizar sobra
-  const handleLeftoverChange = (productId: string, value: number) => {
+  const handleLeftoverChange = (productId: string, value: number, isEmpelo: boolean = false) => {
+    setIsEditing(true);
+    // Se em modo empelo, multiplicar por 30
+    const finalValue = isEmpelo ? value * 30 : value;
     setProductionItems(prev => ({
       ...prev,
-      [productId]: { ...prev[productId], leftover: value }
+      [productId]: { ...(prev[productId] || { produced: 0, leftover: 0 }), leftover: finalValue }
     }));
   };
   
@@ -1136,12 +1164,19 @@ export const ProductionAnalysis: React.FC = () => {
         };
       }).filter(item => item.produced > 0 || item.leftover > 0);
       
+      if (items.length === 0) {
+        alert('Adicione pelo menos um produto com produção ou sobra para salvar.');
+        setIsSaving(false);
+        return;
+      }
+      
       await saveProductionAnalysis(currentDate, items, observations || undefined);
       setSaveSuccess(true);
+      setIsEditing(false); // Reset flag após salvar com sucesso
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error) {
       console.error('Erro ao salvar:', error);
-      alert('Erro ao salvar análise de produção');
+      alert('Erro ao salvar análise de produção: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     } finally {
       setIsSaving(false);
     }
@@ -1289,6 +1324,9 @@ export const ProductionAnalysis: React.FC = () => {
           
           {/* Tabela de Produtos */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="p-3 bg-gray-50 border-b flex items-center justify-between">
+              <span className="text-xs text-gray-500">💡 Dica: Use o botão de alternância para lançar em <strong>Empelos (×30)</strong> ou <strong>Unidades</strong></span>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 text-gray-600 font-semibold uppercase text-xs">
@@ -1305,30 +1343,61 @@ export const ProductionAnalysis: React.FC = () => {
                     const data = productionItems[product.id] || { produced: 0, leftover: 0 };
                     const sold = data.produced - data.leftover;
                     const leftoverPct = data.produced > 0 ? (data.leftover / data.produced) * 100 : 0;
+                    const isEmpelo = empeloMode[product.id] || false;
+                    
+                    // Para exibição: se em modo empelo, mostrar valor dividido por 30
+                    const displayProduced = isEmpelo ? Math.floor(data.produced / 30) : data.produced;
+                    const displayLeftover = isEmpelo ? Math.floor(data.leftover / 30) : data.leftover;
                     
                     return (
                       <tr key={product.id} className="hover:bg-gray-50">
-                        <td className="p-4 font-medium text-gray-800">{product.name}</td>
+                        <td className="p-4">
+                          <div className="font-medium text-gray-800">{product.name}</div>
+                          {/* Toggle Empelo */}
+                          {product.supportsEmpelo && (
+                            <button
+                              onClick={() => toggleEmpeloMode(product.id)}
+                              className={`mt-1 text-xs px-2 py-1 rounded border transition-colors flex items-center gap-1 ${
+                                isEmpelo 
+                                  ? 'bg-amber-200 border-amber-300 text-amber-900' 
+                                  : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                              }`}
+                              title="Alternar entre Unidade e Empelo (30un)"
+                            >
+                              <ArrowRightLeft size={12} />
+                              {isEmpelo ? 'Empelo ×30' : 'Unidade'}
+                            </button>
+                          )}
+                        </td>
                         <td className="p-4 text-center bg-blue-50/30">
-                          <input
-                            type="number"
-                            min="0"
-                            value={data.produced || ''}
-                            onChange={(e) => handleProductionChange(product.id, parseInt(e.target.value) || 0)}
-                            placeholder="0"
-                            className="w-20 p-2 text-center border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          />
+                          <div className="flex flex-col items-center gap-1">
+                            <input
+                              type="number"
+                              min="0"
+                              value={displayProduced || ''}
+                              onChange={(e) => handleProductionChange(product.id, parseInt(e.target.value) || 0, isEmpelo)}
+                              placeholder="0"
+                              className="w-20 p-2 text-center border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                            {isEmpelo && data.produced > 0 && (
+                              <span className="text-xs text-blue-600">= {data.produced} un.</span>
+                            )}
+                          </div>
                         </td>
                         <td className="p-4 text-center bg-orange-50/30">
-                          <input
-                            type="number"
-                            min="0"
-                            max={data.produced}
-                            value={data.leftover || ''}
-                            onChange={(e) => handleLeftoverChange(product.id, parseInt(e.target.value) || 0)}
-                            placeholder="0"
-                            className="w-20 p-2 text-center border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                          />
+                          <div className="flex flex-col items-center gap-1">
+                            <input
+                              type="number"
+                              min="0"
+                              value={displayLeftover || ''}
+                              onChange={(e) => handleLeftoverChange(product.id, parseInt(e.target.value) || 0, isEmpelo)}
+                              placeholder="0"
+                              className="w-20 p-2 text-center border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                            />
+                            {isEmpelo && data.leftover > 0 && (
+                              <span className="text-xs text-orange-600">= {data.leftover} un.</span>
+                            )}
+                          </div>
                         </td>
                         <td className="p-4 text-center font-semibold text-green-700">
                           {sold > 0 ? sold : '-'}
