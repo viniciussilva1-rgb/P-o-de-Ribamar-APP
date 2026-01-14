@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, Client, UserRole, Product, ProductionData, DailyProductionRecord, Route, PaymentTransaction, DeliverySchedule, DailyLoad, LoadItem, ReturnItem, DailyLoadReport, ProductionSuggestion, ClientDelivery, DeliveryStatus, DriverDailySummary, AdminDeliveryReport, DeliveryItem, DynamicConsumptionRecord, ProductConsumptionStats, DynamicClientHistory, DynamicClientPrediction, DynamicLoadSummary, DailyCashFund, DailyDriverClosure, DailyPaymentReceived, WeeklyDriverSettlement, ClientPaymentSummary, ClientConsumptionHistory, ClientInvoice } from '../types';
+import { User, Client, UserRole, Product, ProductionData, DailyProductionRecord, Route, PaymentTransaction, DeliverySchedule, DailyLoad, LoadItem, ReturnItem, DailyLoadReport, ProductionSuggestion, ClientDelivery, DeliveryStatus, DriverDailySummary, AdminDeliveryReport, DeliveryItem, DynamicConsumptionRecord, ProductConsumptionStats, DynamicClientHistory, DynamicClientPrediction, DynamicLoadSummary, DailyCashFund, DailyDriverClosure, DailyPaymentReceived, WeeklyDriverSettlement, ClientPaymentSummary, ClientConsumptionHistory, ClientInvoice, DailyProductionAnalysis, DailyProductionAnalysisItem, WeekdayProductionComparison, ProductionAnalysisSuggestion } from '../types';
 import { INITIAL_PRODUCTS, MOCK_ADMIN_EMAIL } from '../constants';
 import { db } from '../firebaseConfig'; // Import database
 import { collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot, query, where, getDocs } from 'firebase/firestore';
@@ -103,6 +103,15 @@ interface DataContextType {
   getAllPendingSettlements: () => WeeklyDriverSettlement[];
   getSettlementHistory: (driverId: string) => WeeklyDriverSettlement[];
   getLastConfirmedSettlement: (driverId: string) => WeeklyDriverSettlement | undefined;
+  
+  // Funções de Análise de Produção
+  productionAnalysis: DailyProductionAnalysis[];
+  saveProductionAnalysis: (date: string, items: DailyProductionAnalysisItem[], observations?: string) => Promise<void>;
+  getProductionAnalysisByDate: (date: string) => DailyProductionAnalysis | undefined;
+  getProductionAnalysisByDateRange: (startDate: string, endDate: string) => DailyProductionAnalysis[];
+  getWeekdayComparison: (dayOfWeek: number) => WeekdayProductionComparison;
+  getProductionAnalysisSuggestions: (targetDate: string) => ProductionAnalysisSuggestion[];
+  deleteProductionAnalysis: (id: string) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -122,6 +131,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [dailyDriverClosures, setDailyDriverClosures] = useState<DailyDriverClosure[]>([]);
   const [dailyPaymentsReceived, setDailyPaymentsReceived] = useState<DailyPaymentReceived[]>([]);
   const [weeklySettlements, setWeeklySettlements] = useState<WeeklyDriverSettlement[]>([]);
+  
+  // Estados de Análise de Produção
+  const [productionAnalysis, setProductionAnalysis] = useState<DailyProductionAnalysis[]>([]);
 
   // --- FIREBASE LISTENERS (Realtime Sync) ---
 
@@ -333,6 +345,20 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         id: docSnap.id
       } as WeeklyDriverSettlement));
       setWeeklySettlements(settlementsList);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // 13. Production Analysis (Análise de Produção)
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'production_analysis'), (snapshot) => {
+      const analysisList = snapshot.docs.map(docSnap => ({
+        ...docSnap.data(),
+        id: docSnap.id
+      } as DailyProductionAnalysis));
+      // Ordenar por data (mais recente primeiro)
+      analysisList.sort((a, b) => b.date.localeCompare(a.date));
+      setProductionAnalysis(analysisList);
     });
     return () => unsubscribe();
   }, []);
@@ -2624,10 +2650,254 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return getSettlementHistory(driverId)[0];
   };
 
+  // ========== FUNÇÕES DE ANÁLISE DE PRODUÇÃO ==========
+  
+  // Helper para obter nome do dia da semana
+  const getDayOfWeekName = (dayOfWeek: number): string => {
+    const days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+    return days[dayOfWeek];
+  };
+
+  // Salvar análise de produção do dia
+  const saveProductionAnalysis = async (
+    date: string, 
+    items: DailyProductionAnalysisItem[], 
+    observations?: string
+  ): Promise<void> => {
+    const dateObj = new Date(date + 'T12:00:00');
+    const dayOfWeek = dateObj.getDay();
+    const now = new Date().toISOString();
+    
+    // Calcular totais
+    const totalProduced = items.reduce((sum, item) => sum + item.produced, 0);
+    const totalLeftover = items.reduce((sum, item) => sum + item.leftover, 0);
+    const totalWaste = items.reduce((sum, item) => sum + item.waste, 0);
+    const wastePercentage = totalProduced > 0 ? (totalWaste / totalProduced) * 100 : 0;
+    
+    // Verificar se já existe registro para esta data
+    const existingRecord = productionAnalysis.find(p => p.date === date);
+    const id = existingRecord?.id || `production-analysis-${date}`;
+    
+    const analysisData: DailyProductionAnalysis = {
+      id,
+      date,
+      dayOfWeek,
+      dayOfWeekName: getDayOfWeekName(dayOfWeek),
+      items,
+      totalProduced,
+      totalLeftover,
+      totalWaste,
+      wastePercentage: parseFloat(wastePercentage.toFixed(2)),
+      observations,
+      createdAt: existingRecord?.createdAt || now,
+      updatedAt: now
+    };
+    
+    await setDoc(doc(db, 'production_analysis', id), analysisData);
+  };
+
+  // Obter análise por data
+  const getProductionAnalysisByDate = (date: string): DailyProductionAnalysis | undefined => {
+    return productionAnalysis.find(p => p.date === date);
+  };
+
+  // Obter análises por período
+  const getProductionAnalysisByDateRange = (startDate: string, endDate: string): DailyProductionAnalysis[] => {
+    return productionAnalysis.filter(p => p.date >= startDate && p.date <= endDate);
+  };
+
+  // Obter comparação por dia da semana
+  const getWeekdayComparison = (dayOfWeek: number): WeekdayProductionComparison => {
+    const records = productionAnalysis.filter(p => p.dayOfWeek === dayOfWeek);
+    
+    // Agrupar por produto
+    const productStats: Record<string, { produced: number[]; leftover: number[]; waste: number[]; name: string }> = {};
+    
+    records.forEach(record => {
+      record.items.forEach(item => {
+        if (!productStats[item.productId]) {
+          productStats[item.productId] = {
+            produced: [],
+            leftover: [],
+            waste: [],
+            name: item.productName
+          };
+        }
+        productStats[item.productId].produced.push(item.produced);
+        productStats[item.productId].leftover.push(item.leftover);
+        productStats[item.productId].waste.push(item.waste);
+      });
+    });
+    
+    // Calcular médias por produto
+    const productAverages = Object.entries(productStats).map(([productId, stats]) => {
+      const avgProduced = stats.produced.length > 0 
+        ? stats.produced.reduce((a, b) => a + b, 0) / stats.produced.length 
+        : 0;
+      const avgLeftover = stats.leftover.length > 0 
+        ? stats.leftover.reduce((a, b) => a + b, 0) / stats.leftover.length 
+        : 0;
+      const avgWaste = stats.waste.length > 0 
+        ? stats.waste.reduce((a, b) => a + b, 0) / stats.waste.length 
+        : 0;
+      const avgWastePercentage = avgProduced > 0 ? (avgWaste / avgProduced) * 100 : 0;
+      
+      // Determinar tendência da sobra (comparando últimos registros)
+      let trend: 'increasing' | 'stable' | 'decreasing' = 'stable';
+      if (stats.leftover.length >= 3) {
+        const recentAvg = (stats.leftover[0] + stats.leftover[1]) / 2;
+        const olderAvg = (stats.leftover[stats.leftover.length - 2] + stats.leftover[stats.leftover.length - 1]) / 2;
+        if (recentAvg > olderAvg * 1.1) trend = 'increasing';
+        else if (recentAvg < olderAvg * 0.9) trend = 'decreasing';
+      }
+      
+      // Sugestão: produzir baseado na média menos a sobra média
+      const suggestion = Math.max(0, Math.round(avgProduced - avgLeftover * 0.5));
+      
+      return {
+        productId,
+        productName: stats.name,
+        avgProduced: parseFloat(avgProduced.toFixed(1)),
+        avgLeftover: parseFloat(avgLeftover.toFixed(1)),
+        avgWaste: parseFloat(avgWaste.toFixed(1)),
+        avgWastePercentage: parseFloat(avgWastePercentage.toFixed(1)),
+        trend,
+        suggestion
+      };
+    });
+    
+    // Calcular totais médios
+    const avgTotalProduced = records.length > 0
+      ? records.reduce((sum, r) => sum + r.totalProduced, 0) / records.length
+      : 0;
+    const avgTotalLeftover = records.length > 0
+      ? records.reduce((sum, r) => sum + r.totalLeftover, 0) / records.length
+      : 0;
+    const avgTotalWaste = records.length > 0
+      ? records.reduce((sum, r) => sum + r.totalWaste, 0) / records.length
+      : 0;
+    const avgWastePercentage = avgTotalProduced > 0 ? (avgTotalWaste / avgTotalProduced) * 100 : 0;
+    
+    return {
+      dayOfWeek,
+      dayOfWeekName: getDayOfWeekName(dayOfWeek),
+      records,
+      productAverages,
+      avgTotalProduced: parseFloat(avgTotalProduced.toFixed(1)),
+      avgTotalLeftover: parseFloat(avgTotalLeftover.toFixed(1)),
+      avgTotalWaste: parseFloat(avgTotalWaste.toFixed(1)),
+      avgWastePercentage: parseFloat(avgWastePercentage.toFixed(1))
+    };
+  };
+
+  // Obter sugestões de produção para um dia específico
+  const getProductionAnalysisSuggestions = (targetDate: string): ProductionAnalysisSuggestion[] => {
+    const dateObj = new Date(targetDate + 'T12:00:00');
+    const targetDayOfWeek = dateObj.getDay();
+    
+    // Dados do mesmo dia da semana
+    const sameDayRecords = productionAnalysis.filter(p => p.dayOfWeek === targetDayOfWeek);
+    
+    // Dados dos últimos 7 dias
+    const sevenDaysAgo = new Date(dateObj);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+    const last7DaysRecords = productionAnalysis.filter(p => p.date >= sevenDaysAgoStr && p.date < targetDate);
+    
+    // Obter todos os produtos únicos
+    const allProductIds = new Set<string>();
+    const productNames: Record<string, string> = {};
+    
+    [...sameDayRecords, ...last7DaysRecords].forEach(record => {
+      record.items.forEach(item => {
+        allProductIds.add(item.productId);
+        productNames[item.productId] = item.productName;
+      });
+    });
+    
+    // Adicionar produtos do catálogo que não foram registrados
+    products.forEach(p => {
+      allProductIds.add(p.id);
+      productNames[p.id] = p.name;
+    });
+    
+    const suggestions: ProductionAnalysisSuggestion[] = [];
+    
+    allProductIds.forEach(productId => {
+      // Estatísticas do mesmo dia da semana
+      const sameDayStats = sameDayRecords.flatMap(r => r.items.filter(i => i.productId === productId));
+      const sameDayAvgProduced = sameDayStats.length > 0
+        ? sameDayStats.reduce((sum, i) => sum + i.produced, 0) / sameDayStats.length
+        : 0;
+      const sameDayAvgLeftover = sameDayStats.length > 0
+        ? sameDayStats.reduce((sum, i) => sum + i.leftover, 0) / sameDayStats.length
+        : 0;
+      const sameDayAvgWaste = sameDayAvgProduced > 0
+        ? ((sameDayAvgProduced - sameDayAvgLeftover) / sameDayAvgProduced) * 100
+        : 0;
+      
+      // Estatísticas dos últimos 7 dias
+      const last7Stats = last7DaysRecords.flatMap(r => r.items.filter(i => i.productId === productId));
+      const last7AvgProduced = last7Stats.length > 0
+        ? last7Stats.reduce((sum, i) => sum + i.produced, 0) / last7Stats.length
+        : 0;
+      const last7AvgLeftover = last7Stats.length > 0
+        ? last7Stats.reduce((sum, i) => sum + i.leftover, 0) / last7Stats.length
+        : 0;
+      
+      // Calcular sugestão
+      let suggestedQuantity: number;
+      let confidence: 'low' | 'medium' | 'high';
+      let reasoning: string;
+      
+      if (sameDayStats.length >= 3) {
+        // Alta confiança - muitos dados do mesmo dia
+        suggestedQuantity = Math.round(sameDayAvgProduced - sameDayAvgLeftover * 0.3);
+        confidence = 'high';
+        reasoning = `Baseado em ${sameDayStats.length} registros de ${getDayOfWeekName(targetDayOfWeek)}`;
+      } else if (sameDayStats.length > 0 || last7Stats.length >= 3) {
+        // Média confiança
+        const baseProduced = sameDayStats.length > 0 ? sameDayAvgProduced : last7AvgProduced;
+        const baseLeftover = sameDayStats.length > 0 ? sameDayAvgLeftover : last7AvgLeftover;
+        suggestedQuantity = Math.round(baseProduced - baseLeftover * 0.3);
+        confidence = 'medium';
+        reasoning = sameDayStats.length > 0 
+          ? `Baseado em ${sameDayStats.length} registro(s) de ${getDayOfWeekName(targetDayOfWeek)}`
+          : `Baseado em ${last7Stats.length} registros dos últimos 7 dias`;
+      } else {
+        // Baixa confiança - poucos dados
+        suggestedQuantity = 0;
+        confidence = 'low';
+        reasoning = 'Dados insuficientes para sugestão';
+      }
+      
+      suggestions.push({
+        productId,
+        productName: productNames[productId] || 'Produto desconhecido',
+        sameDayAvgProduced: parseFloat(sameDayAvgProduced.toFixed(1)),
+        sameDayAvgLeftover: parseFloat(sameDayAvgLeftover.toFixed(1)),
+        sameDayAvgWastePercentage: parseFloat(sameDayAvgWaste.toFixed(1)),
+        last7DaysAvgProduced: parseFloat(last7AvgProduced.toFixed(1)),
+        last7DaysAvgLeftover: parseFloat(last7AvgLeftover.toFixed(1)),
+        suggestedQuantity: Math.max(0, suggestedQuantity),
+        confidence,
+        reasoning
+      });
+    });
+    
+    // Ordenar por nome do produto
+    return suggestions.sort((a, b) => a.productName.localeCompare(b.productName));
+  };
+
+  // Excluir análise de produção
+  const deleteProductionAnalysis = async (id: string): Promise<void> => {
+    await deleteDoc(doc(db, 'production_analysis', id));
+  };
+
   return (
     <DataContext.Provider value={{ 
       users, clients, products, productionData, routes, dailyLoads, clientDeliveries, dynamicConsumptionRecords,
-      dailyCashFunds, dailyDriverClosures, dailyPaymentsReceived, weeklySettlements,
+      dailyCashFunds, dailyDriverClosures, dailyPaymentsReceived, weeklySettlements, productionAnalysis,
       addUser, addClient, updateClient, updateClientsOrder, updateProduct, addProduct, deleteProduct, addRoute, deleteRoute,
       getRoutesByDriver, getClientsByDriver, getAllClients, getDrivers,
       updateDailyProduction, getDailyRecord,
@@ -2637,7 +2907,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       recordDynamicDelivery, getDynamicClientHistory, getDynamicClientPrediction, getDynamicLoadSummary, getDynamicClientsForDriver,
       saveDailyCashFund, getDailyCashFund, registerDailyPayment, cancelDailyPayment, getDailyPaymentsByDriver, getPaymentsByClient, getClientPaymentSummaries,
       saveDailyDriverClosure, getDailyDriverClosure, calculateDailyClosureData,
-      getWeeklySettlement, calculateWeeklySettlement, confirmWeeklySettlement, cancelWeeklySettlement, getAllPendingSettlements, getSettlementHistory, getLastConfirmedSettlement
+      getWeeklySettlement, calculateWeeklySettlement, confirmWeeklySettlement, cancelWeeklySettlement, getAllPendingSettlements, getSettlementHistory, getLastConfirmedSettlement,
+      saveProductionAnalysis, getProductionAnalysisByDate, getProductionAnalysisByDateRange, getWeekdayComparison, getProductionAnalysisSuggestions, deleteProductionAnalysis
     }}>
       {children}
     </DataContext.Provider>

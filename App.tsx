@@ -4,7 +4,7 @@ import { DataProvider } from './context/DataContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Login } from './components/Login';
 import { Layout } from './components/Layout';
-import { DriversOverview, ProductCatalog, ProductionManager, ClientManager, RoutePriceEditor } from './components/AdminView';
+import { DriversOverview, ProductCatalog, ProductionManager, ClientManager, RoutePriceEditor, ProductionAnalysis } from './components/AdminView';
 import { DriverView } from './components/DriverView';
 import DriverDailyLoad from './components/DriverDailyLoad';
 import DriverDashboard from './components/DriverDashboard';
@@ -48,6 +48,8 @@ const AppContent: React.FC = () => {
         return <RoutePriceEditor />;
       case 'production':
         return <ProductionManager />;
+      case 'production-analysis':
+        return <ProductionAnalysis />;
       case 'clients-admin':
         return <ClientManager />;
       case 'daily-loads':

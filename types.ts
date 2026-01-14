@@ -652,3 +652,79 @@ export interface ClientConsumptionHistory {
   }[];
 }
 
+// ========== ANÁLISE DE PRODUÇÃO E SOBRAS ==========
+
+// Registro diário de produção e sobra por produto
+export interface DailyProductionAnalysis {
+  id: string;
+  date: string; // YYYY-MM-DD
+  dayOfWeek: number; // 0=Dom, 1=Seg, ..., 6=Sab
+  dayOfWeekName: string; // "Segunda", "Terça", etc.
+  
+  items: DailyProductionAnalysisItem[];
+  
+  // Totais do dia
+  totalProduced: number;
+  totalLeftover: number;
+  totalWaste: number; // Quebra: Produzido - Sobra (que não foi vendido/devolvido)
+  wastePercentage: number; // % de desperdício
+  
+  observations?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DailyProductionAnalysisItem {
+  productId: string;
+  productName: string;
+  produced: number; // Quantidade produzida
+  leftover: number; // Quantidade que sobrou
+  waste: number; // Calculado: produzido - vendido (se negativo = 0)
+  wastePercentage: number; // % de quebra/desperdício
+}
+
+// Análise comparativa por dia da semana
+export interface WeekdayProductionComparison {
+  dayOfWeek: number;
+  dayOfWeekName: string;
+  records: DailyProductionAnalysis[];
+  
+  // Médias por produto
+  productAverages: {
+    productId: string;
+    productName: string;
+    avgProduced: number;
+    avgLeftover: number;
+    avgWaste: number;
+    avgWastePercentage: number;
+    trend: 'increasing' | 'stable' | 'decreasing'; // Tendência da sobra
+    suggestion: number; // Quantidade sugerida para produzir
+  }[];
+  
+  // Totais médios
+  avgTotalProduced: number;
+  avgTotalLeftover: number;
+  avgTotalWaste: number;
+  avgWastePercentage: number;
+}
+
+// Sugestão de produção baseada em análise
+export interface ProductionAnalysisSuggestion {
+  productId: string;
+  productName: string;
+  
+  // Baseado no mesmo dia da semana
+  sameDayAvgProduced: number;
+  sameDayAvgLeftover: number;
+  sameDayAvgWastePercentage: number;
+  
+  // Baseado nos últimos 7 dias
+  last7DaysAvgProduced: number;
+  last7DaysAvgLeftover: number;
+  
+  // Sugestão final
+  suggestedQuantity: number;
+  confidence: 'low' | 'medium' | 'high';
+  reasoning: string;
+}
+

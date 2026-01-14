@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { User, UserRole, Client, Product, Route, DeliverySchedule } from '../types';
-import { ChevronDown, ChevronRight, UserPlus, MapPin, Phone, Truck, Calendar, Package, Pencil, Trash2, Plus, ArrowRightLeft, X, Save, Navigation, Map, Search, User as UserIcon, CreditCard, FileText, RotateCcw, Loader2, AlertCircle, Calculator, CheckCircle, DollarSign, Tag, Check, MessageCircle, Smartphone } from 'lucide-react';
+import { ChevronDown, ChevronRight, UserPlus, MapPin, Phone, Truck, Calendar, Package, Pencil, Trash2, Plus, ArrowRightLeft, X, Save, Navigation, Map, Search, User as UserIcon, CreditCard, FileText, RotateCcw, Loader2, AlertCircle, Calculator, CheckCircle, DollarSign, Tag, Check, MessageCircle, Smartphone, BarChart3 } from 'lucide-react';
 
 // Função utilitária para normalizar texto (remover acentos e converter para minúsculas)
 const normalizeText = (text: string): string => {
@@ -1047,6 +1047,624 @@ export const ProductionManager: React.FC = () => {
           </table>
         </div>
       </section>
+    </div>
+  );
+};
+
+// ========== ANÁLISE DE PRODUÇÃO ==========
+export const ProductionAnalysis: React.FC = () => {
+  const { 
+    products, 
+    productionAnalysis,
+    saveProductionAnalysis, 
+    getProductionAnalysisByDate,
+    getWeekdayComparison,
+    getProductionAnalysisSuggestions,
+    deleteProductionAnalysis
+  } = useData();
+  
+  const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [activeView, setActiveView] = useState<'register' | 'history' | 'comparison' | 'suggestions'>('register');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [observations, setObservations] = useState('');
+  
+  // Estado para os itens de produção do dia
+  const [productionItems, setProductionItems] = useState<Record<string, { produced: number; leftover: number }>>({});
+  
+  // Filtro para dia da semana na comparação
+  const [selectedDayOfWeek, setSelectedDayOfWeek] = useState<number>(new Date().getDay());
+  
+  // Dias da semana
+  const daysOfWeek = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  
+  // Carregar dados existentes quando mudar a data
+  React.useEffect(() => {
+    const existingRecord = getProductionAnalysisByDate(currentDate);
+    if (existingRecord) {
+      const items: Record<string, { produced: number; leftover: number }> = {};
+      existingRecord.items.forEach(item => {
+        items[item.productId] = { produced: item.produced, leftover: item.leftover };
+      });
+      setProductionItems(items);
+      setObservations(existingRecord.observations || '');
+    } else {
+      // Inicializar com valores vazios
+      const items: Record<string, { produced: number; leftover: number }> = {};
+      products.forEach(p => {
+        items[p.id] = { produced: 0, leftover: 0 };
+      });
+      setProductionItems(items);
+      setObservations('');
+    }
+  }, [currentDate, productionAnalysis]);
+  
+  // Handler para atualizar produção
+  const handleProductionChange = (productId: string, value: number) => {
+    setProductionItems(prev => ({
+      ...prev,
+      [productId]: { ...prev[productId], produced: value }
+    }));
+  };
+  
+  // Handler para atualizar sobra
+  const handleLeftoverChange = (productId: string, value: number) => {
+    setProductionItems(prev => ({
+      ...prev,
+      [productId]: { ...prev[productId], leftover: value }
+    }));
+  };
+  
+  // Salvar produção do dia
+  const handleSave = async () => {
+    setIsSaving(true);
+    setSaveSuccess(false);
+    
+    try {
+      const items = products.map(product => {
+        const data = productionItems[product.id] || { produced: 0, leftover: 0 };
+        const waste = Math.max(0, data.produced - data.leftover);
+        const wastePercentage = data.produced > 0 ? (waste / data.produced) * 100 : 0;
+        
+        return {
+          productId: product.id,
+          productName: product.name,
+          produced: data.produced,
+          leftover: data.leftover,
+          waste,
+          wastePercentage: parseFloat(wastePercentage.toFixed(2))
+        };
+      }).filter(item => item.produced > 0 || item.leftover > 0);
+      
+      await saveProductionAnalysis(currentDate, items, observations || undefined);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (error) {
+      console.error('Erro ao salvar:', error);
+      alert('Erro ao salvar análise de produção');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+  // Excluir registro
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Tem certeza que deseja excluir este registro?')) {
+      await deleteProductionAnalysis(id);
+    }
+  };
+  
+  // Obter comparação do dia selecionado
+  const weekdayComparison = getWeekdayComparison(selectedDayOfWeek);
+  
+  // Obter sugestões para a data atual
+  const suggestions = getProductionAnalysisSuggestions(currentDate);
+  
+  // Calcular totais do dia atual
+  const todayTotals = React.useMemo(() => {
+    let totalProduced = 0;
+    let totalLeftover = 0;
+    
+    Object.values(productionItems).forEach((item: { produced: number; leftover: number }) => {
+      totalProduced += item.produced || 0;
+      totalLeftover += item.leftover || 0;
+    });
+    
+    const waste = totalProduced - totalLeftover;
+    const wastePercentage = totalProduced > 0 ? (waste / totalProduced) * 100 : 0;
+    
+    return { totalProduced, totalLeftover, waste, wastePercentage };
+  }, [productionItems]);
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-300">
+      {/* Header */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <BarChart3 className="text-amber-600" size={24} />
+              Análise de Produção
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Registre a produção e sobras do dia para análise comparativa
+            </p>
+          </div>
+          
+          {/* Tabs de navegação */}
+          <div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
+            {[
+              { id: 'register', label: 'Registrar', icon: <Plus size={16} /> },
+              { id: 'history', label: 'Histórico', icon: <Calendar size={16} /> },
+              { id: 'comparison', label: 'Comparativo', icon: <ArrowRightLeft size={16} /> },
+              { id: 'suggestions', label: 'Sugestões', icon: <Calculator size={16} /> }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveView(tab.id as any)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  activeView === tab.id
+                    ? 'bg-white text-amber-700 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                {tab.icon}
+                <span className="hidden sm:inline">{tab.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* View: Registrar Produção */}
+      {activeView === 'register' && (
+        <div className="space-y-4">
+          {/* Seletor de Data */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="flex items-center gap-3">
+                <Calendar className="text-amber-600" size={20} />
+                <input
+                  type="date"
+                  value={currentDate}
+                  onChange={(e) => setCurrentDate(e.target.value)}
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-gray-800 font-medium focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                />
+                <span className="text-gray-500 text-sm">
+                  ({daysOfWeek[new Date(currentDate + 'T12:00:00').getDay()]})
+                </span>
+              </div>
+              
+              {/* Botão Salvar */}
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold transition-all ${
+                  saveSuccess
+                    ? 'bg-green-600 text-white'
+                    : 'bg-amber-600 hover:bg-amber-700 text-white'
+                } disabled:opacity-50`}
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    Salvando...
+                  </>
+                ) : saveSuccess ? (
+                  <>
+                    <CheckCircle size={18} />
+                    Salvo!
+                  </>
+                ) : (
+                  <>
+                    <Save size={18} />
+                    Salvar Registro
+                  </>
+                )}
+              </button>
+            </div>
+            
+            {/* Totais do dia */}
+            <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="bg-blue-50 rounded-lg p-3">
+                <p className="text-xs text-blue-600 font-semibold uppercase">Produzido</p>
+                <p className="text-xl font-bold text-blue-800">{todayTotals.totalProduced}</p>
+              </div>
+              <div className="bg-orange-50 rounded-lg p-3">
+                <p className="text-xs text-orange-600 font-semibold uppercase">Sobra</p>
+                <p className="text-xl font-bold text-orange-800">{todayTotals.totalLeftover}</p>
+              </div>
+              <div className="bg-red-50 rounded-lg p-3">
+                <p className="text-xs text-red-600 font-semibold uppercase">Vendido/Usado</p>
+                <p className="text-xl font-bold text-red-800">{todayTotals.waste}</p>
+              </div>
+              <div className={`rounded-lg p-3 ${todayTotals.wastePercentage > 20 ? 'bg-red-100' : 'bg-green-50'}`}>
+                <p className={`text-xs font-semibold uppercase ${todayTotals.wastePercentage > 20 ? 'text-red-600' : 'text-green-600'}`}>Aproveitamento</p>
+                <p className={`text-xl font-bold ${todayTotals.wastePercentage > 20 ? 'text-red-800' : 'text-green-800'}`}>
+                  {todayTotals.totalProduced > 0 ? (100 - todayTotals.wastePercentage).toFixed(1) : 0}%
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          {/* Tabela de Produtos */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 text-gray-600 font-semibold uppercase text-xs">
+                  <tr>
+                    <th className="p-4 text-left border-b">Produto</th>
+                    <th className="p-4 text-center border-b bg-blue-50/50">Produção</th>
+                    <th className="p-4 text-center border-b bg-orange-50/50">Sobra</th>
+                    <th className="p-4 text-center border-b">Vendido</th>
+                    <th className="p-4 text-center border-b">% Sobra</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {products.map(product => {
+                    const data = productionItems[product.id] || { produced: 0, leftover: 0 };
+                    const sold = data.produced - data.leftover;
+                    const leftoverPct = data.produced > 0 ? (data.leftover / data.produced) * 100 : 0;
+                    
+                    return (
+                      <tr key={product.id} className="hover:bg-gray-50">
+                        <td className="p-4 font-medium text-gray-800">{product.name}</td>
+                        <td className="p-4 text-center bg-blue-50/30">
+                          <input
+                            type="number"
+                            min="0"
+                            value={data.produced || ''}
+                            onChange={(e) => handleProductionChange(product.id, parseInt(e.target.value) || 0)}
+                            placeholder="0"
+                            className="w-20 p-2 text-center border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </td>
+                        <td className="p-4 text-center bg-orange-50/30">
+                          <input
+                            type="number"
+                            min="0"
+                            max={data.produced}
+                            value={data.leftover || ''}
+                            onChange={(e) => handleLeftoverChange(product.id, parseInt(e.target.value) || 0)}
+                            placeholder="0"
+                            className="w-20 p-2 text-center border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                          />
+                        </td>
+                        <td className="p-4 text-center font-semibold text-green-700">
+                          {sold > 0 ? sold : '-'}
+                        </td>
+                        <td className={`p-4 text-center font-semibold ${leftoverPct > 20 ? 'text-red-600' : leftoverPct > 10 ? 'text-orange-600' : 'text-green-600'}`}>
+                          {data.produced > 0 ? `${leftoverPct.toFixed(1)}%` : '-'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            
+            {/* Observações */}
+            <div className="p-4 bg-gray-50 border-t border-gray-200">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Observações do dia
+              </label>
+              <textarea
+                value={observations}
+                onChange={(e) => setObservations(e.target.value)}
+                placeholder="Ex: Feriado, tempo chuvoso, evento especial..."
+                className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-none"
+                rows={2}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View: Histórico */}
+      {activeView === 'history' && (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-gray-200">
+            <h3 className="font-bold text-gray-800">Histórico de Registros</h3>
+            <p className="text-sm text-gray-500">Últimos registros de produção e sobras</p>
+          </div>
+          
+          {productionAnalysis.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">
+              <Package size={48} className="mx-auto mb-4 text-gray-300" />
+              <p>Nenhum registro encontrado</p>
+              <p className="text-sm">Comece registrando a produção do dia</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {productionAnalysis.slice(0, 30).map(record => (
+                <div key={record.id} className="p-4 hover:bg-gray-50 transition-colors">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-gray-800">
+                          {new Date(record.date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                        </span>
+                        <span className="text-sm px-2 py-0.5 bg-amber-100 text-amber-800 rounded">
+                          {record.dayOfWeekName}
+                        </span>
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-3 text-sm">
+                        <span className="text-blue-600">
+                          <strong>Produção:</strong> {record.totalProduced}
+                        </span>
+                        <span className="text-orange-600">
+                          <strong>Sobra:</strong> {record.totalLeftover}
+                        </span>
+                        <span className={record.wastePercentage > 20 ? 'text-red-600' : 'text-green-600'}>
+                          <strong>Aproveitamento:</strong> {(100 - record.wastePercentage).toFixed(1)}%
+                        </span>
+                      </div>
+                      {record.observations && (
+                        <p className="mt-1 text-sm text-gray-500 italic">"{record.observations}"</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleDelete(record.id)}
+                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Excluir registro"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                  
+                  {/* Mini tabela de produtos */}
+                  <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                    {record.items.slice(0, 8).map(item => (
+                      <div key={item.productId} className="text-xs bg-gray-50 rounded p-2">
+                        <span className="font-medium text-gray-700">{item.productName}</span>
+                        <div className="flex justify-between mt-1">
+                          <span className="text-blue-600">{item.produced}</span>
+                          <span className="text-orange-600">↳ {item.leftover}</span>
+                        </div>
+                      </div>
+                    ))}
+                    {record.items.length > 8 && (
+                      <div className="text-xs bg-gray-100 rounded p-2 flex items-center justify-center text-gray-500">
+                        +{record.items.length - 8} mais
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* View: Comparativo por Dia da Semana */}
+      {activeView === 'comparison' && (
+        <div className="space-y-4">
+          {/* Seletor de Dia da Semana */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+            <div className="flex flex-wrap gap-2">
+              {daysOfWeek.map((day, index) => (
+                <button
+                  key={index}
+                  onClick={() => setSelectedDayOfWeek(index)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    selectedDayOfWeek === index
+                      ? 'bg-amber-600 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {day}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          {/* Resumo do Dia */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+            <h3 className="font-bold text-gray-800 mb-4">
+              Análise de {daysOfWeek[selectedDayOfWeek]}s
+              <span className="text-sm font-normal text-gray-500 ml-2">
+                ({weekdayComparison.records.length} registro{weekdayComparison.records.length !== 1 ? 's' : ''})
+              </span>
+            </h3>
+            
+            {weekdayComparison.records.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Calendar size={48} className="mx-auto mb-4 text-gray-300" />
+                <p>Nenhum registro para {daysOfWeek[selectedDayOfWeek]}</p>
+              </div>
+            ) : (
+              <>
+                {/* Médias Gerais */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                  <div className="bg-blue-50 rounded-lg p-3">
+                    <p className="text-xs text-blue-600 font-semibold uppercase">Média Produção</p>
+                    <p className="text-xl font-bold text-blue-800">{weekdayComparison.avgTotalProduced}</p>
+                  </div>
+                  <div className="bg-orange-50 rounded-lg p-3">
+                    <p className="text-xs text-orange-600 font-semibold uppercase">Média Sobra</p>
+                    <p className="text-xl font-bold text-orange-800">{weekdayComparison.avgTotalLeftover}</p>
+                  </div>
+                  <div className="bg-green-50 rounded-lg p-3">
+                    <p className="text-xs text-green-600 font-semibold uppercase">Média Vendido</p>
+                    <p className="text-xl font-bold text-green-800">{weekdayComparison.avgTotalWaste}</p>
+                  </div>
+                  <div className={`rounded-lg p-3 ${weekdayComparison.avgWastePercentage > 20 ? 'bg-red-50' : 'bg-green-50'}`}>
+                    <p className={`text-xs font-semibold uppercase ${weekdayComparison.avgWastePercentage > 20 ? 'text-red-600' : 'text-green-600'}`}>
+                      Aproveitamento Médio
+                    </p>
+                    <p className={`text-xl font-bold ${weekdayComparison.avgWastePercentage > 20 ? 'text-red-800' : 'text-green-800'}`}>
+                      {(100 - weekdayComparison.avgWastePercentage).toFixed(1)}%
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Tabela por Produto */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 text-gray-600 font-semibold uppercase text-xs">
+                      <tr>
+                        <th className="p-3 text-left border-b">Produto</th>
+                        <th className="p-3 text-center border-b">Média Prod.</th>
+                        <th className="p-3 text-center border-b">Média Sobra</th>
+                        <th className="p-3 text-center border-b">% Sobra</th>
+                        <th className="p-3 text-center border-b">Tendência</th>
+                        <th className="p-3 text-center border-b bg-amber-50">Sugestão</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {weekdayComparison.productAverages.map(product => (
+                        <tr key={product.productId} className="hover:bg-gray-50">
+                          <td className="p-3 font-medium text-gray-800">{product.productName}</td>
+                          <td className="p-3 text-center text-blue-700">{product.avgProduced}</td>
+                          <td className="p-3 text-center text-orange-700">{product.avgLeftover}</td>
+                          <td className={`p-3 text-center font-semibold ${product.avgWastePercentage > 20 ? 'text-red-600' : 'text-green-600'}`}>
+                            {product.avgWastePercentage.toFixed(1)}%
+                          </td>
+                          <td className="p-3 text-center">
+                            {product.trend === 'increasing' && (
+                              <span className="text-red-500 text-lg">↑</span>
+                            )}
+                            {product.trend === 'decreasing' && (
+                              <span className="text-green-500 text-lg">↓</span>
+                            )}
+                            {product.trend === 'stable' && (
+                              <span className="text-gray-400 text-lg">→</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-center bg-amber-50/50 font-bold text-amber-700">
+                            {product.suggestion}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* View: Sugestões */}
+      {activeView === 'suggestions' && (
+        <div className="space-y-4">
+          {/* Seletor de Data para Sugestões */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+            <div className="flex items-center gap-3">
+              <span className="text-gray-600 font-medium">Sugestões para:</span>
+              <input
+                type="date"
+                value={currentDate}
+                onChange={(e) => setCurrentDate(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-gray-800 font-medium focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+              />
+              <span className="text-amber-600 font-semibold">
+                ({daysOfWeek[new Date(currentDate + 'T12:00:00').getDay()]})
+              </span>
+            </div>
+          </div>
+          
+          {/* Tabela de Sugestões */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="p-4 border-b border-gray-200 bg-amber-50">
+              <h3 className="font-bold text-amber-800 flex items-center gap-2">
+                <Calculator size={20} />
+                Sugestões de Produção
+              </h3>
+              <p className="text-sm text-amber-700 mt-1">
+                Baseado no histórico do mesmo dia da semana e dos últimos 7 dias
+              </p>
+            </div>
+            
+            {suggestions.length === 0 || suggestions.every(s => s.confidence === 'low') ? (
+              <div className="p-8 text-center text-gray-500">
+                <AlertCircle size={48} className="mx-auto mb-4 text-gray-300" />
+                <p>Dados insuficientes para sugestões</p>
+                <p className="text-sm">Registre mais dias de produção para receber sugestões</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 text-gray-600 font-semibold uppercase text-xs">
+                    <tr>
+                      <th className="p-4 text-left border-b">Produto</th>
+                      <th className="p-4 text-center border-b">
+                        Média {daysOfWeek[new Date(currentDate + 'T12:00:00').getDay()]}
+                        <br/><span className="text-xs font-normal text-gray-400">Prod. / Sobra</span>
+                      </th>
+                      <th className="p-4 text-center border-b">
+                        Últimos 7 dias
+                        <br/><span className="text-xs font-normal text-gray-400">Prod. / Sobra</span>
+                      </th>
+                      <th className="p-4 text-center border-b">Confiança</th>
+                      <th className="p-4 text-center border-b bg-green-50">
+                        Sugestão
+                        <br/><span className="text-xs font-normal text-green-600">para produzir</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {suggestions
+                      .filter(s => s.suggestedQuantity > 0 || s.sameDayAvgProduced > 0 || s.last7DaysAvgProduced > 0)
+                      .map(suggestion => (
+                        <tr key={suggestion.productId} className="hover:bg-gray-50">
+                          <td className="p-4 font-medium text-gray-800">{suggestion.productName}</td>
+                          <td className="p-4 text-center">
+                            {suggestion.sameDayAvgProduced > 0 ? (
+                              <span>
+                                <span className="text-blue-600 font-semibold">{suggestion.sameDayAvgProduced}</span>
+                                <span className="text-gray-400 mx-1">/</span>
+                                <span className="text-orange-600">{suggestion.sameDayAvgLeftover}</span>
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </td>
+                          <td className="p-4 text-center">
+                            {suggestion.last7DaysAvgProduced > 0 ? (
+                              <span>
+                                <span className="text-blue-600 font-semibold">{suggestion.last7DaysAvgProduced}</span>
+                                <span className="text-gray-400 mx-1">/</span>
+                                <span className="text-orange-600">{suggestion.last7DaysAvgLeftover}</span>
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </td>
+                          <td className="p-4 text-center">
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              suggestion.confidence === 'high' 
+                                ? 'bg-green-100 text-green-800'
+                                : suggestion.confidence === 'medium'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-gray-100 text-gray-600'
+                            }`}>
+                              {suggestion.confidence === 'high' && <CheckCircle size={12} className="mr-1" />}
+                              {suggestion.confidence === 'high' ? 'Alta' : suggestion.confidence === 'medium' ? 'Média' : 'Baixa'}
+                            </span>
+                          </td>
+                          <td className="p-4 text-center bg-green-50/50">
+                            <span className="text-2xl font-bold text-green-700">
+                              {suggestion.suggestedQuantity}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            
+            {/* Legenda */}
+            <div className="p-4 bg-gray-50 border-t border-gray-200">
+              <p className="text-xs text-gray-500">
+                <strong>Como funciona:</strong> A sugestão considera a média de produção menos 30% da média de sobras, 
+                priorizando dados do mesmo dia da semana. Quanto mais registros, maior a confiança.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
