@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { User, UserRole, Client, Product, Route, DeliverySchedule } from '../types';
-import { ChevronDown, ChevronRight, UserPlus, MapPin, Phone, Truck, Calendar, Package, Pencil, Trash2, Plus, ArrowRightLeft, X, Save, Navigation, Map, Search, User as UserIcon, CreditCard, FileText, RotateCcw, Loader2, AlertCircle, Calculator, CheckCircle, DollarSign, Tag, Check, MessageCircle, Smartphone, BarChart3 } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronLeft, UserPlus, MapPin, Phone, Truck, Calendar, Package, Pencil, Trash2, Plus, ArrowRightLeft, X, Save, Navigation, Map, Search, User as UserIcon, CreditCard, FileText, RotateCcw, Loader2, AlertCircle, Calculator, CheckCircle, DollarSign, Tag, Check, MessageCircle, Smartphone, BarChart3, Banknote } from 'lucide-react';
 
 // Função utilitária para normalizar texto (remover acentos e converter para minúsculas)
 const normalizeText = (text: string): string => {
@@ -62,8 +62,8 @@ const AddScheduleItemRow: React.FC<{ products: Product[], onAdd: (productId: str
 };
 
 export const DriversOverview: React.FC = () => {
-  const { getDrivers, getClientsByDriver, getRoutesByDriver, routes, products, calculateClientDebt, addUser } = useData();
-  const { register } = useAuth(); // Fallback para quando Cloud Function não está disponível
+  const { getDrivers, getClientsByDriver, getRoutesByDriver, routes, products, calculateClientDebt, addUser, registerAdminPayment, getClientPaymentInfo, getClientConsumptionHistory, getPaymentsByClient } = useData();
+  const { register, currentUser } = useAuth(); // Fallback para quando Cloud Function não está disponível
 
   const drivers = getDrivers();
   const [expandedDriverId, setExpandedDriverId] = useState<string | null>(null);
@@ -73,6 +73,26 @@ export const DriversOverview: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [deletingDriverId, setDeletingDriverId] = useState<string | null>(null);
+  
+  // Estados para modal de pagamento do administrador
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentClientId, setPaymentClientId] = useState<string>('');
+  const [paymentClientName, setPaymentClientName] = useState<string>('');
+  const [paymentAmount, setPaymentAmount] = useState<string>('');
+  const [paymentMethod, setPaymentMethod] = useState<string>('MBWay');
+  const [paidUntilDate, setPaidUntilDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [savingPayment, setSavingPayment] = useState(false);
+  const [clientDebt, setClientDebt] = useState<number>(0);
+  const [showCustomCalendar, setShowCustomCalendar] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(new Date());
+  const [paymentInfo, setPaymentInfo] = useState<{
+    lastPaymentDate: string | null;
+    lastPaymentAmount: number | null;
+    paidUntilDate: string | null;
+    unpaidDates: string[];
+    paidDates: string[];
+    skippedDates?: string[];
+  } | null>(null);
   
   // Estados para edição de entregador
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -167,7 +187,76 @@ export const DriversOverview: React.FC = () => {
     }
   };
 
+  // Função para abrir modal de pagamento (Admin)
+  const handleOpenPaymentModal = (client: Client) => {
+    const debt = calculateClientDebt(client);
+    setClientDebt(debt.total);
+    
+    // Carregar informações de pagamento
+    const info = getClientPaymentInfo(client.id);
+    setPaymentInfo(info);
+    
+    // Configurar estados iniciais
+    const confirmedPaidUntil = info.paidUntilDate || null;
+    setPaidUntilDate(confirmedPaidUntil || new Date().toISOString().split('T')[0]);
+    
+    // Valor inicial é a dívida total
+    setPaymentAmount(debt.total > 0 ? debt.total.toFixed(2) : '');
+    
+    setPaymentClientId(client.id);
+    setPaymentClientName(client.name);
+    setPaymentMethod('MBWay'); // Admin normalmente recebe por MBWay
+    setShowCustomCalendar(false);
+    setCalendarMonth(new Date());
+    setShowPaymentModal(true);
+  };
 
+  // Registrar pagamento pelo administrador
+  const handleRegisterAdminPayment = async () => {
+    if (!currentUser?.id || !paymentClientId) return;
+    
+    const amount = parseFloat(paymentAmount) || 0;
+    if (amount <= 0) {
+      setError('Informe um valor válido');
+      return;
+    }
+    
+    setSavingPayment(true);
+    try {
+      await registerAdminPayment(
+        currentUser.id, 
+        currentUser.name, 
+        paymentClientId, 
+        amount, 
+        paymentMethod, 
+        paidUntilDate
+      );
+      
+      // Sucesso: limpar estados
+      setShowPaymentModal(false);
+      setPaymentClientId('');
+      setPaymentClientName('');
+      setPaymentAmount('');
+      setClientDebt(0);
+      setPaymentInfo(null);
+    } catch (err) {
+      console.error('Erro ao registrar pagamento:', err);
+      setError('Erro ao registrar pagamento');
+    } finally {
+      setSavingPayment(false);
+    }
+  };
+
+  // Verificar se cliente tem pagamento recebido pelo admin
+  const getAdminPaymentInfo = (clientId: string) => {
+    const payments = getPaymentsByClient(clientId);
+    const adminPayments = payments.filter(p => p.receivedByAdmin);
+    if (adminPayments.length === 0) return null;
+    
+    // Pegar o mais recente
+    const lastAdminPayment = adminPayments.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+    return lastAdminPayment;
+  };
 
   // Sincronizar entregadores do Auth para Firestore
   const handleSyncDrivers = async () => {
@@ -480,7 +569,8 @@ export const DriversOverview: React.FC = () => {
                                   <div className="divide-y divide-gray-100">
                                     {routeClients.map(client => {
                                       const debt = calculateClientDebt(client);
-                                      const paymentInfo = getPaymentStatus(client);
+                                      const paymentStatusInfo = getPaymentStatus(client);
+                                      const adminPayment = getAdminPaymentInfo(client.id);
                                       return (
                                         <div key={client.id} className="p-3 hover:bg-gray-50">
                                           <div className="flex justify-between items-start">
@@ -494,14 +584,30 @@ export const DriversOverview: React.FC = () => {
                                                 <Phone size={12} className="mr-1 flex-shrink-0" />
                                                 {client.phone}
                                               </div>
+                                              {/* Informação de pagamento pelo admin */}
+                                              {adminPayment && (
+                                                <div className="mt-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
+                                                  <div className="flex items-center gap-1 text-xs text-blue-700">
+                                                    <CheckCircle size={12} />
+                                                    <span className="font-medium">Recebido pelo Admin</span>
+                                                  </div>
+                                                  <div className="text-xs text-blue-600 mt-0.5">
+                                                    €{adminPayment.amount.toFixed(2)} • {adminPayment.method}
+                                                  </div>
+                                                  <div className="text-xs text-blue-500">
+                                                    {new Date(adminPayment.createdAt).toLocaleDateString('pt-PT')} 
+                                                    {adminPayment.paidUntil && ` • Pago até ${new Date(adminPayment.paidUntil).toLocaleDateString('pt-PT')}`}
+                                                  </div>
+                                                </div>
+                                              )}
                                             </div>
-                                            <div className="text-right ml-4">
+                                            <div className="text-right ml-4 flex flex-col items-end">
                                               <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                                                paymentInfo.color === 'green' ? 'bg-green-100 text-green-700' :
-                                                paymentInfo.color === 'red' ? 'bg-red-100 text-red-700' :
+                                                paymentStatusInfo.color === 'green' ? 'bg-green-100 text-green-700' :
+                                                paymentStatusInfo.color === 'red' ? 'bg-red-100 text-red-700' :
                                                 'bg-yellow-100 text-yellow-700'
                                               }`}>
-                                                {paymentInfo.status}
+                                                {paymentStatusInfo.status}
                                               </span>
                                               <div className="text-sm font-semibold text-gray-800 mt-1">
                                                 € {debt.total.toFixed(2)}
@@ -509,6 +615,14 @@ export const DriversOverview: React.FC = () => {
                                               <div className="text-xs text-gray-400">
                                                 {client.lastPaymentDate ? `Último: ${new Date(client.lastPaymentDate).toLocaleDateString('pt-PT')}` : 'Sem pagamentos'}
                                               </div>
+                                              {/* Botão de Receber Pagamento */}
+                                              <button
+                                                onClick={() => handleOpenPaymentModal(client)}
+                                                className="mt-2 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg text-xs font-medium hover:bg-amber-200 transition-colors flex items-center gap-1"
+                                              >
+                                                <Banknote size={14} />
+                                                Receber
+                                              </button>
                                             </div>
                                           </div>
                                         </div>
@@ -538,7 +652,8 @@ export const DriversOverview: React.FC = () => {
                             <div className="divide-y divide-gray-100">
                               {clientsWithoutRoute.sort(sortByStatus).map(client => {
                                 const debt = calculateClientDebt(client);
-                                const paymentInfo = getPaymentStatus(client);
+                                const paymentStatusInfo = getPaymentStatus(client);
+                                const adminPayment = getAdminPaymentInfo(client.id);
                                 return (
                                   <div key={client.id} className="p-3 hover:bg-gray-50">
                                     <div className="flex justify-between items-start">
@@ -552,14 +667,30 @@ export const DriversOverview: React.FC = () => {
                                           <Phone size={12} className="mr-1 flex-shrink-0" />
                                           {client.phone}
                                         </div>
+                                        {/* Informação de pagamento pelo admin */}
+                                        {adminPayment && (
+                                          <div className="mt-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
+                                            <div className="flex items-center gap-1 text-xs text-blue-700">
+                                              <CheckCircle size={12} />
+                                              <span className="font-medium">Recebido pelo Admin</span>
+                                            </div>
+                                            <div className="text-xs text-blue-600 mt-0.5">
+                                              €{adminPayment.amount.toFixed(2)} • {adminPayment.method}
+                                            </div>
+                                            <div className="text-xs text-blue-500">
+                                              {new Date(adminPayment.createdAt).toLocaleDateString('pt-PT')} 
+                                              {adminPayment.paidUntil && ` • Pago até ${new Date(adminPayment.paidUntil).toLocaleDateString('pt-PT')}`}
+                                            </div>
+                                          </div>
+                                        )}
                                       </div>
-                                      <div className="text-right ml-4">
+                                      <div className="text-right ml-4 flex flex-col items-end">
                                         <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                                          paymentInfo.color === 'green' ? 'bg-green-100 text-green-700' :
-                                          paymentInfo.color === 'red' ? 'bg-red-100 text-red-700' :
+                                          paymentStatusInfo.color === 'green' ? 'bg-green-100 text-green-700' :
+                                          paymentStatusInfo.color === 'red' ? 'bg-red-100 text-red-700' :
                                           'bg-yellow-100 text-yellow-700'
                                         }`}>
-                                          {paymentInfo.status}
+                                          {paymentStatusInfo.status}
                                         </span>
                                         <div className="text-sm font-semibold text-gray-800 mt-1">
                                           € {debt.total.toFixed(2)}
@@ -567,6 +698,14 @@ export const DriversOverview: React.FC = () => {
                                         <div className="text-xs text-gray-400">
                                           {client.lastPaymentDate ? `Último: ${new Date(client.lastPaymentDate).toLocaleDateString('pt-PT')}` : 'Sem pagamentos'}
                                         </div>
+                                        {/* Botão de Receber Pagamento */}
+                                        <button
+                                          onClick={() => handleOpenPaymentModal(client)}
+                                          className="mt-2 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg text-xs font-medium hover:bg-amber-200 transition-colors flex items-center gap-1"
+                                        >
+                                          <Banknote size={14} />
+                                          Receber
+                                        </button>
                                       </div>
                                     </div>
                                   </div>
@@ -697,6 +836,291 @@ export const DriversOverview: React.FC = () => {
                   <span>{editLoading ? 'Salvando...' : 'Salvar Alterações'}</span>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Pagamento do Administrador */}
+      {showPaymentModal && paymentClientId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <Banknote className="text-amber-600" size={20} />
+              Receber Pagamento (Admin)
+            </h3>
+            
+            <div className="mb-4">
+              <p className="text-gray-600 text-sm mb-1">Cliente:</p>
+              <p className="font-semibold text-gray-800">{paymentClientName}</p>
+            </div>
+
+            {/* Aviso MBWay */}
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <p className="text-sm text-blue-700">
+                <strong>ℹ️ Nota:</strong> Pagamentos recebidos pelo administrador (ex: MBWay) não entram no fecho de contas do entregador.
+              </p>
+            </div>
+
+            {/* Informações de Pagamento */}
+            {paymentInfo && (
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Último pagamento:</span>
+                  <span className="text-sm font-medium">
+                    {paymentInfo.lastPaymentDate 
+                      ? `${new Date(paymentInfo.lastPaymentDate).toLocaleDateString('pt-PT')} - €${paymentInfo.lastPaymentAmount?.toFixed(2) || '0.00'}`
+                      : 'Nenhum registado'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Pago até:</span>
+                  <span className={`text-sm font-medium ${paymentInfo.paidUntilDate ? 'text-green-600' : 'text-gray-400'}`}>
+                    {paymentInfo.paidUntilDate 
+                      ? new Date(paymentInfo.paidUntilDate).toLocaleDateString('pt-PT')
+                      : 'Não definido'}
+                  </span>
+                </div>
+                {paymentInfo.unpaidDates.length > 0 && (
+                  <div className="pt-2 border-t border-gray-200">
+                    <span className="text-sm text-red-600 font-medium">
+                      ⚠️ {paymentInfo.unpaidDates.length} dia(s) por pagar
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Mostrar dívida atual */}
+            {clientDebt > 0 ? (
+              <div className="mb-4 p-3 bg-red-50 rounded-lg border border-red-200">
+                <p className="text-sm text-red-700">
+                  <strong>Dívida atual:</strong> €{clientDebt.toFixed(2)}
+                </p>
+              </div>
+            ) : (
+              <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
+                <p className="text-sm text-green-700">
+                  Cliente sem dívida pendente
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              {/* Valor */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Valor Recebido (€)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                />
+              </div>
+
+              {/* Método de Pagamento */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Método de Pagamento
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setPaymentMethod('MBWay')}
+                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
+                      paymentMethod === 'MBWay'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    <Smartphone size={18} />
+                    MBWay
+                  </button>
+                  <button
+                    onClick={() => setPaymentMethod('Transferência')}
+                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
+                      paymentMethod === 'Transferência'
+                        ? 'border-purple-500 bg-purple-50 text-purple-700'
+                        : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    <CreditCard size={18} />
+                    Transf.
+                  </button>
+                  <button
+                    onClick={() => setPaymentMethod('Dinheiro')}
+                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
+                      paymentMethod === 'Dinheiro'
+                        ? 'border-green-500 bg-green-50 text-green-700'
+                        : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    <Banknote size={18} />
+                    Dinheiro
+                  </button>
+                  <button
+                    onClick={() => setPaymentMethod('Outro')}
+                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
+                      paymentMethod === 'Outro'
+                        ? 'border-gray-500 bg-gray-100 text-gray-700'
+                        : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    <DollarSign size={18} />
+                    Outro
+                  </button>
+                </div>
+              </div>
+
+              {/* Data até quando fica pago */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Pago até (data)
+                </label>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowCustomCalendar(!showCustomCalendar)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-left flex items-center justify-between"
+                  >
+                    <span>{paidUntilDate ? new Date(paidUntilDate).toLocaleDateString('pt-PT') : 'Selecionar data...'}</span>
+                    <Calendar size={18} className="text-gray-400" />
+                  </button>
+                  
+                  {/* Calendário Simples */}
+                  {showCustomCalendar && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 p-3">
+                      {/* Header do calendário */}
+                      <div className="flex items-center justify-between mb-3">
+                        <button
+                          onClick={() => {
+                            const newMonth = new Date(calendarMonth);
+                            newMonth.setMonth(newMonth.getMonth() - 1);
+                            setCalendarMonth(newMonth);
+                          }}
+                          className="p-1 hover:bg-gray-100 rounded"
+                        >
+                          <ChevronLeft size={20} />
+                        </button>
+                        <span className="font-medium">
+                          {calendarMonth.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' })}
+                        </span>
+                        <button
+                          onClick={() => {
+                            const newMonth = new Date(calendarMonth);
+                            newMonth.setMonth(newMonth.getMonth() + 1);
+                            setCalendarMonth(newMonth);
+                          }}
+                          className="p-1 hover:bg-gray-100 rounded"
+                        >
+                          <ChevronRight size={20} />
+                        </button>
+                      </div>
+                      
+                      {/* Dias da semana */}
+                      <div className="grid grid-cols-7 gap-1 mb-2 text-center">
+                        {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((day, i) => (
+                          <div key={i} className="text-xs font-medium text-gray-500 py-1">{day}</div>
+                        ))}
+                      </div>
+                      
+                      {/* Dias do mês */}
+                      <div className="grid grid-cols-7 gap-1">
+                        {(() => {
+                          const year = calendarMonth.getFullYear();
+                          const month = calendarMonth.getMonth();
+                          const firstDay = new Date(year, month, 1);
+                          const lastDay = new Date(year, month + 1, 0);
+                          const todayStr = new Date().toISOString().split('T')[0];
+                          
+                          const days = [];
+                          
+                          // Dias vazios antes do primeiro dia do mês
+                          for (let i = 0; i < firstDay.getDay(); i++) {
+                            days.push(<div key={`empty-${i}`} className="w-8 h-8"></div>);
+                          }
+                          
+                          // Dias do mês
+                          for (let day = 1; day <= lastDay.getDate(); day++) {
+                            const dateObj = new Date(year, month, day);
+                            const dateStr = dateObj.toISOString().split('T')[0];
+                            const isSelected = paidUntilDate === dateStr;
+                            const isToday = dateStr === todayStr;
+                            const isFuture = dateStr > todayStr;
+                            
+                            days.push(
+                              <button
+                                key={day}
+                                onClick={() => {
+                                  if (!isFuture) {
+                                    setPaidUntilDate(dateStr);
+                                    setShowCustomCalendar(false);
+                                  }
+                                }}
+                                disabled={isFuture}
+                                className={`w-8 h-8 rounded-full text-sm font-medium transition-all ${
+                                  isSelected 
+                                    ? 'bg-amber-500 text-white' 
+                                    : isToday 
+                                      ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' 
+                                      : isFuture 
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                                        : 'hover:bg-gray-100 text-gray-700'
+                                }`}
+                              >
+                                {day}
+                              </button>
+                            );
+                          }
+                          
+                          return days;
+                        })()}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Selecione a data até quando o cliente fica pago
+                </p>
+              </div>
+            </div>
+
+            {/* Botões */}
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowPaymentModal(false);
+                  setPaymentClientId('');
+                  setPaymentClientName('');
+                  setPaymentAmount('');
+                  setClientDebt(0);
+                  setPaymentInfo(null);
+                  setShowCustomCalendar(false);
+                }}
+                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleRegisterAdminPayment}
+                disabled={savingPayment || !paymentAmount || parseFloat(paymentAmount) <= 0}
+                className="flex-1 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {savingPayment ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle size={16} />
+                    Registrar
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

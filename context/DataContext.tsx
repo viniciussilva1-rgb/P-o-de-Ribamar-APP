@@ -79,6 +79,7 @@ interface DataContextType {
   
   // Pagamentos Recebidos
   registerDailyPayment: (driverId: string, clientId: string, amount: number, method: string, paidUntil?: string) => Promise<void>;
+  registerAdminPayment: (adminId: string, adminName: string, clientId: string, amount: number, method: string, paidUntil?: string) => Promise<void>;
   cancelDailyPayment: (paymentId: string, clientId: string) => Promise<void>;
   getDailyPaymentsByDriver: (driverId: string, date: string) => DailyPaymentReceived[];
   getPaymentsByClient: (clientId: string) => DailyPaymentReceived[];
@@ -829,7 +830,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const paymentHistory = (client.paymentHistory || []).map(p => ({
       date: p.date,
       amount: p.amount,
-      method: p.method
+      method: p.method,
+      receivedByAdmin: p.receivedByAdmin,
+      adminName: p.adminName
     }));
 
     // Data de hoje para filtrar entregas futuras
@@ -2194,6 +2197,54 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  // Registrar Pagamento pelo Administrador (não entra no fecho de contas do entregador)
+  const registerAdminPayment = async (adminId: string, adminName: string, clientId: string, amount: number, method: string, paidUntil?: string): Promise<void> => {
+    const today = new Date().toISOString().split('T')[0];
+    const paymentId = `payment-admin-${clientId}-${Date.now()}`;
+    const now = new Date().toISOString();
+    
+    const client = clients.find(c => c.id === clientId);
+    const route = client?.routeId ? routes.find(r => r.id === client.routeId) : null;
+    
+    const paymentData: DailyPaymentReceived = {
+      id: paymentId,
+      driverId: client?.driverId || '', // Mantém referência ao entregador para o histórico
+      clientId,
+      date: today,
+      clientName: client?.name || 'Cliente',
+      routeId: client?.routeId,
+      routeName: route?.name,
+      amount,
+      method: method as DailyPaymentReceived['method'],
+      paidUntil: paidUntil || today,
+      receivedByAdmin: true, // Marca como recebido pelo admin
+      adminId,
+      adminName,
+      createdAt: now
+    };
+    
+    await setDoc(doc(db, 'daily_payments_received', paymentId), paymentData);
+    
+    // Também atualiza o lastPaymentDate do cliente (pago até) e adiciona ao histórico
+    if (client) {
+      const paymentHistoryEntry = {
+        date: today,
+        amount,
+        method,
+        receivedByAdmin: true,
+        adminName
+      };
+      
+      const existingHistory = client.paymentHistory || [];
+      
+      await updateDoc(doc(db, 'clients', clientId), {
+        lastPaymentDate: paidUntil || today,
+        paymentHistory: [...existingHistory, paymentHistoryEntry],
+        currentBalance: 0
+      });
+    }
+  };
+
   // Cancelar Pagamento Recebido
   const cancelDailyPayment = async (paymentId: string, clientId: string): Promise<void> => {
     // Buscar o pagamento que será cancelado
@@ -2274,7 +2325,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Calcular dados do fecho diário (sem countedAmount, que é preenchido pelo entregador)
   const calculateDailyClosureData = (driverId: string, date: string) => {
-    const payments = getDailyPaymentsByDriver(driverId, date);
+    // Excluir pagamentos recebidos pelo admin (não entram no fecho de contas do entregador)
+    const payments = getDailyPaymentsByDriver(driverId, date).filter(p => !p.receivedByAdmin);
     const cashFund = getDailyCashFund(driverId, date);
     
     // Totais por método
@@ -2403,18 +2455,20 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const lastSettlementTimestamp = lastConfirmedSettlement?.confirmedAt || null;
     
     // Buscar todos os pagamentos APÓS o último fecho (sem limite de semana para o período atual)
+    // Excluir pagamentos recebidos pelo admin (não entram no fecho de contas do entregador)
     const weekPayments = dailyPaymentsReceived.filter(p => {
       const matchesDriver = p.driverId === driverId;
+      const notReceivedByAdmin = !p.receivedByAdmin; // Excluir pagamentos do admin
       
       // Se há um fecho confirmado, só contar pagamentos APÓS a confirmação
       if (lastSettlementTimestamp) {
         const paymentTimestamp = p.createdAt || '';
-        return matchesDriver && paymentTimestamp > lastSettlementTimestamp;
+        return matchesDriver && notReceivedByAdmin && paymentTimestamp > lastSettlementTimestamp;
       }
       
       // Se não há fecho anterior, considerar toda a semana atual
       const inDateRange = p.date >= weekStartDate && p.date <= weekEndDate;
-      return matchesDriver && inDateRange;
+      return matchesDriver && notReceivedByAdmin && inDateRange;
     });
     
     // Buscar todas as entregas APÓS o último fecho
@@ -2905,7 +2959,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       createDailyLoad, updateDailyLoad, completeDailyLoad, getDailyLoadByDriver, getDailyLoadsByDate, getDailyLoadReport, getProductionSuggestions,
       generateDailyDeliveries, updateDeliveryStatus, updateDynamicDeliveryItems, addExtraToDelivery, removeExtraFromDelivery, substituteProductInDelivery, revertSubstituteInDelivery, adjustQuantityInDelivery, getDeliveriesByDriver, getDriverDailySummary, getAdminDeliveryReport, getScheduledClientsForDay,
       recordDynamicDelivery, getDynamicClientHistory, getDynamicClientPrediction, getDynamicLoadSummary, getDynamicClientsForDriver,
-      saveDailyCashFund, getDailyCashFund, registerDailyPayment, cancelDailyPayment, getDailyPaymentsByDriver, getPaymentsByClient, getClientPaymentSummaries,
+      saveDailyCashFund, getDailyCashFund, registerDailyPayment, registerAdminPayment, cancelDailyPayment, getDailyPaymentsByDriver, getPaymentsByClient, getClientPaymentSummaries,
       saveDailyDriverClosure, getDailyDriverClosure, calculateDailyClosureData,
       getWeeklySettlement, calculateWeeklySettlement, confirmWeeklySettlement, cancelWeeklySettlement, getAllPendingSettlements, getSettlementHistory, getLastConfirmedSettlement,
       saveProductionAnalysis, getProductionAnalysisByDate, getProductionAnalysisByDateRange, getWeekdayComparison, getProductionAnalysisSuggestions, deleteProductionAnalysis

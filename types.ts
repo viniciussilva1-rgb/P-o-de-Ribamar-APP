@@ -53,6 +53,8 @@ export interface PaymentTransaction {
   date: string;
   amount: number;
   method: string;
+  receivedByAdmin?: boolean;
+  adminName?: string;
 }
 
 export interface Client {
@@ -501,6 +503,11 @@ export interface DailyPaymentReceived {
   // Referência
   referenceDeliveryIds?: string[]; // IDs das entregas que este pagamento cobre
   
+  // Se foi recebido pelo administrador (não entra no fecho de contas do entregador)
+  receivedByAdmin?: boolean;
+  adminId?: string; // ID do admin que recebeu
+  adminName?: string; // Nome do admin que recebeu
+  
   createdAt: string;
 }
 
@@ -649,6 +656,8 @@ export interface ClientConsumptionHistory {
     date: string;
     amount: number;
     method: string;
+    receivedByAdmin?: boolean;
+    adminName?: string;
   }[];
 }
 

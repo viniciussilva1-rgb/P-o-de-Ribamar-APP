@@ -2451,12 +2451,17 @@ export const DriverView: React.FC = () => {
                   </h3>
                   <div className="bg-green-50 border border-green-200 rounded-xl divide-y divide-green-200">
                     {consumptionData.paymentHistory.slice().reverse().map((payment, idx) => (
-                      <div key={idx} className="flex justify-between items-center p-3">
+                      <div key={idx} className={`flex justify-between items-center p-3 ${payment.receivedByAdmin ? 'bg-blue-50' : ''}`}>
                         <div>
                           <span className="font-medium text-green-800">
                             {new Date(payment.date).toLocaleDateString('pt-PT')}
                           </span>
                           <span className="text-xs text-green-600 ml-2">({payment.method})</span>
+                          {payment.receivedByAdmin && (
+                            <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                              Admin{payment.adminName ? `: ${payment.adminName}` : ''}
+                            </span>
+                          )}
                         </div>
                         <span className="font-bold text-green-700">€ {payment.amount.toFixed(2)}</span>
                       </div>

@@ -826,10 +826,21 @@ const DriverDailyDeliveries: React.FC = () => {
     // Só mostrar badge de pagamento para entregas que foram concluídas (delivered)
     if (deliveryStatus !== 'delivered') return null;
     
-    const paymentInfo = getClientPaymentInfo(clientId);
-    const isPaid = paymentInfo.paidDates.includes(deliveryDate);
+    const paymentInfoData = getClientPaymentInfo(clientId);
+    const isPaid = paymentInfoData.paidDates.includes(deliveryDate);
+    
+    // Verificar se há pagamento recebido pelo admin para este cliente
+    const clientPayments = getPaymentsByClient(clientId);
+    const adminPayment = clientPayments.find(p => p.receivedByAdmin && p.paidUntil && p.paidUntil >= deliveryDate);
     
     if (isPaid) {
+      if (adminPayment) {
+        return (
+          <span className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium" title={`Recebido por ${adminPayment.adminName || 'Admin'} via ${adminPayment.method}`}>
+            € Pago (Admin)
+          </span>
+        );
+      }
       return (
         <span className="flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium" title="Pagamento confirmado">
           € Pago
