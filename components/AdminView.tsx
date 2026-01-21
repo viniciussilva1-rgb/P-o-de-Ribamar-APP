@@ -101,6 +101,9 @@ export const DriversOverview: React.FC = () => {
   const [editDriverPhone, setEditDriverPhone] = useState('');
   const [editDriverPassword, setEditDriverPassword] = useState('');
   const [editLoading, setEditLoading] = useState(false);
+  
+  // Estado para pesquisa de clientes
+  const [clientSearchTerm, setClientSearchTerm] = useState<string>('');
 
   // Função para deletar entregador (com clientes e rotas)
   const handleDeleteDriver = async (driver: User) => {
@@ -503,11 +506,28 @@ export const DriversOverview: React.FC = () => {
                       return { status: 'Em aberto', color: 'yellow' };
                     };
 
-                    // Agrupar clientes por rota
+                    // Ordenar clientes por status (Em atraso primeiro, depois Em aberto, depois Pago)
+                    const sortByStatus = (a: Client, b: Client) => {
+                      const statusOrder = { 'Em atraso': 0, 'Em aberto': 1, 'Pago': 2 };
+                      const statusA = getPaymentStatus(a).status as keyof typeof statusOrder;
+                      const statusB = getPaymentStatus(b).status as keyof typeof statusOrder;
+                      return statusOrder[statusA] - statusOrder[statusB];
+                    };
+
+                    // Filtrar clientes pela pesquisa
+                    const filteredClients = clientSearchTerm.trim()
+                      ? allClients.filter(client => 
+                          client.name.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
+                          client.address.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
+                          (client.phone && client.phone.includes(clientSearchTerm))
+                        )
+                      : allClients;
+
+                    // Agrupar clientes FILTRADOS por rota
                     const clientsByRoute: Record<string, Client[]> = {};
                     const clientsWithoutRoute: Client[] = [];
 
-                    allClients.forEach(client => {
+                    filteredClients.forEach(client => {
                       if (client.routeId) {
                         if (!clientsByRoute[client.routeId]) {
                           clientsByRoute[client.routeId] = [];
@@ -518,21 +538,33 @@ export const DriversOverview: React.FC = () => {
                       }
                     });
 
-                    // Ordenar clientes por status (Em atraso primeiro, depois Em aberto, depois Pago)
-                    const sortByStatus = (a: Client, b: Client) => {
-                      const statusOrder = { 'Em atraso': 0, 'Em aberto': 1, 'Pago': 2 };
-                      const statusA = getPaymentStatus(a).status as keyof typeof statusOrder;
-                      const statusB = getPaymentStatus(b).status as keyof typeof statusOrder;
-                      return statusOrder[statusA] - statusOrder[statusB];
-                    };
-
                     return (
                       <div className="space-y-6">
+                        {/* Campo de Pesquisa de Clientes */}
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                          <input
+                            type="text"
+                            placeholder="Pesquisar cliente por nome, morada ou telefone..."
+                            value={clientSearchTerm}
+                            onChange={(e) => setClientSearchTerm(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white"
+                          />
+                          {clientSearchTerm && (
+                            <button
+                              onClick={() => setClientSearchTerm('')}
+                              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            >
+                              <X size={18} />
+                            </button>
+                          )}
+                        </div>
+
                         {/* Resumo */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                           <div className="bg-white p-3 rounded-lg border">
-                            <div className="text-2xl font-bold text-gray-800">{allClients.length}</div>
-                            <div className="text-xs text-gray-500">Total Clientes</div>
+                            <div className="text-2xl font-bold text-gray-800">{filteredClients.length}{clientSearchTerm && <span className="text-sm text-gray-400 ml-1">/ {allClients.length}</span>}</div>
+                            <div className="text-xs text-gray-500">{clientSearchTerm ? 'Encontrados' : 'Total Clientes'}</div>
                           </div>
                           <div className="bg-white p-3 rounded-lg border">
                             <div className="text-2xl font-bold text-gray-800">{driverRoutes.length}</div>
@@ -540,13 +572,13 @@ export const DriversOverview: React.FC = () => {
                           </div>
                           <div className="bg-white p-3 rounded-lg border">
                             <div className="text-2xl font-bold text-red-600">
-                              {allClients.filter(c => getPaymentStatus(c).status === 'Em atraso').length}
+                              {filteredClients.filter(c => getPaymentStatus(c).status === 'Em atraso').length}
                             </div>
                             <div className="text-xs text-gray-500">Em Atraso</div>
                           </div>
                           <div className="bg-white p-3 rounded-lg border">
                             <div className="text-2xl font-bold text-green-600">
-                              € {allClients.reduce((sum, c) => sum + calculateClientDebt(c).total, 0).toFixed(2)}
+                              € {filteredClients.reduce((sum, c) => sum + calculateClientDebt(c).total, 0).toFixed(2)}
                             </div>
                             <div className="text-xs text-gray-500">Total a Receber</div>
                           </div>
@@ -1043,7 +1075,7 @@ export const DriversOverview: React.FC = () => {
                             days.push(<div key={`empty-${i}`} className="w-8 h-8"></div>);
                           }
                           
-                          // Dias do mês
+                          // Dias do mês - Admin pode selecionar datas futuras
                           for (let day = 1; day <= lastDay.getDate(); day++) {
                             const dateObj = new Date(year, month, day);
                             const dateStr = dateObj.toISOString().split('T')[0];
@@ -1055,19 +1087,16 @@ export const DriversOverview: React.FC = () => {
                               <button
                                 key={day}
                                 onClick={() => {
-                                  if (!isFuture) {
-                                    setPaidUntilDate(dateStr);
-                                    setShowCustomCalendar(false);
-                                  }
+                                  setPaidUntilDate(dateStr);
+                                  setShowCustomCalendar(false);
                                 }}
-                                disabled={isFuture}
                                 className={`w-8 h-8 rounded-full text-sm font-medium transition-all ${
                                   isSelected 
                                     ? 'bg-amber-500 text-white' 
                                     : isToday 
                                       ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' 
                                       : isFuture 
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                                        ? 'bg-purple-50 text-purple-600 hover:bg-purple-100 border border-purple-200' 
                                         : 'hover:bg-gray-100 text-gray-700'
                                 }`}
                               >
@@ -1083,7 +1112,7 @@ export const DriversOverview: React.FC = () => {
                   )}
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  Selecione a data até quando o cliente fica pago
+                  Selecione a data até quando o cliente fica pago <span className="text-purple-600">(pode selecionar datas futuras)</span>
                 </p>
               </div>
             </div>
