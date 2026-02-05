@@ -219,9 +219,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => unsubscribe();
   }, []);
 
-  // 6. Daily Loads (Carga do Dia)
+  // 6. Daily Loads (Carga do Dia) - Apenas últimos 7 dias
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'daily_loads'), (snapshot) => {
+    const today = new Date();
+    const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const startDate = sevenDaysAgo.toISOString().split('T')[0];
+    
+    const q = query(
+      collection(db, 'daily_loads'),
+      where('date', '>=', startDate)
+    );
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const loadsList = snapshot.docs.map(docSnap => ({
         ...docSnap.data(),
         id: docSnap.id
@@ -231,9 +240,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => unsubscribe();
   }, []);
 
-  // 7. Client Deliveries (Entrega do Dia)
+  // 7. Client Deliveries (Entrega do Dia) - Apenas últimos 7 dias
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'client_deliveries'), (snapshot) => {
+    const today = new Date();
+    const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const startDate = sevenDaysAgo.toISOString().split('T')[0];
+    
+    const q = query(
+      collection(db, 'client_deliveries'),
+      where('date', '>=', startDate)
+    );
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const deliveriesList = snapshot.docs.map(docSnap => ({
         ...docSnap.data(),
         id: docSnap.id
@@ -290,9 +308,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     fixProductNames();
   }, [products, clientDeliveries.length]); // Executar quando produtos carregarem
 
-  // 8. Dynamic Consumption Records (Histórico de Escolha Dinâmica)
+  // 8. Dynamic Consumption Records (Histórico de Escolha Dinâmica) - Apenas últimos 7 dias
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'dynamic_consumption'), (snapshot) => {
+    const today = new Date();
+    const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const startDate = sevenDaysAgo.toISOString().split('T')[0];
+    
+    const q = query(
+      collection(db, 'dynamic_consumption'),
+      where('date', '>=', startDate)
+    );
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const recordsList = snapshot.docs.map(docSnap => ({
         ...docSnap.data(),
         id: docSnap.id
@@ -302,9 +329,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => unsubscribe();
   }, []);
 
-  // 9. Daily Cash Funds (Fundo de Caixa Diário)
+  // 9. Daily Cash Funds (Fundo de Caixa Diário) - Apenas últimos 7 dias
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'daily_cash_funds'), (snapshot) => {
+    const today = new Date();
+    const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const startDate = sevenDaysAgo.toISOString().split('T')[0];
+    
+    const q = query(
+      collection(db, 'daily_cash_funds'),
+      where('date', '>=', startDate)
+    );
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const fundsList = snapshot.docs.map(docSnap => ({
         ...docSnap.data(),
         id: docSnap.id
@@ -314,9 +350,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => unsubscribe();
   }, []);
 
-  // 10. Daily Driver Closures (Fecho Diário do Entregador)
+  // 10. Daily Driver Closures (Fecho Diário do Entregador) - Apenas últimos 7 dias
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'daily_driver_closures'), (snapshot) => {
+    const today = new Date();
+    const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const startDate = sevenDaysAgo.toISOString().split('T')[0];
+    
+    const q = query(
+      collection(db, 'daily_driver_closures'),
+      where('date', '>=', startDate)
+    );
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const closuresList = snapshot.docs.map(docSnap => ({
         ...docSnap.data(),
         id: docSnap.id
@@ -326,9 +371,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => unsubscribe();
   }, []);
 
-  // 11. Daily Payments Received (Pagamentos Recebidos)
+  // 11. Daily Payments Received (Pagamentos Recebidos) - Apenas últimos 7 dias
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'daily_payments_received'), (snapshot) => {
+    const today = new Date();
+    const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const startDate = sevenDaysAgo.toISOString().split('T')[0];
+    
+    const q = query(
+      collection(db, 'daily_payments_received'),
+      where('date', '>=', startDate)
+    );
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const paymentsList = snapshot.docs.map(docSnap => ({
         ...docSnap.data(),
         id: docSnap.id
@@ -338,9 +392,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => unsubscribe();
   }, []);
 
-  // 12. Weekly Settlements (Fecho Semanal)
+  // 12. Weekly Settlements (Fecho Semanal) - Apenas últimos 4 semanas
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'weekly_settlements'), (snapshot) => {
+    const today = new Date();
+    const fourWeeksAgo = new Date(today.getTime() - 4 * 7 * 24 * 60 * 60 * 1000);
+    const startDate = fourWeeksAgo.toISOString().split('T')[0];
+    
+    const q = query(
+      collection(db, 'weekly_settlements'),
+      where('weekStartDate', '>=', startDate)
+    );
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const settlementsList = snapshot.docs.map(docSnap => ({
         ...docSnap.data(),
         id: docSnap.id
@@ -350,9 +413,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => unsubscribe();
   }, []);
 
-  // 13. Production Analysis (Análise de Produção)
+  // 13. Production Analysis (Análise de Produção) - Apenas últimos 30 dias
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'production_analysis'), (snapshot) => {
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const startDate = thirtyDaysAgo.toISOString().split('T')[0];
+    
+    const q = query(
+      collection(db, 'production_analysis'),
+      where('date', '>=', startDate)
+    );
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const analysisList = snapshot.docs.map(docSnap => ({
         ...docSnap.data(),
         id: docSnap.id
