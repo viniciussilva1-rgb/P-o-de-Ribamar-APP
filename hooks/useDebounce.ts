@@ -18,22 +18,19 @@ export function useDebounce<T extends (...args: any[]) => any>(
   delay: number = 300
 ): T {
   const timeoutRef = useRef<NodeJS.Timeout>();
-  const isLoadingRef = useRef(false);
 
   return useCallback((...args: any[]) => {
-    // Evita múltiplas chamadas simultâneas
-    if (isLoadingRef.current) return;
-
-    // Limpa timeout anterior
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    // Limpa timeout anterior para evitar chamadas múltiplas rápidas
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
 
     // Aguarda delay e executa
     timeoutRef.current = setTimeout(async () => {
       try {
-        isLoadingRef.current = true;
         await callback(...args);
-      } finally {
-        isLoadingRef.current = false;
+      } catch (error) {
+        console.error('Erro na função debounceada:', error);
       }
     }, delay);
   }, [callback, delay]) as T;
