@@ -1585,10 +1585,11 @@ const DriverDailyDeliveries: React.FC = () => {
                               </button>
                             )}
                             <button
-                              onClick={() => setExpandedDelivery(isExpanded ? null : delivery.id)}
-                              className="flex items-center gap-1 px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 text-sm"
+                              onClick={() => handleMarkNotDelivered(delivery.id)}
+                              disabled={isProcessing}
+                              className="flex items-center gap-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm"
                             >
-                              <XCircle size={14} />
+                              {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
                               Não Entregue
                             </button>
                             {/* Botão Extra - Adicionar itens extras */}
