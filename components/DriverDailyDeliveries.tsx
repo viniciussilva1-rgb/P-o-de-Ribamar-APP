@@ -181,7 +181,7 @@ const DriverDailyDeliveries: React.FC = () => {
   const [error, setError] = useState('');
   const [expandedDelivery, setExpandedDelivery] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<DeliveryStatus | 'all'>('all');
-  const [notDeliveredReason, setNotDeliveredReason] = useState('');
+
   const [searchTerm, setSearchTerm] = useState('');
   const [processingId, setProcessingId] = useState<string | null>(null);
 
@@ -310,8 +310,7 @@ const DriverDailyDeliveries: React.FC = () => {
   const handleMarkNotDeliveredBase = useCallback(async (deliveryId: string) => {
     setProcessingId(deliveryId);
     try {
-      await updateDeliveryStatus(deliveryId, 'not_delivered', notDeliveredReason);
-      setNotDeliveredReason('');
+      await updateDeliveryStatus(deliveryId, 'not_delivered', '');
       setExpandedDelivery(null);
     } catch (err) {
       console.error('Erro ao marcar não entrega:', err);
@@ -319,7 +318,7 @@ const DriverDailyDeliveries: React.FC = () => {
     } finally {
       setProcessingId(null);
     }
-  }, [updateDeliveryStatus, notDeliveredReason]);
+  }, [updateDeliveryStatus]);
 
   const handleMarkNotDelivered = useDebounce(handleMarkNotDeliveredBase, 300);
 
@@ -1689,37 +1688,6 @@ const DriverDailyDeliveries: React.FC = () => {
                           </div>
                         )}
                       </div>
-
-                      {/* Formulário de motivo para não entrega */}
-                      {isExpanded && delivery.status === 'pending' && (
-                        <div className="mt-4 p-3 bg-red-50 rounded-lg border border-red-200">
-                          <label className="block text-sm font-medium text-red-700 mb-2">
-                            Motivo da não entrega (opcional):
-                          </label>
-                          <textarea
-                            value={notDeliveredReason}
-                            onChange={(e) => setNotDeliveredReason(e.target.value)}
-                            placeholder="Ex: Cliente ausente, endereço incorreto..."
-                            className="w-full px-3 py-2 border border-red-200 rounded-lg text-sm resize-none"
-                            rows={2}
-                          />
-                          <div className="flex justify-end gap-2 mt-2">
-                            <button
-                              onClick={() => setExpandedDelivery(null)}
-                              className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded text-sm"
-                            >
-                              Cancelar
-                            </button>
-                            <button
-                              onClick={() => handleMarkNotDelivered(delivery.id)}
-                              disabled={isProcessing}
-                              className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 text-sm"
-                            >
-                              {isProcessing ? 'Salvando...' : 'Confirmar'}
-                            </button>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   );
                 })}
