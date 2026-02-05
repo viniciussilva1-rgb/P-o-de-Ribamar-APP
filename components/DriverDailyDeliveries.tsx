@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
+import { useDebounce } from '../hooks/useDebounce';
 import { ClientDelivery, DeliveryStatus, Client, DynamicClientPrediction, ClientConsumptionHistory } from '../types';
 import { 
   Package, Truck, CheckCircle, XCircle, Clock, MapPin, Phone, 
@@ -291,7 +292,7 @@ const DriverDailyDeliveries: React.FC = () => {
   };
 
   // Marcar como entregue
-  const handleMarkDelivered = async (deliveryId: string) => {
+  const handleMarkDeliveredBase = useCallback(async (deliveryId: string) => {
     setProcessingId(deliveryId);
     try {
       await updateDeliveryStatus(deliveryId, 'delivered');
@@ -301,10 +302,12 @@ const DriverDailyDeliveries: React.FC = () => {
     } finally {
       setProcessingId(null);
     }
-  };
+  }, [updateDeliveryStatus]);
+
+  const handleMarkDelivered = useDebounce(handleMarkDeliveredBase, 300);
 
   // Marcar como não entregue
-  const handleMarkNotDelivered = async (deliveryId: string) => {
+  const handleMarkNotDeliveredBase = useCallback(async (deliveryId: string) => {
     setProcessingId(deliveryId);
     try {
       await updateDeliveryStatus(deliveryId, 'not_delivered', notDeliveredReason);
@@ -316,10 +319,12 @@ const DriverDailyDeliveries: React.FC = () => {
     } finally {
       setProcessingId(null);
     }
-  };
+  }, [updateDeliveryStatus, notDeliveredReason]);
+
+  const handleMarkNotDelivered = useDebounce(handleMarkNotDeliveredBase, 300);
 
   // Reverter entrega para pendente
-  const handleRevertToPending = async (deliveryId: string) => {
+  const handleRevertToPendingBase = useCallback(async (deliveryId: string) => {
     if (!window.confirm('Tem certeza que deseja reverter esta entrega para pendente?')) {
       return;
     }
@@ -332,10 +337,12 @@ const DriverDailyDeliveries: React.FC = () => {
     } finally {
       setProcessingId(null);
     }
-  };
+  }, [updateDeliveryStatus]);
+
+  const handleRevertToPending = useDebounce(handleRevertToPendingBase, 300);
 
   // Cancelar pagamento
-  const handleCancelPayment = async (clientId: string, clientName: string) => {
+  const handleCancelPaymentBase = useCallback(async (clientId: string, clientName: string) => {
     if (!currentUser?.id) return;
     
     // Buscar pagamentos do dia para este cliente
@@ -363,10 +370,12 @@ const DriverDailyDeliveries: React.FC = () => {
     } finally {
       setProcessingId(null);
     }
-  };
+  }, [currentUser?.id, selectedDate, getDailyPaymentsByDriver, cancelDailyPayment]);
+
+  const handleCancelPayment = useDebounce(handleCancelPaymentBase, 300);
 
   // Cancelar pagamento do histórico (no modal de consumo)
-  const handleCancelPaymentFromHistory = async (paymentId: string, clientId: string, amount: number) => {
+  const handleCancelPaymentFromHistoryBase = useCallback(async (paymentId: string, clientId: string, amount: number) => {
     if (!window.confirm(`Tem certeza que deseja cancelar o pagamento de €${amount.toFixed(2)}?\n\nEsta ação não pode ser desfeita.`)) {
       return;
     }
@@ -383,7 +392,9 @@ const DriverDailyDeliveries: React.FC = () => {
     } finally {
       setCancellingPaymentId(null);
     }
-  };
+  }, [cancelDailyPayment, getClientConsumptionHistory]);
+
+  const handleCancelPaymentFromHistory = useDebounce(handleCancelPaymentFromHistoryBase, 300);
 
   // Verificar se cliente tem pagamento hoje
   const getClientTodayPayment = (clientId: string): number => {

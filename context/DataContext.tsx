@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { User, Client, UserRole, Product, ProductionData, DailyProductionRecord, Route, PaymentTransaction, DeliverySchedule, DailyLoad, LoadItem, ReturnItem, DailyLoadReport, ProductionSuggestion, ClientDelivery, DeliveryStatus, DriverDailySummary, AdminDeliveryReport, DeliveryItem, DynamicConsumptionRecord, ProductConsumptionStats, DynamicClientHistory, DynamicClientPrediction, DynamicLoadSummary, DailyCashFund, DailyDriverClosure, DailyPaymentReceived, WeeklyDriverSettlement, ClientPaymentSummary, ClientConsumptionHistory, ClientInvoice, DailyProductionAnalysis, DailyProductionAnalysisItem, WeekdayProductionComparison, ProductionAnalysisSuggestion } from '../types';
 import { INITIAL_PRODUCTS, MOCK_ADMIN_EMAIL } from '../constants';
 import { db } from '../firebaseConfig'; // Import database
-import { collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot, query, where, getDocs } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot, query, where, getDocs, writeBatch } from 'firebase/firestore';
 
 interface DataContextType {
   users: User[];
@@ -1400,6 +1400,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       updatedAt: now
     };
     
+    // Usar batch write para múltiplas operações atômicas
+    const batch = writeBatch(db);
+    const deliveryRef = doc(db, 'client_deliveries', deliveryId);
+    
     if (status === 'delivered') {
       updates.deliveredAt = now;
       
@@ -1407,7 +1411,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const client = clients.find(c => c.id === delivery.clientId);
       if (client && client.skippedDates?.includes(delivery.date)) {
         const newSkipped = client.skippedDates.filter(d => d !== delivery.date);
-        await updateDoc(doc(db, 'clients', client.id), {
+        batch.update(doc(db, 'clients', client.id), {
           skippedDates: newSkipped
         });
       }
@@ -1422,14 +1426,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Só adiciona se ainda não estiver na lista
         if (!currentSkipped.includes(delivery.date)) {
           const newSkipped = [...currentSkipped, delivery.date];
-          await updateDoc(doc(db, 'clients', client.id), {
+          batch.update(doc(db, 'clients', client.id), {
             skippedDates: newSkipped
           });
         }
       }
     }
     
-    await updateDoc(doc(db, 'client_deliveries', deliveryId), updates);
+    // Atualizar entrega
+    batch.update(deliveryRef, updates);
+    
+    // Executar tudo de uma vez (operação atômica)
+    await batch.commit();
   };
 
   // Atualizar itens de uma entrega dinâmica
@@ -2251,8 +2259,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const payment = dailyPaymentsReceived.find(p => p.id === paymentId);
     if (!payment) return;
     
+    // Usar batch para operações atômicas
+    const batch = writeBatch(db);
+    
     // Deletar o registro de pagamento
-    await deleteDoc(doc(db, 'daily_payments_received', paymentId));
+    batch.delete(doc(db, 'daily_payments_received', paymentId));
     
     // Recalcular o lastPaymentDate do cliente baseado nos pagamentos restantes
     const client = clients.find(c => c.id === clientId);
@@ -2271,11 +2282,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         ? remainingPayments[0].paidUntil || remainingPayments[0].date 
         : null;
       
-      await updateDoc(doc(db, 'clients', clientId), {
+      batch.update(doc(db, 'clients', clientId), {
         lastPaymentDate: newLastPaymentDate,
         paymentHistory: newHistory
       });
     }
+    
+    // Executar operações atômicas
+    await batch.commit();
   };
 
   // Obter pagamentos do dia de um entregador
