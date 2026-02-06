@@ -539,15 +539,14 @@ const DriverDailyDeliveries: React.FC = () => {
       setOptimisticPaidUntil(confirmedPaidUntil);
       
       // Data inicial do "pago até" é a data atual confirmada ou hoje
-      setPaidUntilDate(confirmedPaidUntil || new Date().toISOString().split('T')[0]);
+      const today = new Date().toISOString().split('T')[0];
+      setPaidUntilDate(confirmedPaidUntil || today);
       
-      // Calcular valor inicial baseado no intervalo
-      // Se já tem paidUntil, calcular valor de hoje (se não estiver pago)
+      // Calcular valor inicial baseado na schedule
+      // Se já tem paidUntil, calcular valor apenas dos dias não pagos até hoje
       // Senão, usar dívida total
       if (confirmedPaidUntil) {
-        const todayStr = new Date().toISOString().split('T')[0];
-        const invoices = history.allInvoices.map(inv => ({ date: inv.date, totalValue: inv.totalValue }));
-        const amountToPay = computeAmountForRange(invoices, confirmedPaidUntil, todayStr);
+        const amountToPay = calculatePaymentAmountForRange(clientId, confirmedPaidUntil, today);
         setPaymentAmount(amountToPay > 0 ? amountToPay.toFixed(2) : '');
       } else {
         setPaymentAmount(debt.total > 0 ? debt.total.toFixed(2) : '');
@@ -561,19 +560,71 @@ const DriverDailyDeliveries: React.FC = () => {
     setShowPaymentModal(true);
   };
 
+  // Calcular valor baseado na schedule do cliente para um intervalo de datas
+  // Esto cobre tanto datas existentes quanto futuras
+  const calculatePaymentAmountForRange = (clientId: string, lastPaidDate: string | null, newPaidDate: string): number => {
+    const client = clients.find(c => c.id === clientId);
+    if (!client || !client.deliverySchedule) return 0;
+
+    let totalAmount = 0;
+    const startDate = lastPaidDate 
+      ? new Date(lastPaidDate)
+      : new Date(client.createdAt.split('T')[0]);
+    
+    const endDate = new Date(newPaidDate);
+    
+    // Começar do dia após lastPaidDate
+    if (lastPaidDate) {
+      startDate.setDate(startDate.getDate() + 1);
+    }
+
+    // Iterar por cada dia no intervalo
+    const currentDate = new Date(startDate);
+    currentDate.setHours(0, 0, 0, 0);
+    endDate.setHours(0, 0, 0, 0);
+
+    while (currentDate <= endDate) {
+      const dateStr = currentDate.toISOString().split('T')[0];
+      const dayIndex = currentDate.getDay();
+      const mapKeys = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
+      const dayKey = mapKeys[dayIndex] as keyof DeliverySchedule;
+
+      // Pular se está nas datas puladas
+      if (client.skippedDates && client.skippedDates.includes(dateStr)) {
+        currentDate.setDate(currentDate.getDate() + 1);
+        continue;
+      }
+
+      // Verificar se tem entrega programada para este dia
+      const scheduledItems = client.deliverySchedule[dayKey];
+      if (scheduledItems && scheduledItems.length > 0) {
+        // Calcular valor para este dia
+        let dayTotal = 0;
+        scheduledItems.forEach(item => {
+          const product = products.find(p => p.id === item.productId);
+          if (product) {
+            const effectivePrice = client.customPrices?.[product.id] ?? product.price;
+            dayTotal += item.quantity * effectivePrice;
+          }
+        });
+        totalAmount += dayTotal;
+      }
+
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    return totalAmount;
+  };
+
   // Handler para seleção otimista de data no calendário
   const handleOptimisticDateSelect = (dateStr: string) => {
     // Atualização otimista: atualiza imediatamente o UI
     setOptimisticPaidUntil(dateStr);
     setPaidUntilDate(dateStr);
     
-    // Calcular novo valor baseado no intervalo (serverPaidUntil, dateStr]
-    if (clientConsumptionHistory) {
-      const invoices = clientConsumptionHistory.allInvoices.map(inv => ({ 
-        date: inv.date, 
-        totalValue: inv.totalValue 
-      }));
-      const newAmount = computeAmountForRange(invoices, serverPaidUntil, dateStr);
+    // Calcular novo valor baseado na schedule do cliente (funciona para datas futuras também)
+    if (paymentClientId) {
+      const newAmount = calculatePaymentAmountForRange(paymentClientId, serverPaidUntil, dateStr);
       setPaymentAmount(newAmount > 0 ? newAmount.toFixed(2) : '0.00');
     }
     
@@ -612,16 +663,15 @@ const DriverDailyDeliveries: React.FC = () => {
       
       // Rollback: reverter para o último estado confirmado
       setOptimisticPaidUntil(previousPaidUntil);
-      setPaidUntilDate(previousPaidUntil || new Date().toISOString().split('T')[0]);
+      const today = new Date().toISOString().split('T')[0];
+      setPaidUntilDate(previousPaidUntil || today);
       
       // Recalcular valor para o estado anterior
-      if (clientConsumptionHistory && previousPaidUntil) {
-        const invoices = clientConsumptionHistory.allInvoices.map(inv => ({ 
-          date: inv.date, 
-          totalValue: inv.totalValue 
-        }));
-        const todayStr = new Date().toISOString().split('T')[0];
-        const revertedAmount = computeAmountForRange(invoices, previousPaidUntil, todayStr);
+      if (paymentClientId && previousPaidUntil) {
+        const revertedAmount = calculatePaymentAmountForRange(paymentClientId, previousPaidUntil, today);
+        setPaymentAmount(revertedAmount > 0 ? revertedAmount.toFixed(2) : '');
+      } else if (paymentClientId) {
+        const revertedAmount = calculatePaymentAmountForRange(paymentClientId, null, today);
         setPaymentAmount(revertedAmount > 0 ? revertedAmount.toFixed(2) : '');
       }
     } finally {
