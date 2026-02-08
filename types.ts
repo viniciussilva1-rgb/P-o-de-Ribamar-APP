@@ -77,6 +77,9 @@ export interface Client {
   // Escolha Dinâmica de Produtos
   isDynamicChoice?: boolean; // Cliente com escolha dinâmica (sem lista fixa)
   
+  // Tipo de Cliente
+  isCompany?: boolean; // Cliente empresa com desconto de 20%
+  
   // Payment & Logistics
   paymentMethod?: string; // Legacy/Fallback
   paymentFrequency: 'Diário' | 'Semanal' | 'Mensal' | 'Personalizado';

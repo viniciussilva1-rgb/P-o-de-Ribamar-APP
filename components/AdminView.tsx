@@ -2234,6 +2234,7 @@ export const ClientManager: React.FC = () => {
     currentBalance: 0,
     leaveReceipt: false,
     acceptsReturns: false,
+    isCompany: false,
     deliverySchedule: {},
     customPrices: {}
   };
@@ -2334,6 +2335,7 @@ export const ClientManager: React.FC = () => {
         currentBalance: Number(clientForm.currentBalance) || 0,
         leaveReceipt: clientForm.leaveReceipt || false,
         acceptsReturns: clientForm.acceptsReturns || false,
+        isCompany: clientForm.isCompany || false,
         deliverySchedule: clientForm.deliverySchedule || {},
         customPrices: clientForm.customPrices || {},
         createdAt: new Date().toISOString()
@@ -2741,6 +2743,19 @@ export const ClientManager: React.FC = () => {
       }
   }
 
+  const handleApply20PercentDiscount = () => {
+      const newPrices: Record<string, number> = {};
+      products.forEach(product => {
+          const currentPrice = clientForm.customPrices?.[product.id] ?? product.price;
+          const discountedPrice = currentPrice * 0.8; // 80% do preço (desconto de 20%)
+          newPrices[product.id] = parseFloat(discountedPrice.toFixed(2));
+      });
+      setClientForm(prev => ({
+          ...prev,
+          customPrices: newPrices
+      }));
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -3034,6 +3049,33 @@ export const ClientManager: React.FC = () => {
                              {isLocating ? <Loader2 size={14} className="animate-spin" /> : <Navigation size={14} />}
                              {isLocating ? ' Buscando...' : ' Pegar GPS'}
                           </button>
+                       </div>
+                       
+                       <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex items-center gap-3">
+                          <input 
+                            type="checkbox" 
+                            id="isCompany"
+                            checked={clientForm.isCompany || false}
+                            onChange={(e) => {
+                              const isChecked = e.target.checked;
+                              if (isChecked) {
+                                // Aplicar 20% de desconto automaticamente ao marcar como empresa
+                                const newPrices: Record<string, number> = {};
+                                products.forEach(product => {
+                                  const currentPrice = clientForm.customPrices?.[product.id] ?? product.price;
+                                  const discountedPrice = currentPrice * 0.8;
+                                  newPrices[product.id] = parseFloat(discountedPrice.toFixed(2));
+                                });
+                                setClientForm({...clientForm, isCompany: true, customPrices: newPrices});
+                              } else {
+                                setClientForm({...clientForm, isCompany: false});
+                              }
+                            }}
+                            className="w-4 h-4 rounded cursor-pointer"
+                          />
+                          <label htmlFor="isCompany" className="text-sm font-medium text-blue-800 cursor-pointer flex-1">
+                            É uma Empresa? (20% de desconto automático)
+                          </label>
                        </div>
                     </div>
                   )}
@@ -3335,6 +3377,15 @@ export const ClientManager: React.FC = () => {
                            <p className="text-sm text-amber-700">Como administrador, você pode definir preços específicos para este cliente. Caso contrário, será usado o preço padrão do produto.</p>
                         </div>
                      </div>
+
+                     <button
+                        type="button"
+                        onClick={handleApply20PercentDiscount}
+                        className="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors"
+                     >
+                        <DollarSign size={20} />
+                        Aplicar Desconto de 20% em Todos os Preços (Cliente Empresa)
+                     </button>
 
                      <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
                         <table className="w-full text-sm text-left">

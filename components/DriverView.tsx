@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { Plus, User, MapPin, Phone, Search, Map, Save, X, Navigation, CreditCard, Loader2, Calendar, AlertCircle, Tag, FileText, RotateCcw, Calculator, CheckCircle, Sparkles, Copy, Check, GripVertical, ArrowUpDown, ChevronUp, ChevronDown, Receipt, ChevronLeft, ChevronRight, Package, Plane, Trash2, MessageCircle, Smartphone } from 'lucide-react';
+import { Plus, User, MapPin, Phone, Search, Map, Save, X, Navigation, CreditCard, Loader2, Calendar, AlertCircle, Tag, FileText, RotateCcw, Calculator, CheckCircle, Sparkles, Copy, Check, GripVertical, ArrowUpDown, ChevronUp, ChevronDown, Receipt, ChevronLeft, ChevronRight, Package, Plane, Trash2, MessageCircle, Smartphone, DollarSign } from 'lucide-react';
 import { Client, Route, DeliverySchedule, Product, ClientConsumptionHistory, VacationPeriod } from '../types';
 import SmartDeliveryMap from './SmartDeliveryMap';
 
@@ -330,6 +330,7 @@ export const DriverView: React.FC = () => {
     currentBalance: 0,
     leaveReceipt: false,
     acceptsReturns: false,
+    isCompany: false,
     isDynamicChoice: false, // Escolha Dinâmica
     deliverySchedule: {},
     customPrices: {}
@@ -573,6 +574,7 @@ export const DriverView: React.FC = () => {
         currentBalance: Number(clientForm.currentBalance) || 0,
         leaveReceipt: clientForm.leaveReceipt || false,
         acceptsReturns: clientForm.acceptsReturns || false,
+        isCompany: clientForm.isCompany || false,
         isDynamicChoice: clientForm.isDynamicChoice || false,
         deliverySchedule: clientForm.deliverySchedule || {},
         customPrices: clientForm.customPrices || {},
@@ -689,6 +691,20 @@ export const DriverView: React.FC = () => {
       }
     });
   };
+
+  // Aplicar 20% de desconto em todos os preços
+  const handleApply20PercentDiscount = () => {
+      const newPrices: Record<string, number> = {};
+      products.forEach(product => {
+          const currentPrice = clientForm.customPrices?.[product.id] ?? product.price;
+          const discountedPrice = currentPrice * 0.8; // 80% do preço (desconto de 20%)
+          newPrices[product.id] = parseFloat(discountedPrice.toFixed(2));
+      });
+      setClientForm(prev => ({
+          ...prev,
+          customPrices: newPrices
+      }));
+  }
 
   // Aplicar produtos em múltiplos dias de uma vez
   const handleApplyToMultipleDays = (items: { productId: string, quantity: number }[], days: string[]) => {
@@ -1591,6 +1607,53 @@ export const DriverView: React.FC = () => {
                            <div className="mt-2 pl-7 p-2 bg-purple-100 rounded-lg">
                              <p className="text-xs text-purple-700">
                                ✨ <strong>Não precisa configurar dias/produtos fixos.</strong> O sistema aprende automaticamente com cada entrega.
+                             </p>
+                           </div>
+                         )}
+                      </div>
+                    </label>
+
+                    {/* É Empresa - Desconto de 20% */}
+                    <label className={`flex items-center space-x-3 p-4 border-2 rounded-xl transition-all cursor-pointer ${clientForm.isCompany ? 'bg-green-50 border-green-400 shadow-md' : 'border-gray-200 hover:bg-gray-50'}`}>
+                      <input 
+                        type="checkbox" 
+                        className="w-5 h-5 text-green-600 rounded border-gray-300 focus:ring-green-500"
+                        checked={clientForm.isCompany || false}
+                        onChange={e => {
+                          const isChecked = e.target.checked;
+                          if (isChecked) {
+                            // Aplicar 20% de desconto automaticamente ao marcar como empresa
+                            const newPrices: Record<string, number> = {};
+                            products.forEach(product => {
+                              const currentPrice = clientForm.customPrices?.[product.id] ?? product.price;
+                              const discountedPrice = currentPrice * 0.8;
+                              newPrices[product.id] = parseFloat(discountedPrice.toFixed(2));
+                            });
+                            setClientForm({...clientForm, isCompany: true, customPrices: newPrices});
+                          } else {
+                            setClientForm({...clientForm, isCompany: false});
+                          }
+                        }}
+                      />
+                      <div className="flex flex-col flex-1">
+                         <div className="flex items-center space-x-2">
+                            <DollarSign size={20} className={clientForm.isCompany ? "text-green-600" : "text-gray-500"}/>
+                            <span className={`font-bold ${clientForm.isCompany ? "text-green-800" : "text-gray-700"}`}>
+                              É uma Empresa? (20% de Desconto)
+                            </span>
+                            {clientForm.isCompany && (
+                              <span className="px-2 py-0.5 bg-green-200 text-green-700 text-xs font-bold rounded-full">
+                                -20%
+                              </span>
+                            )}
+                         </div>
+                         <p className="text-xs text-gray-500 mt-1 pl-7">
+                           Marque este cliente como empresa para aplicar automaticamente 20% de desconto nos preços dos produtos.
+                         </p>
+                         {clientForm.isCompany && (
+                           <div className="mt-2 pl-7 p-2 bg-green-100 rounded-lg">
+                             <p className="text-xs text-green-700">
+                               ✓ <strong>Desconto de 20% aplicado!</strong> Os preços foram automaticamente reduzidos em 20%.
                              </p>
                            </div>
                          )}
