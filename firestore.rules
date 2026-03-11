@@ -83,5 +83,10 @@ service cloud.firestore {
     match /weekly_settlements/{settlementId} {
       allow read, write: if request.auth != null;
     }
+
+    // Análise de Produção
+    match /production_analysis/{analysisId} {
+      allow read, write: if request.auth != null;
+    }
   }
 }
