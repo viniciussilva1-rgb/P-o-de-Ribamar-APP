@@ -1029,8 +1029,8 @@ export const DriverView: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Meus Clientes</h2>
-          <p className="text-gray-500">Gerencie sua carteira e rotas de entrega</p>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#FFFFFF' }}>Meus Clientes</h2>
+          <p style={{ color: '#A0A8C0' }}>Gerencie sua carteira e rotas de entrega</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {isReorderMode ? (
