@@ -988,17 +988,17 @@ const DriverDailyDeliveries: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="bg-blue-100 p-3 rounded-full">
-            <Send className="text-blue-700" size={24} />
+          <div style={{ backgroundColor: '#F5A623', padding: '0.75rem', borderRadius: '9999px' }}>
+            <Send style={{ color: '#000000' }} size={24} />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-800">Entregas do Dia</h2>
-            <p className="text-sm text-gray-500">Gerencie suas entregas programadas</p>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#FFFFFF' }}>Entregas do Dia</h2>
+            <p style={{ fontSize: '0.875rem', color: '#A0A8C0' }}>Gerencie suas entregas programadas</p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2">
-            <Calendar size={18} className="text-gray-400" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#13161E', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '0.5rem', paddingLeft: '0.75rem', paddingRight: '0.75rem', paddingTop: '0.5rem', paddingBottom: '0.5rem' }}>
+            <Calendar size={18} style={{ color: '#A0A8C0' }} />
             <input
               type="date"
               value={selectedDate}
@@ -1068,9 +1068,9 @@ const DriverDailyDeliveries: React.FC = () => {
       )}
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-          <AlertCircle className="text-red-500" size={20} />
-          <span className="text-red-700">{error}</span>
+        <div style={{ padding: '1rem', backgroundColor: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <AlertCircle style={{ color: '#FCA5A5' }} size={20} />
+          <span style={{ color: '#FCA5A5' }}>{error}</span>
         </div>
       )}
 
@@ -1095,46 +1095,46 @@ const DriverDailyDeliveries: React.FC = () => {
       {/* Resumo do Dia - filtrado por rota se selecionada */}
       {summary && filteredDeliveries.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <ClipboardList className="text-blue-500" size={18} />
-              <span className="text-sm text-gray-500">Total</span>
+          <div style={{ backgroundColor: '#13161E', borderRadius: '0.75rem', padding: '1rem', border: '1px solid rgba(255,255,255,0.07)', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+              <ClipboardList style={{ color: '#3B82F6' }} size={18} />
+              <span style={{ fontSize: '0.875rem', color: '#A0A8C0' }}>Total</span>
             </div>
-            <span className="text-2xl font-bold text-blue-600">{filteredDeliveries.length}</span>
+            <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#3B82F6' }}>{filteredDeliveries.length}</span>
           </div>
-          <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <CheckCircle className="text-green-500" size={18} />
-              <span className="text-sm text-gray-500">Entregues</span>
+          <div style={{ backgroundColor: '#13161E', borderRadius: '0.75rem', padding: '1rem', border: '1px solid rgba(255,255,255,0.07)', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+              <CheckCircle style={{ color: '#86EFAC' }} size={18} />
+              <span style={{ fontSize: '0.875rem', color: '#A0A8C0' }}>Entregues</span>
             </div>
-            <span className="text-2xl font-bold text-green-600">
+            <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#86EFAC' }}>
               {filteredDeliveries.filter(d => d.status === 'delivered').length}
             </span>
           </div>
-          <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <XCircle className="text-red-500" size={18} />
-              <span className="text-sm text-gray-500">Não Entregues</span>
+          <div style={{ backgroundColor: '#13161E', borderRadius: '0.75rem', padding: '1rem', border: '1px solid rgba(255,255,255,0.07)', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+              <XCircle style={{ color: '#FCA5A5' }} size={18} />
+              <span style={{ fontSize: '0.875rem', color: '#A0A8C0' }}>Não Entregues</span>
             </div>
-            <span className="text-2xl font-bold text-red-600">
+            <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#FCA5A5' }}>
               {filteredDeliveries.filter(d => d.status === 'not_delivered').length}
             </span>
           </div>
-          <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <Clock className="text-yellow-500" size={18} />
-              <span className="text-sm text-gray-500">Pendentes</span>
+          <div style={{ backgroundColor: '#13161E', borderRadius: '0.75rem', padding: '1rem', border: '1px solid rgba(255,255,255,0.07)', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+              <Clock style={{ color: '#FCD34D' }} size={18} />
+              <span style={{ fontSize: '0.875rem', color: '#A0A8C0' }}>Pendentes</span>
             </div>
-            <span className="text-2xl font-bold text-yellow-600">
+            <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#FCD34D' }}>
               {filteredDeliveries.filter(d => d.status === 'pending').length}
             </span>
           </div>
-          <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <DollarSign className="text-purple-500" size={18} />
-              <span className="text-sm text-gray-500">Valor Total</span>
+          <div style={{ backgroundColor: '#13161E', borderRadius: '0.75rem', padding: '1rem', border: '1px solid rgba(255,255,255,0.07)', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+              <DollarSign style={{ color: '#D8B4FE' }} size={18} />
+              <span style={{ fontSize: '0.875rem', color: '#A0A8C0' }}>Valor Total</span>
             </div>
-            <span className="text-2xl font-bold text-purple-600">
+            <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#D8B4FE' }}>
               €{filteredDeliveries.reduce((sum, d) => sum + d.totalValue, 0).toFixed(2)}
             </span>
           </div>
