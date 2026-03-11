@@ -1671,20 +1671,20 @@ export const ProductionAnalysis: React.FC = () => {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Header */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+      <div style={{ backgroundColor: '#13161E', borderColor: 'rgba(255,255,255,0.1)', borderWidth: '1px' }} className="rounded-xl shadow-sm p-4">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
               <BarChart3 className="text-amber-600" size={24} />
               Análise de Produção
             </h2>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-gray-400 mt-1">
               Registre a produção e sobras do dia para análise comparativa
             </p>
           </div>
           
           {/* Tabs de navegação */}
-          <div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
+          <div style={{ backgroundColor: '#1A1E29' }} className="flex gap-2 p-1 rounded-lg">
             {[
               { id: 'register', label: 'Registrar', icon: <Plus size={16} /> },
               { id: 'history', label: 'Histórico', icon: <Calendar size={16} /> },
@@ -1696,8 +1696,8 @@ export const ProductionAnalysis: React.FC = () => {
                 onClick={() => setActiveView(tab.id as any)}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   activeView === tab.id
-                    ? 'bg-white text-amber-700 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-800'
+                    ? 'bg-amber-600 text-white shadow-sm'
+                    : 'text-gray-400 hover:text-gray-300'
                 }`}
               >
                 {tab.icon}
@@ -1712,7 +1712,7 @@ export const ProductionAnalysis: React.FC = () => {
       {activeView === 'register' && (
         <div className="space-y-4">
           {/* Seletor de Data */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+          <div style={{ backgroundColor: '#13161E', borderColor: 'rgba(255,255,255,0.1)', borderWidth: '1px' }} className="rounded-xl shadow-sm p-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div className="flex items-center gap-3">
                 <Calendar className="text-amber-600" size={20} />
@@ -1720,9 +1720,10 @@ export const ProductionAnalysis: React.FC = () => {
                   type="date"
                   value={currentDate}
                   onChange={(e) => setCurrentDate(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-gray-800 font-medium focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  style={{ backgroundColor: '#0D0F14', color: '#FFFFFF', borderColor: 'rgba(255,255,255,0.1)' }}
+                  className="border rounded-lg px-3 py-2 font-medium focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 />
-                <span className="text-gray-500 text-sm">
+                <span className="text-gray-400 text-sm">
                   ({daysOfWeek[new Date(currentDate + 'T12:00:00').getDay()]})
                 </span>
               </div>
@@ -1758,21 +1759,21 @@ export const ProductionAnalysis: React.FC = () => {
             
             {/* Totais do dia */}
             <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="bg-blue-50 rounded-lg p-3">
-                <p className="text-xs text-blue-600 font-semibold uppercase">Produzido</p>
-                <p className="text-xl font-bold text-blue-800">{todayTotals.totalProduced}</p>
+              <div style={{ backgroundColor: '#1A1E29', borderColor: 'rgba(59,130,246,0.3)' }} className="rounded-lg p-3 border">
+                <p className="text-xs text-blue-400 font-semibold uppercase">Produzido</p>
+                <p className="text-xl font-bold text-blue-300">{todayTotals.totalProduced}</p>
               </div>
-              <div className="bg-orange-50 rounded-lg p-3">
-                <p className="text-xs text-orange-600 font-semibold uppercase">Sobra</p>
-                <p className="text-xl font-bold text-orange-800">{todayTotals.totalLeftover}</p>
+              <div style={{ backgroundColor: '#1A1E29', borderColor: 'rgba(249,115,22,0.3)' }} className="rounded-lg p-3 border">
+                <p className="text-xs text-orange-400 font-semibold uppercase">Sobra</p>
+                <p className="text-xl font-bold text-orange-300">{todayTotals.totalLeftover}</p>
               </div>
-              <div className="bg-red-50 rounded-lg p-3">
-                <p className="text-xs text-red-600 font-semibold uppercase">Vendido/Usado</p>
-                <p className="text-xl font-bold text-red-800">{todayTotals.waste}</p>
+              <div style={{ backgroundColor: '#1A1E29', borderColor: 'rgba(239,68,68,0.3)' }} className="rounded-lg p-3 border">
+                <p className="text-xs text-red-400 font-semibold uppercase">Vendido/Usado</p>
+                <p className="text-xl font-bold text-red-300">{todayTotals.waste}</p>
               </div>
-              <div className={`rounded-lg p-3 ${todayTotals.wastePercentage > 20 ? 'bg-red-100' : 'bg-green-50'}`}>
-                <p className={`text-xs font-semibold uppercase ${todayTotals.wastePercentage > 20 ? 'text-red-600' : 'text-green-600'}`}>Aproveitamento</p>
-                <p className={`text-xl font-bold ${todayTotals.wastePercentage > 20 ? 'text-red-800' : 'text-green-800'}`}>
+              <div style={{ backgroundColor: todayTotals.wastePercentage > 20 ? '#1A1E29' : '#1A1E29', borderColor: todayTotals.wastePercentage > 20 ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)' }} className="rounded-lg p-3 border">
+                <p style={{ color: todayTotals.wastePercentage > 20 ? '#FCA5A5' : '#86EFAC' }} className="text-xs font-semibold uppercase">Aproveitamento</p>
+                <p style={{ color: todayTotals.wastePercentage > 20 ? '#FCA5A5' : '#86EFAC' }} className="text-xl font-bold">
                   {todayTotals.totalProduced > 0 ? (100 - todayTotals.wastePercentage).toFixed(1) : 0}%
                 </p>
               </div>
@@ -1780,22 +1781,22 @@ export const ProductionAnalysis: React.FC = () => {
           </div>
           
           {/* Tabela de Produtos */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="p-3 bg-gray-50 border-b flex items-center justify-between">
-              <span className="text-xs text-gray-500">💡 Dica: Use o botão de alternância para lançar em <strong>Empelos (×30)</strong> ou <strong>Unidades</strong></span>
+          <div style={{ backgroundColor: '#13161E', borderColor: 'rgba(255,255,255,0.1)', borderWidth: '1px' }} className="rounded-xl shadow-sm overflow-hidden">
+            <div style={{ backgroundColor: '#1A1E29', borderBottomColor: 'rgba(255,255,255,0.1)', borderBottomWidth: '1px' }} className="p-3 flex items-center justify-between">
+              <span className="text-xs text-gray-400">💡 Dica: Use o botão de alternância para lançar em <strong>Empelos (×30)</strong> ou <strong>Unidades</strong></span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-gray-600 font-semibold uppercase text-xs">
+                <thead style={{ backgroundColor: '#1A1E29', borderBottomColor: 'rgba(255,255,255,0.1)', borderBottomWidth: '1px' }} className="text-gray-300 font-semibold uppercase text-xs">
                   <tr>
-                    <th className="p-4 text-left border-b">Produto</th>
-                    <th className="p-4 text-center border-b bg-blue-50/50">Produção</th>
-                    <th className="p-4 text-center border-b bg-orange-50/50">Sobra</th>
-                    <th className="p-4 text-center border-b">Vendido</th>
-                    <th className="p-4 text-center border-b">% Sobra</th>
+                    <th className="p-4 text-left">Produto</th>
+                    <th style={{ backgroundColor: 'rgba(59,130,246,0.1)' }} className="p-4 text-center">Produção</th>
+                    <th style={{ backgroundColor: 'rgba(249,115,22,0.1)' }} className="p-4 text-center">Sobra</th>
+                    <th className="p-4 text-center">Vendido</th>
+                    <th className="p-4 text-center">% Sobra</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody style={{ borderColor: 'rgba(255,255,255,0.05)' }} className="divide-y">
                   {products.map(product => {
                     const data = productionItems[product.id] || { produced: 0, leftover: 0 };
                     const sold = data.produced - data.leftover;
@@ -1807,18 +1808,19 @@ export const ProductionAnalysis: React.FC = () => {
                     const displayLeftover = isEmpelo ? Math.floor(data.leftover / 30) : data.leftover;
                     
                     return (
-                      <tr key={product.id} className="hover:bg-gray-50">
+                      <tr key={product.id} style={{ backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.05)' }} className="hover:bg-white/5">
                         <td className="p-4">
-                          <div className="font-medium text-gray-800">{product.name}</div>
+                          <div className="font-medium text-white">{product.name}</div>
                           {/* Toggle Empelo */}
                           {product.supportsEmpelo && (
                             <button
                               onClick={() => toggleEmpeloMode(product.id)}
-                              className={`mt-1 text-xs px-2 py-1 rounded border transition-colors flex items-center gap-1 ${
-                                isEmpelo 
-                                  ? 'bg-amber-200 border-amber-300 text-amber-900' 
-                                  : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
-                              }`}
+                              style={{ 
+                                backgroundColor: isEmpelo ? 'rgba(249,115,22,0.2)' : '#1A1E29',
+                                borderColor: isEmpelo ? 'rgba(249,115,22,0.5)' : 'rgba(255,255,255,0.1)',
+                                color: isEmpelo ? '#FDBA74' : '#9CA3AF'
+                              }}
+                              className="mt-1 text-xs px-2 py-1 rounded border transition-colors flex items-center gap-1"
                               title="Alternar entre Unidade e Empelo (30un)"
                             >
                               <ArrowRightLeft size={12} />
@@ -1826,7 +1828,7 @@ export const ProductionAnalysis: React.FC = () => {
                             </button>
                           )}
                         </td>
-                        <td className="p-4 text-center bg-blue-50/30">
+                        <td style={{ backgroundColor: 'rgba(59,130,246,0.1)' }} className="p-4 text-center">
                           <div className="flex flex-col items-center gap-1">
                             <input
                               type="number"
@@ -1834,14 +1836,15 @@ export const ProductionAnalysis: React.FC = () => {
                               value={displayProduced || ''}
                               onChange={(e) => handleProductionChange(product.id, parseInt(e.target.value) || 0, isEmpelo)}
                               placeholder="0"
-                              className="w-20 p-2 text-center border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              style={{ backgroundColor: '#0D0F14', color: '#FFFFFF', borderColor: 'rgba(59,130,246,0.3)' }}
+                              className="w-20 p-2 text-center border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             />
                             {isEmpelo && data.produced > 0 && (
-                              <span className="text-xs text-blue-600">= {data.produced} un.</span>
+                              <span className="text-xs text-blue-400">= {data.produced} un.</span>
                             )}
                           </div>
                         </td>
-                        <td className="p-4 text-center bg-orange-50/30">
+                        <td style={{ backgroundColor: 'rgba(249,115,22,0.1)' }} className="p-4 text-center">
                           <div className="flex flex-col items-center gap-1">
                             <input
                               type="number"
@@ -1849,17 +1852,18 @@ export const ProductionAnalysis: React.FC = () => {
                               value={displayLeftover || ''}
                               onChange={(e) => handleLeftoverChange(product.id, parseInt(e.target.value) || 0, isEmpelo)}
                               placeholder="0"
-                              className="w-20 p-2 text-center border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                              style={{ backgroundColor: '#0D0F14', color: '#FFFFFF', borderColor: 'rgba(249,115,22,0.3)' }}
+                              className="w-20 p-2 text-center border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                             />
                             {isEmpelo && data.leftover > 0 && (
-                              <span className="text-xs text-orange-600">= {data.leftover} un.</span>
+                              <span className="text-xs text-orange-400">= {data.leftover} un.</span>
                             )}
                           </div>
                         </td>
-                        <td className="p-4 text-center font-semibold text-green-700">
+                        <td className="p-4 text-center font-semibold text-green-400">
                           {sold > 0 ? sold : '-'}
                         </td>
-                        <td className={`p-4 text-center font-semibold ${leftoverPct > 20 ? 'text-red-600' : leftoverPct > 10 ? 'text-orange-600' : 'text-green-600'}`}>
+                        <td className={`p-4 text-center font-semibold ${leftoverPct > 20 ? 'text-red-400' : leftoverPct > 10 ? 'text-orange-400' : 'text-green-400'}`}>
                           {data.produced > 0 ? `${leftoverPct.toFixed(1)}%` : '-'}
                         </td>
                       </tr>
@@ -1870,15 +1874,16 @@ export const ProductionAnalysis: React.FC = () => {
             </div>
             
             {/* Observações */}
-            <div className="p-4 bg-gray-50 border-t border-gray-200">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div style={{ backgroundColor: '#1A1E29', borderTopColor: 'rgba(255,255,255,0.1)', borderTopWidth: '1px' }} className="p-4">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
                 Observações do dia
               </label>
               <textarea
                 value={observations}
                 onChange={(e) => setObservations(e.target.value)}
                 placeholder="Ex: Feriado, tempo chuvoso, evento especial..."
-                className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-none"
+                style={{ backgroundColor: '#0D0F14', color: '#FFFFFF', borderColor: 'rgba(255,255,255,0.1)' }}
+                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-none"
                 rows={2}
               />
             </div>
@@ -1888,10 +1893,10 @@ export const ProductionAnalysis: React.FC = () => {
 
       {/* View: Histórico */}
       {activeView === 'history' && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-gray-200">
-            <h3 className="font-bold text-gray-800">Histórico de Registros</h3>
-            <p className="text-sm text-gray-500">Últimos registros de produção e sobras</p>
+        <div style={{ backgroundColor: '#13161E', borderColor: 'rgba(255,255,255,0.1)', borderWidth: '1px' }} className="rounded-xl shadow-sm overflow-hidden">
+          <div style={{ borderBottomColor: 'rgba(255,255,255,0.1)', borderBottomWidth: '1px' }} className="p-4">
+            <h3 className="font-bold text-white">Histórico de Registros</h3>
+            <p className="text-sm text-gray-400">Últimos registros de produção e sobras</p>
           </div>
           
           {productionAnalysis.length === 0 ? (
