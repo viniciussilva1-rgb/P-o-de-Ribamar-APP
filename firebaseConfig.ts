@@ -3,15 +3,14 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 
-// Configuração do Firebase com as chaves oficiais fornecidas
+// Configuração do Firebase usando variáveis de ambiente
 const firebaseConfig = {
-  apiKey: "AIzaSyAYZ4pAafJM6EyPk6YcxqAnrCasI0YKN-A",
-  authDomain: "pao-de-ribamar-app.firebaseapp.com",
-  projectId: "pao-de-ribamar-app",
-  // Ajuste para o padrão appspot.com
-  storageBucket: "pao-de-ribamar-app.appspot.com",
-  messagingSenderId: "222485362806",
-  appId: "1:222485362806:web:1c6dcef46dedf5ef394757"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 // Inicializa o Firebase
