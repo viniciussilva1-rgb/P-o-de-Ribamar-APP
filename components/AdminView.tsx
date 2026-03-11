@@ -2945,7 +2945,7 @@ export const ClientManager: React.FC = () => {
               ))}
             </div>
 
-             <div className="p-6 overflow-y-auto flex-1 bg-white">
+             <div className="p-6 overflow-y-auto flex-1 bg-white min-h-0">
                <form id="admin-client-form" onSubmit={handleSaveClient}>
                   {activeTab === 'geral' && (
                     <div className="space-y-4">
