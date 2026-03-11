@@ -135,6 +135,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   
   // Estados de Análise de Produção
   const [productionAnalysis, setProductionAnalysis] = useState<DailyProductionAnalysis[]>([]);
+  
+  // Flag para garantir que o seed de produtos só acontece uma vez
+  const [productsSeeded, setProductsSeeded] = useState(false);
 
   // --- FIREBASE LISTENERS (Realtime Sync) ---
 
@@ -185,17 +188,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const unsubscribe = onSnapshot(collection(db, 'products'), (snapshot) => {
       const list = snapshot.docs.map(doc => doc.data() as Product);
       
-      // Seed inicial se vazio
-      if (list.length === 0) {
+      // Seed inicial se vazio (apenas uma vez)
+      if (list.length === 0 && !productsSeeded) {
+        setProductsSeeded(true);
         INITIAL_PRODUCTS.forEach(p => {
             setDoc(doc(db, 'products', p.id), p);
         });
-      } else {
+      } else if (list.length > 0) {
         setProducts(list);
       }
     });
     return () => unsubscribe();
-  }, []);
+  }, [productsSeeded]);
 
   // 4. Routes
   useEffect(() => {

@@ -1211,7 +1211,7 @@ export const ProductCatalog: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-800">Catálogo de Produtos</h2>
+        <h2 className="text-2xl font-bold text-white">Catálogo de Produtos</h2>
         <button
           onClick={() => {
             setEditingProduct(null);
@@ -1228,22 +1228,22 @@ export const ProductCatalog: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {products.map(product => (
-          <div key={product.id} className="bg-white rounded-xl border border-amber-100 shadow-sm p-4">
+          <div key={product.id} className="rounded-xl shadow-sm p-4" style={{ backgroundColor: '#13161E', borderColor: 'rgba(255,255,255,0.1)', borderWidth: '1px' }}>
             <div className="flex justify-between items-start">
               <div>
-                <h3 className="font-semibold text-gray-900">{product.name}</h3>
-                <p className="text-amber-600 font-bold text-lg mt-1">€ {product.price.toFixed(2)}</p>
+                <h3 className="font-semibold text-white">{product.name}</h3>
+                <p className="text-amber-400 font-bold text-lg mt-1">€ {product.price.toFixed(2)}</p>
               </div>
               <div className="flex space-x-2">
                 <button
                   onClick={() => handleEdit(product)}
-                  className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
+                  className="p-2 text-gray-400 hover:bg-white/10 rounded-lg transition-colors"
                 >
                   <Pencil size={16} />
                 </button>
                 <button
                   onClick={() => handleDelete(product.id)}
-                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                  className="p-2 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
                 >
                   <Trash2 size={16} />
                 </button>
@@ -1255,42 +1255,46 @@ export const ProductCatalog: React.FC = () => {
 
       {/* Modal de Adicionar/Editar Produto */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-gray-800">
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+          <div style={{ backgroundColor: '#1A1E29', borderRadius: '1rem', padding: '1.5rem', width: '100%', maxWidth: '28rem', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', borderColor: 'rgba(255,255,255,0.1)', borderWidth: '1px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#FFFFFF' }}>
                 {editingProduct ? 'Editar Produto' : 'Novo Produto'}
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setIsModalOpen(false)} style={{ color: '#9CA3AF', cursor: 'pointer', background: 'none', border: 'none' }}>
                 <X size={24} />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Produto</label>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#D1D5DB', marginBottom: '0.25rem' }}>Nome do Produto</label>
                 <input
                   type="text"
                   value={newProductName}
                   onChange={(e) => setNewProductName(e.target.value)}
-                  className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  style={{ width: '100%', padding: '0.75rem', borderRadius: '0.75rem', backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB', borderWidth: '1px', boxSizing: 'border-box', fontSize: '1rem' }}
+                  placeholder="Ex: Bolinha de Queijo"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Preço (€)</label>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#D1D5DB', marginBottom: '0.25rem' }}>Preço (€)</label>
                 <input
                   type="number"
                   step="0.01"
                   value={newProductPrice}
                   onChange={(e) => setNewProductPrice(e.target.value)}
-                  className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  style={{ width: '100%', padding: '0.75rem', borderRadius: '0.75rem', backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB', borderWidth: '1px', boxSizing: 'border-box', fontSize: '1rem' }}
+                  placeholder="0.00"
                   required
                 />
               </div>
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-amber-600 text-white py-3 rounded-xl font-semibold hover:bg-amber-700 transition-colors disabled:opacity-50"
+                style={{ width: '100%', backgroundColor: loading ? '#B45309' : '#D97706', color: '#FFFFFF', padding: '0.75rem', borderRadius: '0.75rem', fontWeight: '600', border: 'none', cursor: 'pointer', opacity: loading ? 0.5 : 1 }}
+                onMouseEnter={(e) => !loading && (e.currentTarget.style.backgroundColor = '#B45309')}
+                onMouseLeave={(e) => !loading && (e.currentTarget.style.backgroundColor = '#D97706')}
               >
                 {loading ? 'Salvando...' : (editingProduct ? 'Salvar Alterações' : 'Criar Produto')}
               </button>
