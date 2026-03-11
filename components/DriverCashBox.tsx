@@ -287,11 +287,11 @@ const DriverCashBox: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Wallet className="text-amber-600" />
             Caixa do Entregador
           </h2>
-          <p className="text-gray-500">Controle de pagamentos e fecho diário</p>
+          <p style={{ color: '#A0A8C0' }}>Controle de pagamentos e fecho diário</p>
         </div>
         
         <div className="flex items-center gap-3">
@@ -299,11 +299,20 @@ const DriverCashBox: React.FC = () => {
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+            className="px-3 py-2 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+            style={{ 
+              backgroundColor: '#13161E', 
+              border: '1px solid rgba(255,255,255,0.07)',
+              color: '#FFFFFF',
+              colorScheme: 'dark'
+            }}
           />
           <button
             onClick={() => setSelectedDate(today)}
-            className="px-3 py-2 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-colors"
+            style={{ backgroundColor: '#F5A623', color: '#000000', padding: '0.75rem', borderRadius: '0.5rem', border: 'none', cursor: 'pointer' }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#E59500')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#F5A623')}
+            className="transition-colors"
           >
             <RefreshCw size={18} />
           </button>
