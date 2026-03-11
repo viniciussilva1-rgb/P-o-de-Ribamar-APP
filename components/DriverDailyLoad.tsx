@@ -879,13 +879,18 @@ const DriverDailyLoad: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Calendar size={18} style={{ color: '#A0A8C0' }} />
+          <Calendar size={18} style={{ color: '#F5A623' }} />
           <input
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
             className="px-3 py-2 rounded-lg text-sm"
-            style={{ backgroundColor: '#13161E', border: '1px solid rgba(255,255,255,0.07)', color: '#FFFFFF' }}
+            style={{ 
+              backgroundColor: '#13161E', 
+              border: '1px solid rgba(255,255,255,0.07)', 
+              color: '#FFFFFF',
+              colorScheme: 'dark'
+            }}
           />
         </div>
       </div>
