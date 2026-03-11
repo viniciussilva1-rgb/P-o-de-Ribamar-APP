@@ -861,19 +861,19 @@ const DriverDailyDeliveries: React.FC = () => {
     switch (status) {
       case 'delivered':
         return (
-          <span className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', paddingLeft: '0.5rem', paddingRight: '0.5rem', paddingTop: '0.25rem', paddingBottom: '0.25rem', backgroundColor: 'rgba(34,197,94,0.25)', color: '#86EFAC', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '500', border: '1px solid rgba(34,197,94,0.4)' }}>
             <CheckCircle size={12} /> Entregue
           </span>
         );
       case 'not_delivered':
         return (
-          <span className="flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', paddingLeft: '0.5rem', paddingRight: '0.5rem', paddingTop: '0.25rem', paddingBottom: '0.25rem', backgroundColor: 'rgba(239,68,68,0.25)', color: '#FCA5A5', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '500', border: '1px solid rgba(239,68,68,0.4)' }}>
             <XCircle size={12} /> Não Entregue
           </span>
         );
       default:
         return (
-          <span className="flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', paddingLeft: '0.5rem', paddingRight: '0.5rem', paddingTop: '0.25rem', paddingBottom: '0.25rem', backgroundColor: 'rgba(245,158,11,0.25)', color: '#FCD34D', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '500', border: '1px solid rgba(245,158,11,0.4)' }}>
             <Clock size={12} /> Pendente
           </span>
         );
@@ -896,19 +896,19 @@ const DriverDailyDeliveries: React.FC = () => {
     if (isPaid) {
       if (adminPayment) {
         return (
-          <span className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium" title={`Recebido por ${adminPayment.adminName || 'Admin'} via ${adminPayment.method}`}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', paddingLeft: '0.5rem', paddingRight: '0.5rem', paddingTop: '0.25rem', paddingBottom: '0.25rem', backgroundColor: 'rgba(59,130,246,0.25)', color: '#93C5FD', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '500', border: '1px solid rgba(59,130,246,0.4)' }} title={`Recebido por ${adminPayment.adminName || 'Admin'} via ${adminPayment.method}`}>
             € Pago (Admin)
           </span>
         );
       }
       return (
-        <span className="flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium" title="Pagamento confirmado">
+        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', paddingLeft: '0.5rem', paddingRight: '0.5rem', paddingTop: '0.25rem', paddingBottom: '0.25rem', backgroundColor: 'rgba(34,197,94,0.25)', color: '#86EFAC', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '500', border: '1px solid rgba(34,197,94,0.4)' }} title="Pagamento confirmado">
           € Pago
         </span>
       );
     } else {
       return (
-        <span className="flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium" title="Aguardando pagamento">
+        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', paddingLeft: '0.5rem', paddingRight: '0.5rem', paddingTop: '0.25rem', paddingBottom: '0.25rem', backgroundColor: 'rgba(245,158,11,0.25)', color: '#FCD34D', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '500', border: '1px solid rgba(245,158,11,0.4)' }} title="Aguardando pagamento">
           € A pagar
         </span>
       );
@@ -1403,17 +1403,33 @@ const DriverDailyDeliveries: React.FC = () => {
                           {editingDynamicDelivery !== delivery.id ? (
                             <div className="mt-2 flex flex-wrap gap-2">
                               {delivery.items.map((item, idx) => (
-                                <span key={`${item.productId}-${idx}`} className={`px-2 py-1 rounded text-sm flex items-center gap-1 ${
-                                  (item as any).isExtra 
-                                    ? 'bg-purple-100 text-purple-700 border border-purple-300' 
+                                <span key={`${item.productId}-${idx}`} className="px-2 py-1 rounded text-sm flex items-center gap-1" style={{
+                                  backgroundColor: (item as any).isExtra 
+                                    ? 'rgba(168,85,247,0.25)'
                                     : (item as any).isSubstitute
-                                      ? 'bg-orange-100 text-orange-700 border border-orange-300'
+                                      ? 'rgba(245,166,35,0.25)'
                                       : (item as any).isAdjusted
-                                        ? 'bg-blue-100 text-blue-700 border border-blue-300'
-                                        : isClientDynamic(delivery.clientId) 
-                                          ? 'bg-purple-100 text-purple-700' 
-                                          : 'bg-gray-100'
-                                }`}>
+                                        ? 'rgba(59,130,246,0.25)'
+                                        : isClientDynamic(delivery.clientId)
+                                          ? 'rgba(168,85,247,0.25)'
+                                          : '#F5A623',
+                                  color: (item as any).isExtra
+                                    ? '#D8B4FE'
+                                    : (item as any).isSubstitute
+                                      ? '#FBBF24'
+                                      : (item as any).isAdjusted
+                                        ? '#93C5FD'
+                                        : isClientDynamic(delivery.clientId)
+                                          ? '#D8B4FE'
+                                          : '#000000',
+                                  border: (item as any).isExtra
+                                    ? '1px solid rgba(168,85,247,0.5)'
+                                    : (item as any).isSubstitute
+                                      ? '1px solid rgba(245,166,35,0.5)'
+                                      : (item as any).isAdjusted
+                                        ? '1px solid rgba(59,130,246,0.5)'
+                                        : 'none'
+                                }}>
                                   {(item as any).isExtra && <span className="font-bold">+</span>}
                                   {(item as any).isSubstitute && <ArrowLeftRight size={12} />}
                                   {(item as any).isAdjusted && <Edit3 size={12} />}
@@ -1429,7 +1445,14 @@ const DriverDailyDeliveries: React.FC = () => {
                                         e.stopPropagation();
                                         handleOpenAdjustModal(delivery.id, delivery.clientName, item);
                                       }}
-                                      className="ml-1 p-0.5 hover:bg-gray-200 rounded"
+                                      style={{ 
+                                        backgroundColor: 'transparent', 
+                                        border: 'none', 
+                                        cursor: 'pointer', 
+                                        padding: '0.125rem'
+                                      }}
+                                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(59,130,246,0.15)')}
+                                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                                       title="Ajustar quantidade"
                                     >
                                       <Edit3 size={12} />
@@ -1442,7 +1465,14 @@ const DriverDailyDeliveries: React.FC = () => {
                                         e.stopPropagation();
                                         handleRemoveSavedExtra(delivery.id, item.productId);
                                       }}
-                                      className="ml-1 p-0.5 hover:bg-purple-200 rounded"
+                                      style={{ 
+                                        backgroundColor: 'transparent', 
+                                        border: 'none', 
+                                        cursor: 'pointer', 
+                                        padding: '0.125rem'
+                                      }}
+                                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(168,85,247,0.15)')}
+                                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                                       title="Remover extra"
                                     >
                                       <X size={12} />
@@ -1455,7 +1485,14 @@ const DriverDailyDeliveries: React.FC = () => {
                                         e.stopPropagation();
                                         handleRevertSubstitute(delivery.id, item.productId);
                                       }}
-                                      className="ml-1 p-0.5 hover:bg-orange-200 rounded"
+                                      style={{ 
+                                        backgroundColor: 'transparent', 
+                                        border: 'none', 
+                                        cursor: 'pointer', 
+                                        padding: '0.125rem'
+                                      }}
+                                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(245,166,35,0.15)')}
+                                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                                       title={`Reverter para ${(item as any).originalQuantityReplaced || item.quantity}x ${(item as any).originalProductName}`}
                                     >
                                       <X size={12} />
@@ -1464,22 +1501,38 @@ const DriverDailyDeliveries: React.FC = () => {
                                 </span>
                               ))}
                               {isClientDynamic(delivery.clientId) && delivery.items.length === 0 && (
-                                <span className="text-sm text-purple-600 italic">
+                                <span style={{ color: '#D8B4FE', fontSize: '0.875rem', fontStyle: 'italic' }}>
                                   Selecione os produtos na entrega →
                                 </span>
                               )}
                             </div>
                           ) : (
                             /* Editor de produtos para cliente dinâmico */
-                            <div className="mt-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
+                            <div style={{ 
+                              marginTop: '0.75rem', 
+                              padding: '0.75rem', 
+                              backgroundColor: 'rgba(168,85,247,0.15)',
+                              borderRadius: '0.5rem',
+                              border: '1px solid rgba(168,85,247,0.3)'
+                            }}>
                               {/* Header */}
                               <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-2">
-                                  <Sparkles size={16} className="text-purple-600" />
-                                  <span className="text-sm font-medium text-purple-800">Adicionar Produtos:</span>
+                                  <Sparkles size={16} style={{ color: '#D8B4FE' }} />
+                                  <span style={{ fontSize: '0.875rem', fontWeight: '500', color: '#D8B4FE' }}>Adicionar Produtos:</span>
                                 </div>
                                 {dynamicDeliveryItems.length > 0 && (
-                                  <span className="text-xs bg-purple-200 text-purple-700 px-2 py-0.5 rounded-full">
+                                  <span style={{ 
+                                    fontSize: '0.75rem', 
+                                    backgroundColor: 'rgba(168,85,247,0.25)',
+                                    color: '#D8B4FE',
+                                    paddingLeft: '0.5rem',
+                                    paddingRight: '0.5rem',
+                                    paddingTop: '0.125rem',
+                                    paddingBottom: '0.125rem',
+                                    borderRadius: '9999px',
+                                    border: '1px solid rgba(168,85,247,0.4)'
+                                  }}>
                                     {dynamicDeliveryItems.length} produto(s)
                                   </span>
                                 )}
