@@ -254,11 +254,11 @@ const DriverDashboard: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <LayoutDashboard className="text-amber-600" />
             Dashboard
           </h2>
-          <p className="text-gray-500">Visão geral dos clientes e pagamentos por rota</p>
+          <p style={{ color: '#A0A8C0' }}>Visão geral dos clientes e pagamentos por rota</p>
         </div>
       </div>
 
@@ -401,7 +401,7 @@ const DriverDashboard: React.FC = () => {
 
       {/* Lista por Rotas */}
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+        <h3 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <MapPin className="text-amber-600" size={20} />
           Clientes por Rota
           {(filterType !== 'all' || statusFilter !== 'all') && (
