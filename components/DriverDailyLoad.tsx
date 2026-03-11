@@ -868,44 +868,45 @@ const DriverDailyLoad: React.FC = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="bg-green-100 p-3 rounded-full">
-            <CheckCircle className="text-green-700" size={24} />
+          <div style={{ backgroundColor: 'rgba(34,197,94,0.2)', padding: '0.75rem', borderRadius: '9999px' }}>
+            <CheckCircle style={{ color: '#86EFAC' }} size={24} />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-800">Rota Finalizada</h2>
-            <p className="text-sm text-gray-500">
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#FFFFFF' }}>Rota Finalizada</h2>
+            <p style={{ fontSize: '0.875rem', color: '#A0A8C0' }}>
               {selectedDate === today ? 'Hoje' : new Date(selectedDate).toLocaleDateString('pt-PT')}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Calendar size={18} className="text-gray-400" />
+          <Calendar size={18} style={{ color: '#A0A8C0' }} />
           <input
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
+            className="px-3 py-2 rounded-lg text-sm"
+            style={{ backgroundColor: '#13161E', border: '1px solid rgba(255,255,255,0.07)', color: '#FFFFFF' }}
           />
         </div>
       </div>
 
       {/* Métricas */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-blue-50 rounded-xl p-4 text-center border border-blue-100">
-          <span className="text-sm text-blue-600 block">Carregado</span>
-          <span className="text-2xl font-bold text-blue-700">{currentLoad.totalLoaded}</span>
+        <div style={{ backgroundColor: '#13161E', borderRadius: '0.75rem', padding: '1rem', textAlign: 'center', border: '1px solid rgba(59,130,246,0.3)' }}>
+          <span style={{ fontSize: '0.875rem', color: '#3B82F6', display: 'block' }}>Carregado</span>
+          <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#FFFFFF' }}>{currentLoad.totalLoaded}</span>
         </div>
-        <div className="bg-green-50 rounded-xl p-4 text-center border border-green-100">
-          <span className="text-sm text-green-600 block">Vendido</span>
-          <span className="text-2xl font-bold text-green-700">{currentLoad.totalSold}</span>
+        <div style={{ backgroundColor: '#13161E', borderRadius: '0.75rem', padding: '1rem', textAlign: 'center', border: '1px solid rgba(34,197,94,0.3)' }}>
+          <span style={{ fontSize: '0.875rem', color: '#22C55E', display: 'block' }}>Vendido</span>
+          <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#FFFFFF' }}>{currentLoad.totalSold}</span>
         </div>
-        <div className="bg-orange-50 rounded-xl p-4 text-center border border-orange-100">
-          <span className="text-sm text-orange-600 block">Devolvido</span>
-          <span className="text-2xl font-bold text-orange-700">{currentLoad.totalReturned}</span>
+        <div style={{ backgroundColor: '#13161E', borderRadius: '0.75rem', padding: '1rem', textAlign: 'center', border: '1px solid rgba(245,158,11,0.3)' }}>
+          <span style={{ fontSize: '0.875rem', color: '#FBBF24', display: 'block' }}>Devolvido</span>
+          <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#FFFFFF' }}>{currentLoad.totalReturned}</span>
         </div>
-        <div className="bg-purple-50 rounded-xl p-4 text-center border border-purple-100">
-          <span className="text-sm text-purple-600 block">Aproveitamento</span>
-          <span className="text-2xl font-bold text-purple-700">{currentLoad.utilizationRate}%</span>
+        <div style={{ backgroundColor: '#13161E', borderRadius: '0.75rem', padding: '1rem', textAlign: 'center', border: '1px solid rgba(168,85,247,0.3)' }}>
+          <span style={{ fontSize: '0.875rem', color: '#D8B4FE', display: 'block' }}>Aproveitamento</span>
+          <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#FFFFFF' }}>{currentLoad.utilizationRate}%</span>
         </div>
       </div>
 
