@@ -32,19 +32,19 @@ const AdminDeliveryDashboard: React.FC = () => {
     switch (status) {
       case 'delivered':
         return (
-          <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs" style={{ backgroundColor: 'rgba(34,197,94,0.2)', color: '#22C55E' }}>
             <CheckCircle size={10} /> Entregue
           </span>
         );
       case 'not_delivered':
         return (
-          <span className="flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs">
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs" style={{ backgroundColor: 'rgba(239,68,68,0.2)', color: '#EF4444' }}>
             <XCircle size={10} /> Não Entregue
           </span>
         );
       default:
         return (
-          <span className="flex items-center gap-1 px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs" style={{ backgroundColor: 'rgba(251,191,36,0.2)', color: '#FBBF24' }}>
             <Clock size={10} /> Pendente
           </span>
         );
@@ -54,10 +54,10 @@ const AdminDeliveryDashboard: React.FC = () => {
   const getProgressBar = (delivered: number, total: number) => {
     const percentage = total > 0 ? (delivered / total) * 100 : 0;
     return (
-      <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+      <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: '#2A2E3A' }}>
         <div 
-          className="h-full bg-green-500 transition-all duration-300"
-          style={{ width: `${percentage}%` }}
+          className="h-full transition-all duration-300"
+          style={{ width: `${percentage}%`, backgroundColor: '#22C55E' }}
         />
       </div>
     );
@@ -77,94 +77,57 @@ const AdminDeliveryDashboard: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="bg-indigo-100 p-3 rounded-full">
-            <BarChart3 className="text-indigo-700" size={24} />
+          <div className="p-3 rounded-full" style={{ backgroundColor: '#1A1E29' }}>
+            <BarChart3 style={{ color: '#F5A623' }} size={24} />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-800">Painel de Entregas</h2>
-            <p className="text-sm text-gray-500">Acompanhe todas as entregas do dia</p>
+            <h2 className="text-xl font-bold" style={{ color: '#FFFFFF' }}>Painel de Entregas</h2>
+            <p className="text-sm" style={{ color: '#A0A8C0' }}>Acompanhe todas as entregas do dia</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2">
-          <Calendar size={18} className="text-gray-400" />
+        <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ backgroundColor: '#13161E', border: '1px solid rgba(255,255,255,0.07)' }}>
+          <Calendar size={18} style={{ color: '#A0A8C0' }} />
           <input
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
             className="border-none focus:ring-0 text-sm"
+            style={{ backgroundColor: '#13161E', color: '#FFFFFF' }}
           />
         </div>
       </div>
 
       {/* Cards de Resumo Geral */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-        <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <Users className="text-blue-500" size={18} />
-            <span className="text-xs text-gray-500">Total Entregas</span>
+        {[
+          { title: 'Total Entregas', value: report.totals.totalDeliveries, icon: Users, color: '#3B82F6' },
+          { title: 'Entregues', value: report.totals.deliveredCount, icon: CheckCircle, color: '#22C55E' },
+          { title: 'Não Entregues', value: report.totals.notDeliveredCount, icon: XCircle, color: '#EF4444' },
+          { title: 'Pendentes', value: report.totals.pendingCount, icon: Clock, color: '#FBBF24' },
+          { title: 'Valor Total', value: `€${report.totals.totalValue.toFixed(2)}`, icon: DollarSign, color: '#8B5CF6' },
+          { title: 'Valor Entregue', value: `€${report.totals.deliveredValue.toFixed(2)}`, icon: CheckCircle, color: '#22C55E' },
+          { title: 'Abatimentos', value: `€${report.totals.adjustedValue.toFixed(2)}`, icon: TrendingDown, color: '#F5A623' }
+        ].map((card, idx) => (
+          <div key={idx} className="rounded-xl p-4 border" style={{ backgroundColor: '#13161E', borderColor: 'rgba(255,255,255,0.07)' }}>
+            <div className="flex items-center gap-2 mb-2">
+              <card.icon style={{ color: card.color }} size={18} />
+              <span className="text-xs" style={{ color: '#A0A8C0' }}>{card.title}</span>
+            </div>
+            <span className="text-2xl font-bold" style={{ color: card.color }}>{card.value}</span>
           </div>
-          <span className="text-2xl font-bold text-blue-600">{report.totals.totalDeliveries}</span>
-        </div>
-        
-        <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <CheckCircle className="text-green-500" size={18} />
-            <span className="text-xs text-gray-500">Entregues</span>
-          </div>
-          <span className="text-2xl font-bold text-green-600">{report.totals.deliveredCount}</span>
-        </div>
-        
-        <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <XCircle className="text-red-500" size={18} />
-            <span className="text-xs text-gray-500">Não Entregues</span>
-          </div>
-          <span className="text-2xl font-bold text-red-600">{report.totals.notDeliveredCount}</span>
-        </div>
-        
-        <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <Clock className="text-yellow-500" size={18} />
-            <span className="text-xs text-gray-500">Pendentes</span>
-          </div>
-          <span className="text-2xl font-bold text-yellow-600">{report.totals.pendingCount}</span>
-        </div>
-        
-        <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <DollarSign className="text-purple-500" size={18} />
-            <span className="text-xs text-gray-500">Valor Total</span>
-          </div>
-          <span className="text-xl font-bold text-purple-600">€{report.totals.totalValue.toFixed(2)}</span>
-        </div>
-        
-        <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <CheckCircle className="text-green-500" size={18} />
-            <span className="text-xs text-gray-500">Valor Entregue</span>
-          </div>
-          <span className="text-xl font-bold text-green-600">€{report.totals.deliveredValue.toFixed(2)}</span>
-        </div>
-        
-        <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingDown className="text-orange-500" size={18} />
-            <span className="text-xs text-gray-500">Abatimentos</span>
-          </div>
-          <span className="text-xl font-bold text-orange-600">€{report.totals.adjustedValue.toFixed(2)}</span>
-        </div>
+        ))}
       </div>
 
       {/* Alerta de entregadores sem entregas */}
       {driversWithoutDeliveries.length > 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-          <div className="flex items-center gap-2 text-yellow-700">
+        <div className="rounded-xl p-4 border" style={{ backgroundColor: '#1A1E29', borderColor: 'rgba(251,191,36,0.2)' }}>
+          <div className="flex items-center gap-2" style={{ color: '#FBBF24' }}>
             <AlertTriangle size={20} />
             <span className="font-medium">Entregadores sem entregas registradas:</span>
           </div>
           <div className="mt-2 flex flex-wrap gap-2">
             {driversWithoutDeliveries.map(driver => (
-              <span key={driver.id} className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm">
+              <span key={driver.id} className="px-3 py-1 rounded-full text-sm" style={{ backgroundColor: 'rgba(251,191,36,0.15)', color: '#FBBF24' }}>
                 {driver.name}
               </span>
             ))}
@@ -174,9 +137,9 @@ const AdminDeliveryDashboard: React.FC = () => {
 
       {/* Breakdown por Produto */}
       {report.totals.productBreakdown.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-3 border-b border-gray-200">
-            <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+        <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: '#13161E', borderColor: 'rgba(255,255,255,0.07)' }}>
+          <div className="px-4 py-3 border-b" style={{ backgroundColor: '#1A1E29', borderColor: 'rgba(255,255,255,0.07)' }}>
+            <h3 className="font-semibold flex items-center gap-2" style={{ color: '#FFFFFF' }}>
               <Package size={18} />
               Produtos Necessários Hoje
             </h3>
@@ -184,21 +147,21 @@ const AdminDeliveryDashboard: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Produto</th>
-                  <th className="text-center px-4 py-3 text-sm font-medium text-gray-600">Total</th>
-                  <th className="text-center px-4 py-3 text-sm font-medium text-gray-600">Entregue</th>
-                  <th className="text-center px-4 py-3 text-sm font-medium text-gray-600">Não Entregue</th>
-                  <th className="text-center px-4 py-3 text-sm font-medium text-gray-600">Progresso</th>
+                <tr style={{ backgroundColor: '#1A1E29', borderColor: 'rgba(255,255,255,0.07)' }} className="border-b">
+                  <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: '#A0A8C0' }}>Produto</th>
+                  <th className="text-center px-4 py-3 text-sm font-medium" style={{ color: '#A0A8C0' }}>Total</th>
+                  <th className="text-center px-4 py-3 text-sm font-medium" style={{ color: '#A0A8C0' }}>Entregue</th>
+                  <th className="text-center px-4 py-3 text-sm font-medium" style={{ color: '#A0A8C0' }}>Não Entregue</th>
+                  <th className="text-center px-4 py-3 text-sm font-medium" style={{ color: '#A0A8C0' }}>Progresso</th>
                 </tr>
               </thead>
               <tbody>
                 {report.totals.productBreakdown.map(item => (
-                  <tr key={item.productId} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-800">{item.productName}</td>
-                    <td className="px-4 py-3 text-center text-blue-600 font-medium">{item.totalQuantity}</td>
-                    <td className="px-4 py-3 text-center text-green-600">{item.deliveredQuantity}</td>
-                    <td className="px-4 py-3 text-center text-red-600">{item.notDeliveredQuantity}</td>
+                  <tr key={item.productId} style={{ borderColor: 'rgba(255,255,255,0.03)' }} className="border-b" onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#1A1E29')} onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                    <td className="px-4 py-3 font-medium" style={{ color: '#FFFFFF' }}>{item.productName}</td>
+                    <td className="px-4 py-3 text-center font-medium" style={{ color: '#3B82F6' }}>{item.totalQuantity}</td>
+                    <td className="px-4 py-3 text-center" style={{ color: '#22C55E' }}>{item.deliveredQuantity}</td>
+                    <td className="px-4 py-3 text-center" style={{ color: '#EF4444' }}>{item.notDeliveredQuantity}</td>
                     <td className="px-4 py-3">
                       <div className="w-24 mx-auto">
                         {getProgressBar(item.deliveredQuantity, item.totalQuantity)}
@@ -213,18 +176,19 @@ const AdminDeliveryDashboard: React.FC = () => {
       )}
 
       {/* Entregas por Entregador */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+      <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: '#13161E', borderColor: 'rgba(255,255,255,0.07)' }}>
+        <div className="px-4 py-3 border-b flex items-center justify-between" style={{ backgroundColor: '#1A1E29', borderColor: 'rgba(255,255,255,0.07)' }}>
+          <h3 className="font-semibold flex items-center gap-2" style={{ color: '#FFFFFF' }}>
             <Truck size={18} />
             Entregas por Entregador
           </h3>
           <div className="flex items-center gap-2">
-            <Filter size={16} className="text-gray-400" />
+            <Filter size={16} style={{ color: '#A0A8C0' }} />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="text-sm border border-gray-200 rounded px-2 py-1"
+              className="text-sm rounded px-2 py-1"
+              style={{ backgroundColor: '#1A1E29', borderColor: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.07)', color: '#FFFFFF' }}
             >
               <option value="all">Todos</option>
               <option value="pending">Pendentes</option>
@@ -235,12 +199,12 @@ const AdminDeliveryDashboard: React.FC = () => {
         </div>
         
         {report.drivers.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            <Truck size={48} className="mx-auto mb-3 text-gray-300" />
+          <div className="p-8 text-center" style={{ color: '#A0A8C0' }}>
+            <Truck size={48} className="mx-auto mb-3" style={{ color: '#505569' }} />
             <p>Nenhuma entrega registrada para esta data.</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
             {report.drivers.map(driverReport => {
               const isExpanded = expandedDriver === driverReport.driverId;
               const filteredDeliveries = statusFilter === 'all' 
@@ -255,28 +219,31 @@ const AdminDeliveryDashboard: React.FC = () => {
                 <div key={driverReport.driverId}>
                   <button
                     onClick={() => setExpandedDriver(isExpanded ? null : driverReport.driverId)}
-                    className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+                    className="w-full flex items-center justify-between p-4 transition-colors"
+                    style={{ backgroundColor: '#13161E' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#1A1E29')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#13161E')}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="bg-blue-100 p-2 rounded-full">
-                        <Truck className="text-blue-600" size={20} />
+                      <div className="p-2 rounded-full" style={{ backgroundColor: 'rgba(59,130,246,0.15)' }}>
+                        <Truck style={{ color: '#3B82F6' }} size={20} />
                       </div>
                       <div className="text-left">
-                        <span className="font-medium text-gray-800">{driverReport.driverName}</span>
-                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                        <span className="font-medium" style={{ color: '#FFFFFF' }}>{driverReport.driverName}</span>
+                        <div className="flex items-center gap-4 text-sm" style={{ color: '#A0A8C0' }}>
                           <span className="flex items-center gap-1">
-                            <CheckCircle size={12} className="text-green-500" />
+                            <CheckCircle size={12} style={{ color: '#22C55E' }} />
                             {driverReport.summary.totalDelivered}
                           </span>
                           <span className="flex items-center gap-1">
-                            <XCircle size={12} className="text-red-500" />
+                            <XCircle size={12} style={{ color: '#EF4444' }} />
                             {driverReport.summary.totalNotDelivered}
                           </span>
                           <span className="flex items-center gap-1">
-                            <Clock size={12} className="text-yellow-500" />
+                            <Clock size={12} style={{ color: '#FBBF24' }} />
                             {driverReport.summary.totalPending}
                           </span>
-                          <span className="text-green-600 font-medium">
+                          <span className="font-medium" style={{ color: '#22C55E' }}>
                             €{driverReport.summary.deliveredValue.toFixed(2)}
                           </span>
                         </div>
@@ -284,30 +251,29 @@ const AdminDeliveryDashboard: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="text-right">
-                        <span className={`text-lg font-bold ${
-                          deliveryRate >= 80 ? 'text-green-600' : 
-                          deliveryRate >= 50 ? 'text-yellow-600' : 'text-red-600'
-                        }`}>
+                        <span className="text-lg font-bold" style={{
+                          color: deliveryRate >= 80 ? '#22C55E' : deliveryRate >= 50 ? '#FBBF24' : '#EF4444'
+                        }}>
                           {deliveryRate}%
                         </span>
-                        <span className="text-xs text-gray-400 block">concluído</span>
+                        <span className="text-xs block" style={{ color: '#505569' }}>concluído</span>
                       </div>
-                      {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                      {isExpanded ? <ChevronDown size={20} style={{ color: '#A0A8C0' }} /> : <ChevronRight size={20} style={{ color: '#A0A8C0' }} />}
                     </div>
                   </button>
                   
                   {isExpanded && (
-                    <div className="bg-gray-50 px-4 pb-4">
+                    <div className="px-4 pb-4" style={{ backgroundColor: '#1A1E29' }}>
                       {/* Resumo por Rota */}
                       {driverReport.summary.routeTotals.length > 0 && (
                         <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-2">
                           {driverReport.summary.routeTotals.map(rt => (
-                            <div key={rt.routeId} className="bg-white rounded-lg p-3 border border-gray-200">
+                            <div key={rt.routeId} className="rounded-lg p-3 border" style={{ backgroundColor: '#13161E', borderColor: 'rgba(255,255,255,0.07)' }}>
                               <div className="flex items-center gap-1 mb-1">
-                                <MapPin size={14} className="text-blue-500" />
-                                <span className="text-sm font-medium text-gray-700">{rt.routeName}</span>
+                                <MapPin size={14} style={{ color: '#3B82F6' }} />
+                                <span className="text-sm font-medium" style={{ color: '#FFFFFF' }}>{rt.routeName}</span>
                               </div>
-                              <div className="text-xs text-gray-500">
+                              <div className="text-xs" style={{ color: '#A0A8C0' }}>
                                 {rt.clientCount} clientes | €{rt.totalValue.toFixed(2)}
                               </div>
                               <div className="mt-1">
@@ -319,43 +285,43 @@ const AdminDeliveryDashboard: React.FC = () => {
                       )}
                       
                       {/* Lista de Entregas */}
-                      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                      <div className="rounded-lg border overflow-hidden" style={{ backgroundColor: '#13161E', borderColor: 'rgba(255,255,255,0.07)' }}>
                         <table className="w-full text-sm">
                           <thead>
-                            <tr className="bg-gray-100 border-b border-gray-200">
-                              <th className="text-left px-3 py-2 font-medium text-gray-600">Cliente</th>
-                              <th className="text-left px-3 py-2 font-medium text-gray-600">Rota</th>
-                              <th className="text-left px-3 py-2 font-medium text-gray-600">Produtos</th>
-                              <th className="text-center px-3 py-2 font-medium text-gray-600">Valor</th>
-                              <th className="text-center px-3 py-2 font-medium text-gray-600">Status</th>
+                            <tr className="border-b" style={{ backgroundColor: '#1A1E29', borderColor: 'rgba(255,255,255,0.07)' }}>
+                              <th className="text-left px-3 py-2 font-medium" style={{ color: '#A0A8C0' }}>Cliente</th>
+                              <th className="text-left px-3 py-2 font-medium" style={{ color: '#A0A8C0' }}>Rota</th>
+                              <th className="text-left px-3 py-2 font-medium" style={{ color: '#A0A8C0' }}>Produtos</th>
+                              <th className="text-center px-3 py-2 font-medium" style={{ color: '#A0A8C0' }}>Valor</th>
+                              <th className="text-center px-3 py-2 font-medium" style={{ color: '#A0A8C0' }}>Status</th>
                             </tr>
                           </thead>
                           <tbody>
                             {filteredDeliveries.map(delivery => (
-                              <tr key={delivery.id} className="border-b border-gray-100 hover:bg-gray-50">
+                              <tr key={delivery.id} style={{ borderColor: 'rgba(255,255,255,0.03)' }} className="border-b" onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#1A1E29')} onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}>
                                 <td className="px-3 py-2">
-                                  <div className="font-medium text-gray-800">{delivery.clientName}</div>
-                                  <div className="text-xs text-gray-500">{delivery.clientAddress}</div>
+                                  <div className="font-medium" style={{ color: '#FFFFFF' }}>{delivery.clientName}</div>
+                                  <div className="text-xs" style={{ color: '#A0A8C0' }}>{delivery.clientAddress}</div>
                                 </td>
-                                <td className="px-3 py-2 text-gray-600">
+                                <td className="px-3 py-2" style={{ color: '#A0A8C0' }}>
                                   {getRouteName(delivery.routeId)}
                                 </td>
                                 <td className="px-3 py-2">
                                   <div className="flex flex-wrap gap-1">
                                     {delivery.items.map(item => (
-                                      <span key={item.productId} className="px-1.5 py-0.5 bg-gray-100 rounded text-xs">
+                                      <span key={item.productId} className="px-1.5 py-0.5 rounded text-xs" style={{ backgroundColor: '#1A1E29', color: '#A0A8C0' }}>
                                         {getProductName(item.productId)}: {item.quantity}
                                       </span>
                                     ))}
                                   </div>
                                 </td>
-                                <td className="px-3 py-2 text-center font-medium text-green-600">
+                                <td className="px-3 py-2 text-center font-medium" style={{ color: '#22C55E' }}>
                                   €{delivery.totalValue.toFixed(2)}
                                 </td>
                                 <td className="px-3 py-2 text-center">
                                   {getStatusBadge(delivery.status)}
                                   {delivery.status === 'not_delivered' && delivery.notDeliveredReason && (
-                                    <div className="text-xs text-red-500 mt-1">
+                                    <div className="text-xs mt-1" style={{ color: '#EF4444' }}>
                                       {delivery.notDeliveredReason}
                                     </div>
                                   )}
@@ -366,7 +332,7 @@ const AdminDeliveryDashboard: React.FC = () => {
                         </table>
                         
                         {filteredDeliveries.length === 0 && (
-                          <div className="p-4 text-center text-gray-500 text-sm">
+                          <div className="p-4 text-center text-sm" style={{ color: '#A0A8C0' }}>
                             Nenhuma entrega com o filtro selecionado.
                           </div>
                         )}
@@ -374,13 +340,13 @@ const AdminDeliveryDashboard: React.FC = () => {
                       
                       {/* Impacto Financeiro */}
                       {driverReport.summary.adjustedValue > 0 && (
-                        <div className="mt-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                        <div className="mt-3 p-3 rounded-lg border" style={{ backgroundColor: '#1A1E29', borderColor: 'rgba(245,166,35,0.2)' }}>
                           <div className="flex items-center justify-between">
-                            <span className="text-orange-700 font-medium flex items-center gap-2">
+                            <span className="font-medium flex items-center gap-2" style={{ color: '#F5A623' }}>
                               <TrendingDown size={16} />
                               Abatimentos (não entregas):
                             </span>
-                            <span className="text-orange-800 font-bold">
+                            <span className="font-bold" style={{ color: '#F5A623' }}>
                               -€{driverReport.summary.adjustedValue.toFixed(2)}
                             </span>
                           </div>

@@ -106,10 +106,10 @@ const SmartDeliveryMap: React.FC<SmartDeliveryMapProps> = ({ clients, driverName
 
   if (sortedClients.length === 0) {
     return (
-      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-6 text-center">
-        <Navigation className="mx-auto text-blue-400 mb-2" size={32} />
-        <p className="text-blue-600 font-medium">Nenhum cliente cadastrado</p>
-        <p className="text-blue-500 text-sm">Adicione clientes para usar a Entrega Inteligente</p>
+      <div className="border-2 rounded-xl p-6 text-center" style={{ backgroundColor: '#13161E', borderColor: 'rgba(245,166,35,0.3)' }}>
+        <Navigation className="mx-auto mb-2" style={{ color: '#F5A623' }} size={32} />
+        <p className="font-medium" style={{ color: '#F5A623' }}>Nenhum cliente cadastrado</p>
+        <p className="text-sm" style={{ color: '#A0A8C0' }}>Adicione clientes para usar a Entrega Inteligente</p>
       </div>
     );
   }
@@ -117,19 +117,22 @@ const SmartDeliveryMap: React.FC<SmartDeliveryMapProps> = ({ clients, driverName
   const allCompleted = currentIndex >= sortedClients.length;
 
   return (
-    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl overflow-hidden">
+    <div className="border-2 rounded-xl overflow-hidden" style={{ backgroundColor: '#13161E', borderColor: 'rgba(245,166,35,0.3)' }}>
       {/* Header - Sempre visível */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full p-4 flex items-center justify-between hover:bg-blue-100/50 transition-colors"
+        className="w-full p-4 flex items-center justify-between transition-colors"
+        style={{ backgroundColor: '#13161E' }}
+        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#1A1E29')}
+        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#13161E')}
       >
         <div className="flex items-center gap-3">
-          <div className="bg-blue-600 p-2 rounded-lg">
-            <Navigation className="text-white" size={24} />
+          <div className="p-2 rounded-lg" style={{ backgroundColor: '#F5A623' }}>
+            <Navigation className="text-black" size={24} />
           </div>
           <div className="text-left">
-            <h3 className="font-bold text-blue-800 text-lg">Entrega Inteligente</h3>
-            <p className="text-blue-600 text-sm">
+            <h3 className="font-bold text-lg" style={{ color: '#FFFFFF' }}>Entrega Inteligente</h3>
+            <p style={{ color: '#A0A8C0' }} className="text-sm">
               {completedClients.size} de {sortedClients.length} entregas • 
               {remainingCount > 0 ? ` Faltam ${remainingCount}` : ' Concluído!'}
             </p>
@@ -137,11 +140,11 @@ const SmartDeliveryMap: React.FC<SmartDeliveryMapProps> = ({ clients, driverName
         </div>
         <div className="flex items-center gap-2">
           {isNavigating && (
-            <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full font-bold animate-pulse">
+            <span className="text-white text-xs px-2 py-1 rounded-full font-bold animate-pulse" style={{ backgroundColor: '#22C55E' }}>
               EM ROTA
             </span>
           )}
-          {isExpanded ? <ChevronUp className="text-blue-600" /> : <ChevronDown className="text-blue-600" />}
+          {isExpanded ? <ChevronUp style={{ color: '#F5A623' }} /> : <ChevronDown style={{ color: '#F5A623' }} />}
         </div>
       </button>
 
@@ -151,42 +154,43 @@ const SmartDeliveryMap: React.FC<SmartDeliveryMapProps> = ({ clients, driverName
           
           {/* Cliente Atual - Destaque */}
           {currentClient && !allCompleted ? (
-            <div className="bg-white rounded-xl p-4 shadow-lg border-2 border-blue-300">
+            <div className="rounded-xl p-4 shadow-lg border-2" style={{ backgroundColor: '#1A1E29', borderColor: '#F5A623' }}>
               <div className="flex items-center justify-between mb-3">
-                <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-bold">
+                <span className="text-white px-3 py-1 rounded-full text-sm font-bold" style={{ backgroundColor: '#F5A623', color: '#000' }}>
                   Parada {currentIndex + 1} de {sortedClients.length}
                 </span>
                 {currentClient.coordinates?.lat ? (
-                  <span className="text-green-600 text-xs flex items-center gap-1">
+                  <span className="text-xs flex items-center gap-1" style={{ color: '#22C55E' }}>
                     <MapPin size={12} /> GPS OK
                   </span>
                 ) : (
-                  <span className="text-amber-600 text-xs flex items-center gap-1">
+                  <span className="text-xs flex items-center gap-1" style={{ color: '#FBBF24' }}>
                     <MapPin size={12} /> Sem GPS
                   </span>
                 )}
               </div>
 
               <div className="space-y-2 mb-4">
-                <h4 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                  <User size={20} className="text-blue-600" />
+                <h4 className="text-xl font-bold flex items-center gap-2" style={{ color: '#FFFFFF' }}>
+                  <User size={20} style={{ color: '#F5A623' }} />
                   {currentClient.name}
                 </h4>
-                <p className="text-gray-600 flex items-center gap-2">
-                  <MapPin size={16} className="text-gray-400" />
+                <p className="flex items-center gap-2" style={{ color: '#A0A8C0' }}>
+                  <MapPin size={16} style={{ color: '#505569' }} />
                   {currentClient.address}
                 </p>
                 {currentClient.phone && (
                   <button 
                     onClick={() => callClient(currentClient.phone)}
-                    className="text-blue-600 flex items-center gap-2 hover:underline"
+                    className="flex items-center gap-2 hover:underline"
+                    style={{ color: '#F5A623' }}
                   >
                     <Phone size={16} />
                     {currentClient.phone}
                   </button>
                 )}
                 {currentClient.deliveryObs && (
-                  <p className="text-amber-600 text-sm bg-amber-50 p-2 rounded">
+                  <p className="text-sm p-2 rounded" style={{ color: '#F5A623', backgroundColor: 'rgba(245,166,35,0.1)' }}>
                     📝 {currentClient.deliveryObs}
                   </p>
                 )}
@@ -196,14 +200,20 @@ const SmartDeliveryMap: React.FC<SmartDeliveryMapProps> = ({ clients, driverName
               <div className="grid grid-cols-2 gap-2 mb-3">
                 <button
                   onClick={() => navigateToClient(currentClient)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-lg flex items-center justify-center gap-2 font-bold shadow transition-all active:scale-95"
+                  className="p-3 rounded-lg flex items-center justify-center gap-2 font-bold shadow transition-all active:scale-95 text-white"
+                  style={{ backgroundColor: '#3B82F6' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.filter = 'brightness(1.1)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.filter = 'brightness(1)')}
                 >
                   <Play size={18} />
                   Google Maps
                 </button>
                 <button
                   onClick={() => navigateViaWaze(currentClient)}
-                  className="bg-[#33ccff] hover:bg-[#00b8e6] text-white p-3 rounded-lg flex items-center justify-center gap-2 font-bold shadow transition-all active:scale-95"
+                  className="text-white p-3 rounded-lg flex items-center justify-center gap-2 font-bold shadow transition-all active:scale-95"
+                  style={{ backgroundColor: '#33ccff' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.filter = 'brightness(1.1)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.filter = 'brightness(1)')}
                 >
                   <Navigation size={18} />
                   Waze
@@ -213,7 +223,10 @@ const SmartDeliveryMap: React.FC<SmartDeliveryMapProps> = ({ clients, driverName
               {/* Botão principal - Marcar como entregue */}
               <button
                 onClick={markAsDeliveredAndNext}
-                className="w-full bg-green-600 hover:bg-green-700 text-white p-4 rounded-lg flex items-center justify-center gap-2 font-bold text-lg shadow-lg transition-all active:scale-95"
+                className="w-full text-white p-4 rounded-lg flex items-center justify-center gap-2 font-bold text-lg shadow-lg transition-all active:scale-95"
+                style={{ backgroundColor: '#22C55E' }}
+                onMouseEnter={(e) => (e.currentTarget.style.filter = 'brightness(1.1)')}
+                onMouseLeave={(e) => (e.currentTarget.style.filter = 'brightness(1)')}
               >
                 <CheckCircle size={24} />
                 Entregue! Próximo Cliente
@@ -225,14 +238,24 @@ const SmartDeliveryMap: React.FC<SmartDeliveryMapProps> = ({ clients, driverName
                 <button
                   onClick={goToPrevious}
                   disabled={currentIndex === 0}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 text-gray-700 p-2 rounded-lg text-sm flex items-center justify-center gap-1"
+                  className="flex-1 p-2 rounded-lg text-sm flex items-center justify-center gap-1 transition-all"
+                  style={{
+                    backgroundColor: currentIndex === 0 ? '#2A2E3A' : '#3A3E4A',
+                    color: currentIndex === 0 ? '#505569' : '#A0A8C0',
+                    opacity: currentIndex === 0 ? 0.5 : 1
+                  }}
                 >
                   ← Anterior
                 </button>
                 <button
                   onClick={skipToNext}
                   disabled={currentIndex >= sortedClients.length - 1}
-                  className="flex-1 bg-amber-100 hover:bg-amber-200 disabled:opacity-50 text-amber-700 p-2 rounded-lg text-sm flex items-center justify-center gap-1"
+                  className="flex-1 p-2 rounded-lg text-sm flex items-center justify-center gap-1 transition-all"
+                  style={{
+                    backgroundColor: currentIndex >= sortedClients.length - 1 ? '#2A2E3A' : 'rgba(245,166,35,0.15)',
+                    color: currentIndex >= sortedClients.length - 1 ? '#505569' : '#F5A623',
+                    opacity: currentIndex >= sortedClients.length - 1 ? 0.5 : 1
+                  }}
                 >
                   <SkipForward size={14} />
                   Pular
@@ -241,13 +264,16 @@ const SmartDeliveryMap: React.FC<SmartDeliveryMapProps> = ({ clients, driverName
             </div>
           ) : (
             /* Todas as entregas concluídas */
-            <div className="bg-green-100 border-2 border-green-300 rounded-xl p-6 text-center">
-              <CheckCircle className="mx-auto text-green-600 mb-2" size={48} />
-              <h4 className="text-xl font-bold text-green-800">Rota Concluída! 🎉</h4>
-              <p className="text-green-600">Todas as {sortedClients.length} entregas foram visitadas</p>
+            <div className="border-2 rounded-xl p-6 text-center" style={{ backgroundColor: '#13161E', borderColor: '#22C55E' }}>
+              <CheckCircle className="mx-auto mb-2" style={{ color: '#22C55E' }} size={48} />
+              <h4 className="text-xl font-bold" style={{ color: '#22C55E' }}>Rota Concluída! 🎉</h4>
+              <p style={{ color: '#A0A8C0' }}>Todas as {sortedClients.length} entregas foram visitadas</p>
               <button
                 onClick={resetRoute}
-                className="mt-4 bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 mx-auto"
+                className="mt-4 text-white px-6 py-2 rounded-lg flex items-center gap-2 mx-auto"
+                style={{ backgroundColor: '#22C55E' }}
+                onMouseEnter={(e) => (e.currentTarget.style.filter = 'brightness(1.1)')}
+                onMouseLeave={(e) => (e.currentTarget.style.filter = 'brightness(1)')}
               >
                 <RotateCcw size={18} />
                 Reiniciar Rota
@@ -257,14 +283,14 @@ const SmartDeliveryMap: React.FC<SmartDeliveryMapProps> = ({ clients, driverName
 
           {/* Próximo Cliente - Preview */}
           {nextClient && !allCompleted && (
-            <div className="bg-white/70 rounded-lg p-3 border border-gray-200">
-              <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Próxima Parada:</p>
+            <div className="rounded-lg p-3 border" style={{ backgroundColor: '#1A1E29', borderColor: 'rgba(255,255,255,0.07)' }}>
+              <p className="text-xs uppercase font-semibold mb-1" style={{ color: '#A0A8C0' }}>Próxima Parada:</p>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-gray-700">{nextClient.name}</p>
-                  <p className="text-sm text-gray-500 truncate">{nextClient.address}</p>
+                  <p className="font-medium" style={{ color: '#FFFFFF' }}>{nextClient.name}</p>
+                  <p className="text-sm truncate" style={{ color: '#A0A8C0' }}>{nextClient.address}</p>
                 </div>
-                <span className="bg-gray-200 text-gray-600 px-2 py-1 rounded text-sm">
+                <span className="px-2 py-1 rounded text-sm" style={{ backgroundColor: '#2A2E3A', color: '#A0A8C0' }}>
                   #{currentIndex + 2}
                 </span>
               </div>
@@ -272,8 +298,8 @@ const SmartDeliveryMap: React.FC<SmartDeliveryMapProps> = ({ clients, driverName
           )}
 
           {/* Lista completa de clientes */}
-          <div className="bg-white rounded-lg p-3">
-            <p className="font-semibold text-gray-700 text-sm mb-2">
+          <div className="rounded-lg p-3" style={{ backgroundColor: '#1A1E29' }}>
+            <p className="font-semibold text-sm mb-2" style={{ color: '#FFFFFF' }}>
               Ordem de Entrega:
             </p>
             <div className="max-h-48 overflow-y-auto space-y-1">
@@ -285,23 +311,30 @@ const SmartDeliveryMap: React.FC<SmartDeliveryMapProps> = ({ clients, driverName
                   <button
                     key={client.id}
                     onClick={() => goToClient(index)}
-                    className={`w-full flex items-center gap-2 p-2 rounded text-sm text-left transition-all
-                      ${isCurrent ? 'bg-blue-100 border-2 border-blue-400' : 'bg-gray-50 hover:bg-gray-100'}
-                      ${isCompleted ? 'opacity-60' : ''}
-                    `}
+                    className={`w-full flex items-center gap-2 p-2 rounded text-sm text-left transition-all`}
+                    style={{
+                      backgroundColor: isCurrent ? '#2A5A8A' : '#2A2E3A',
+                      borderColor: isCurrent ? '#F5A623' : 'transparent',
+                      border: isCurrent ? '2px solid #F5A623' : 'none',
+                      color: '#FFFFFF',
+                      opacity: isCompleted ? 0.6 : 1
+                    }}
                   >
-                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0
-                      ${isCompleted ? 'bg-green-500 text-white' : isCurrent ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-600'}
-                    `}>
+                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0`}
+                      style={{
+                        backgroundColor: isCompleted ? '#22C55E' : isCurrent ? '#F5A623' : '#505569',
+                        color: isCompleted ? '#FFF' : isCurrent ? '#000' : '#8B96B8'
+                      }}>
                       {isCompleted ? <CheckCircle size={14} /> : index + 1}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <p className={`font-medium truncate ${isCompleted ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                      <p className={`font-medium truncate ${isCompleted ? 'line-through' : ''}`}
+                        style={{ color: isCompleted ? '#A0A8C0' : '#FFFFFF' }}>
                         {client.name}
                       </p>
                     </div>
                     {isCurrent && (
-                      <span className="text-blue-600 text-xs font-bold">ATUAL</span>
+                      <span className="text-xs font-bold" style={{ color: '#F5A623' }}>ATUAL</span>
                     )}
                   </button>
                 );
@@ -313,7 +346,10 @@ const SmartDeliveryMap: React.FC<SmartDeliveryMapProps> = ({ clients, driverName
           {completedClients.size > 0 && (
             <button
               onClick={resetRoute}
-              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 p-2 rounded-lg text-sm flex items-center justify-center gap-2"
+              className="w-full p-2 rounded-lg text-sm flex items-center justify-center gap-2 transition-all"
+              style={{ backgroundColor: '#2A2E3A', color: '#A0A8C0' }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#3A3E4A')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#2A2E3A')}
             >
               <RotateCcw size={16} />
               Reiniciar do Início

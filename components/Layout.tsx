@@ -14,30 +14,42 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
   const { currentUser, logout, isAdmin } = useAuth();
 
   return (
-    <div className="min-h-screen flex bg-orange-50/30">
+    <div className="min-h-screen flex" style={{ backgroundColor: '#0D0F14' }}>
       {/* Sidebar */}
-      <aside className="w-64 bg-amber-950 text-white flex-shrink-0 hidden md:flex flex-col shadow-2xl z-20">
-        <div className="p-8 border-b border-amber-900/50 bg-amber-900">
+      <aside 
+        className="w-64 text-white flex-shrink-0 hidden md:flex flex-col shadow-2xl z-20" 
+        style={{ backgroundColor: '#13161E', borderRight: '1px solid rgba(255,255,255,0.07)' }}
+      >
+        <div 
+          className="p-8 border-b" 
+          style={{ borderColor: 'rgba(255,255,255,0.07)', backgroundColor: '#13161E' }}
+        >
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-amber-500 rounded-lg">
-              <Wheat className="w-6 h-6 text-amber-50" />
+            <div className="p-2 rounded-lg" style={{ backgroundColor: '#F5A623' }}>
+              <Wheat className="w-6 h-6 text-white" />
             </div>
             <div>
               <h1 className="text-lg font-bold font-serif leading-none tracking-wide">{APP_NAME}</h1>
-              <span className="text-[10px] uppercase tracking-widest text-amber-400 opacity-80">Gestão</span>
+              <span className="text-[10px] uppercase tracking-widest opacity-80" style={{ color: '#F5A623' }}>Gestão</span>
             </div>
           </div>
         </div>
         
-        <div className="px-6 py-6 border-b border-amber-900/30">
-          <p className="text-amber-400 text-xs font-bold uppercase tracking-wider mb-2">Usuário</p>
+        <div 
+          className="px-6 py-6 border-b"
+          style={{ borderColor: 'rgba(255,255,255,0.07)' }}
+        >
+          <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: '#F5A623' }}>Usuário</p>
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 rounded-full bg-amber-800 flex items-center justify-center text-amber-200 font-bold">
+            <div 
+              className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white"
+              style={{ backgroundColor: '#1A1E29' }}
+            >
               {currentUser?.name.charAt(0)}
             </div>
             <div className="overflow-hidden">
-               <p className="text-amber-100 text-sm font-medium truncate">{currentUser?.name}</p>
-               <span className="text-xs text-amber-500/80">
+               <p className="text-white text-sm font-medium truncate">{currentUser?.name}</p>
+               <span className="text-xs" style={{ color: '#A0A8C0' }}>
                 {isAdmin ? 'Administrador' : 'Entregador'}
               </span>
             </div>
@@ -47,7 +59,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           {isAdmin ? (
             <>
-              <div className="px-3 pb-2 pt-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
+              <div className="px-3 pb-2 pt-4 text-xs font-bold uppercase tracking-wider" style={{ color: '#A0A8C0' }}>
                 Menu Principal
               </div>
               <NavItem 
@@ -144,10 +156,25 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
           )}
         </nav>
 
-        <div className="p-4 bg-amber-950 border-t border-amber-900/50">
+        <div 
+          className="p-4 border-t"
+          style={{ backgroundColor: '#13161E', borderColor: 'rgba(255,255,255,0.07)' }}
+        >
           <button 
             onClick={logout}
-            className="flex items-center space-x-3 w-full px-4 py-3 rounded-lg text-amber-300/70 hover:bg-amber-900 hover:text-white transition-all duration-200"
+            className="flex items-center space-x-3 w-full px-4 py-3 rounded-lg transition-all duration-200"
+            style={{
+              color: '#A0A8C0',
+              backgroundColor: 'transparent'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#1A1E29';
+              e.currentTarget.style.color = '#FFFFFF';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = '#A0A8C0';
+            }}
           >
             <LogOut size={20} />
             <span className="font-medium">Sair do Sistema</span>
@@ -156,11 +183,17 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
       </aside>
 
       {/* Mobile Header & Content */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden bg-gray-50/50">
+      <div 
+        className="flex-1 flex flex-col h-screen overflow-hidden"
+        style={{ backgroundColor: '#0D0F14' }}
+      >
         {/* Mobile Header */}
-        <header className="md:hidden bg-amber-900 text-white p-4 flex justify-between items-center shadow-md z-30">
+        <header 
+          className="md:hidden text-white p-4 flex justify-between items-center shadow-md z-30"
+          style={{ backgroundColor: '#13161E', borderBottom: '1px solid rgba(255,255,255,0.07)' }}
+        >
           <div className="flex items-center space-x-2">
-            <Wheat className="w-6 h-6 text-amber-300" />
+            <Wheat className="w-6 h-6" style={{ color: '#F5A623' }} />
             <span className="font-bold">{APP_NAME}</span>
           </div>
           <button onClick={logout}>
@@ -169,7 +202,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
         </header>
         
         {/* Mobile Tab Bar */}
-        <div className="md:hidden bg-amber-800 text-amber-100 flex justify-around p-1 shadow-inner z-20 overflow-x-auto flex-shrink-0">
+        <div 
+          className="md:hidden text-white flex justify-around p-1 shadow-inner z-20 overflow-x-auto flex-shrink-0"
+          style={{ backgroundColor: '#13161E', borderBottom: '1px solid rgba(255,255,255,0.07)' }}
+        >
             {isAdmin ? (
             <>
               <MobileNavItem 
@@ -277,13 +313,28 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
 const NavItem = ({ icon, label, active, onClick }: any) => (
   <button
     onClick={onClick}
-    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
-      active 
-        ? 'bg-amber-600 text-white shadow-lg shadow-amber-900/20' 
-        : 'text-amber-100/70 hover:bg-amber-900 hover:text-white'
-    }`}
+    className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 group"
+    style={{
+      backgroundColor: active ? 'rgba(245,166,35,0.12)' : 'transparent',
+      color: active ? '#F5A623' : '#A0A8C0',
+    }}
+    onMouseEnter={(e) => {
+      if (!active) {
+        e.currentTarget.style.backgroundColor = '#1A1E29';
+        e.currentTarget.style.color = '#FFFFFF';
+      }
+    }}
+    onMouseLeave={(e) => {
+      if (!active) {
+        e.currentTarget.style.backgroundColor = 'transparent';
+        e.currentTarget.style.color = '#A0A8C0';
+      }
+    }}
   >
-    {React.cloneElement(icon, { size: 20, className: active ? 'text-amber-200' : 'text-amber-500 group-hover:text-amber-300' })}
+    {React.cloneElement(icon, { 
+      size: 20, 
+      style: { color: active ? '#F5A623' : '#A0A8C0' }
+    })}
     <span className="font-medium">{label}</span>
   </button>
 );
@@ -291,9 +342,15 @@ const NavItem = ({ icon, label, active, onClick }: any) => (
 const MobileNavItem = ({ icon, label, active, onClick }: any) => (
     <button 
         onClick={onClick}
-        className={`flex flex-col items-center px-2 py-1.5 rounded transition-colors min-w-[50px] flex-shrink-0 ${active ? 'bg-amber-700 text-white' : 'opacity-70'}`}
+        className="flex flex-col items-center px-2 py-1.5 rounded transition-colors min-w-[50px] flex-shrink-0"
+        style={{
+          backgroundColor: active ? 'rgba(245,166,35,0.12)' : 'transparent',
+          color: active ? '#F5A623' : '#A0A8C0',
+        }}
     >
-        {icon}
+        {React.cloneElement(icon, {
+          style: { color: active ? '#F5A623' : '#A0A8C0' }
+        })}
         <span className="text-[9px] mt-0.5 whitespace-nowrap">{label}</span>
     </button>
 );
