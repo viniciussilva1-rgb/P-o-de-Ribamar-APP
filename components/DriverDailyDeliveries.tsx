@@ -861,7 +861,7 @@ const DriverDailyDeliveries: React.FC = () => {
     switch (status) {
       case 'delivered':
         return (
-          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', paddingLeft: '0.5rem', paddingRight: '0.5rem', paddingTop: '0.25rem', paddingBottom: '0.25rem', backgroundColor: 'rgba(34,197,94,0.25)', color: '#86EFAC', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '500', border: '1px solid rgba(34,197,94,0.4)' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', paddingLeft: '0.5rem', paddingRight: '0.5rem', paddingTop: '0.25rem', paddingBottom: '0.25rem', backgroundColor: 'rgba(20,83,45,0.7)', color: '#FFFFFF', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '500', border: '1px solid rgba(34,197,94,0.6)' }}>
             <CheckCircle size={12} /> Entregue
           </span>
         );
@@ -902,7 +902,7 @@ const DriverDailyDeliveries: React.FC = () => {
         );
       }
       return (
-        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', paddingLeft: '0.5rem', paddingRight: '0.5rem', paddingTop: '0.25rem', paddingBottom: '0.25rem', backgroundColor: 'rgba(34,197,94,0.25)', color: '#86EFAC', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '500', border: '1px solid rgba(34,197,94,0.4)' }} title="Pagamento confirmado">
+        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', paddingLeft: '0.5rem', paddingRight: '0.5rem', paddingTop: '0.25rem', paddingBottom: '0.25rem', backgroundColor: 'rgba(20,83,45,0.7)', color: '#FFFFFF', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '500', border: '1px solid rgba(34,197,94,0.6)' }} title="Pagamento confirmado">
           € Pago
         </span>
       );
@@ -1104,10 +1104,10 @@ const DriverDailyDeliveries: React.FC = () => {
           </div>
           <div style={{ backgroundColor: '#13161E', borderRadius: '0.75rem', padding: '1rem', border: '1px solid rgba(255,255,255,0.07)', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-              <CheckCircle style={{ color: '#86EFAC' }} size={18} />
+              <CheckCircle style={{ color: '#4ADE80' }} size={18} />
               <span style={{ fontSize: '0.875rem', color: '#A0A8C0' }}>Entregues</span>
             </div>
-            <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#86EFAC' }}>
+            <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#FFFFFF' }}>
               {filteredDeliveries.filter(d => d.status === 'delivered').length}
             </span>
           </div>
