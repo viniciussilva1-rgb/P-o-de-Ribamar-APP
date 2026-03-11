@@ -2832,7 +2832,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       totalLeftover,
       totalWaste,
       wastePercentage: parseFloat(wastePercentage.toFixed(2)),
-      observations,
+      observations: observations || '',
       createdAt: existingRecord?.createdAt || now,
       updatedAt: now
     };
