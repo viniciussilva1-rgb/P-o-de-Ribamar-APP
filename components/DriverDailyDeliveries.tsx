@@ -1807,39 +1807,39 @@ const DriverDailyDeliveries: React.FC = () => {
       {/* Modal de Pagamento */}
       {showPaymentModal && paymentClientId && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <Banknote className="text-amber-600" size={20} />
+          <div style={{ backgroundColor: '#13161E', borderColor: 'rgba(255,255,255,0.1)' }} className="rounded-xl w-full max-w-md p-6 shadow-xl max-h-[90vh] overflow-y-auto border">
+            <h3 style={{ color: '#FFFFFF' }} className="text-lg font-bold mb-4 flex items-center gap-2">
+              <Banknote style={{ color: '#F5A623' }} size={20} />
               Receber Pagamento
             </h3>
             
             <div className="mb-4">
-              <p className="text-gray-600 text-sm mb-1">Cliente:</p>
-              <p className="font-semibold text-gray-800">{paymentClientName}</p>
+              <p style={{ color: '#A0A8C0' }} className="text-sm mb-1">Cliente:</p>
+              <p style={{ color: '#FFFFFF' }} className="font-semibold">{paymentClientName}</p>
             </div>
 
             {/* Informações de Pagamento */}
             {paymentInfo && (
-              <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
+              <div style={{ backgroundColor: '#1A1E29', borderColor: 'rgba(255,255,255,0.1)' }} className="mb-4 p-3 rounded-lg border space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Último pagamento:</span>
-                  <span className="text-sm font-medium">
+                  <span style={{ color: '#A0A8C0' }} className="text-sm">Último pagamento:</span>
+                  <span style={{ color: '#FFFFFF' }} className="text-sm font-medium">
                     {paymentInfo.lastPaymentDate 
                       ? `${new Date(paymentInfo.lastPaymentDate).toLocaleDateString('pt-PT')} - €${paymentInfo.lastPaymentAmount?.toFixed(2) || '0.00'}`
                       : 'Nenhum registado'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Pago até:</span>
-                  <span className={`text-sm font-medium ${paymentInfo.paidUntilDate ? 'text-green-600' : 'text-gray-400'}`}>
+                  <span style={{ color: '#A0A8C0' }} className="text-sm">Pago até:</span>
+                  <span style={{ color: paymentInfo.paidUntilDate ? '#10B981' : '#A0A8C0' }} className="text-sm font-medium">
                     {paymentInfo.paidUntilDate 
                       ? new Date(paymentInfo.paidUntilDate).toLocaleDateString('pt-PT')
                       : 'Não definido'}
                   </span>
                 </div>
                 {paymentInfo.unpaidDates.length > 0 && (
-                  <div className="pt-2 border-t border-gray-200">
-                    <span className="text-sm text-red-600 font-medium">
+                  <div style={{ borderTopColor: 'rgba(255,255,255,0.1)' }} className="pt-2 border-t">
+                    <span style={{ color: '#EF4444' }} className="text-sm font-medium">
                       ⚠️ {paymentInfo.unpaidDates.length} dia(s) por pagar
                     </span>
                   </div>
@@ -1849,14 +1849,14 @@ const DriverDailyDeliveries: React.FC = () => {
 
             {/* Mostrar dívida atual */}
             {clientDebt > 0 ? (
-              <div className="mb-4 p-3 bg-red-50 rounded-lg border border-red-200">
-                <p className="text-sm text-red-700">
+              <div style={{ backgroundColor: '#1A1E29', borderColor: 'rgba(239, 68, 68, 0.3)' }} className="mb-4 p-3 rounded-lg border">
+                <p style={{ color: '#EF4444' }} className="text-sm">
                   <strong>Dívida atual:</strong> €{clientDebt.toFixed(2)}
                 </p>
               </div>
             ) : (
-              <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
-                <p className="text-sm text-green-700">
+              <div style={{ backgroundColor: '#1A1E29', borderColor: 'rgba(16, 185, 129, 0.3)' }} className="mb-4 p-3 rounded-lg border">
+                <p style={{ color: '#10B981' }} className="text-sm">
                   Cliente sem dívida pendente
                 </p>
               </div>
@@ -1864,8 +1864,8 @@ const DriverDailyDeliveries: React.FC = () => {
 
             <div className="space-y-4">
               {/* Valor */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div style={{ backgroundColor: '#1A1E29', padding: '12px', borderRadius: '8px', borderLeft: '4px solid #F5A623' }}>
+                <label style={{ color: '#F5A623' }} className="block text-sm font-bold mb-2">
                   Valor Recebido (€)
                 </label>
                 <input
@@ -1875,34 +1875,37 @@ const DriverDailyDeliveries: React.FC = () => {
                   value={paymentAmount}
                   onChange={(e) => setPaymentAmount(e.target.value)}
                   placeholder="0.00"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB' }}
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 font-bold text-lg"
                 />
               </div>
 
               {/* Método de Pagamento */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label style={{ color: '#FFFFFF' }} className="block text-sm font-medium mb-2">
                   Método de Pagamento
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setPaymentMethod('Dinheiro')}
-                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
-                      paymentMethod === 'Dinheiro'
-                        ? 'border-green-500 bg-green-50 text-green-700'
-                        : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300'
-                    }`}
+                    style={{
+                      borderColor: paymentMethod === 'Dinheiro' ? '#10B981' : 'rgba(255,255,255,0.1)',
+                      backgroundColor: paymentMethod === 'Dinheiro' ? 'rgba(16, 185, 129, 0.1)' : '#1A1E29',
+                      color: paymentMethod === 'Dinheiro' ? '#10B981' : '#A0A8C0'
+                    }}
+                    className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all"
                   >
                     <Banknote size={18} />
                     Dinheiro
                   </button>
                   <button
                     onClick={() => setPaymentMethod('MB Way')}
-                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
-                      paymentMethod === 'MB Way'
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300'
-                    }`}
+                    style={{
+                      borderColor: paymentMethod === 'MB Way' ? '#3B82F6' : 'rgba(255,255,255,0.1)',
+                      backgroundColor: paymentMethod === 'MB Way' ? 'rgba(59, 130, 246, 0.1)' : '#1A1E29',
+                      color: paymentMethod === 'MB Way' ? '#3B82F6' : '#A0A8C0'
+                    }}
+                    className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all"
                   >
                     <CreditCard size={18} />
                     MB Way
@@ -1911,22 +1914,23 @@ const DriverDailyDeliveries: React.FC = () => {
               </div>
 
               {/* Data até quando fica pago - Calendário Personalizado */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div style={{ backgroundColor: '#1A1E29', padding: '12px', borderRadius: '8px', borderLeft: '4px solid #F5A623' }}>
+                <label style={{ color: '#F5A623' }} className="block text-sm font-bold mb-2">
                   Pago até (data)
                 </label>
                 <div className="relative">
                   <button
                     onClick={() => setShowCustomCalendar(!showCustomCalendar)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-left flex items-center justify-between"
+                    style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB' }}
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-left flex items-center justify-between font-medium"
                   >
                     <span>{paidUntilDate ? new Date(paidUntilDate).toLocaleDateString('pt-PT') : 'Selecionar data...'}</span>
-                    <Calendar size={18} className="text-gray-400" />
+                    <Calendar size={18} style={{ color: '#F5A623' }} />
                   </button>
                   
                   {/* Calendário Personalizado com Atualização Otimista */}
                   {showCustomCalendar && paymentInfo && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 p-3">
+                    <div style={{ backgroundColor: '#1A1E29', borderColor: 'rgba(255,255,255,0.1)' }} className="absolute top-full left-0 right-0 mt-1 border rounded-lg shadow-lg z-10 p-3">
                       {/* Header do calendário */}
                       <div className="flex items-center justify-between mb-3">
                         <button
@@ -1935,11 +1939,12 @@ const DriverDailyDeliveries: React.FC = () => {
                             newMonth.setMonth(newMonth.getMonth() - 1);
                             setCalendarMonth(newMonth);
                           }}
-                          className="p-1 hover:bg-gray-100 rounded"
+                          style={{ color: '#F5A623' }}
+                          className="p-1 hover:opacity-70 rounded"
                         >
                           <ChevronLeft size={20} />
                         </button>
-                        <span className="font-medium">
+                        <span style={{ color: '#FFFFFF' }} className="font-medium">
                           {calendarMonth.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' })}
                         </span>
                         <button
@@ -1948,7 +1953,8 @@ const DriverDailyDeliveries: React.FC = () => {
                             newMonth.setMonth(newMonth.getMonth() + 1);
                             setCalendarMonth(newMonth);
                           }}
-                          className="p-1 hover:bg-gray-100 rounded"
+                          style={{ color: '#F5A623' }}
+                          className="p-1 hover:opacity-70 rounded"
                         >
                           <ChevronRight size={20} />
                         </button>
@@ -1957,7 +1963,7 @@ const DriverDailyDeliveries: React.FC = () => {
                       {/* Dias da semana */}
                       <div className="grid grid-cols-7 gap-1 mb-2 text-center">
                         {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((day, i) => (
-                          <div key={i} className="text-xs font-medium text-gray-500 py-1">{day}</div>
+                          <div key={i} style={{ color: '#505569' }} className="text-xs font-medium py-1">{day}</div>
                         ))}
                       </div>
                       
@@ -2071,28 +2077,28 @@ const DriverDailyDeliveries: React.FC = () => {
                       </div>
                       
                       {/* Legenda atualizada */}
-                      <div className="mt-3 pt-3 border-t border-gray-200 flex flex-wrap gap-3 text-xs">
+                      <div style={{ borderTopColor: 'rgba(255,255,255,0.1)' }} className="mt-3 pt-3 border-t flex flex-wrap gap-3 text-xs">
                         <div className="flex items-center gap-1">
                           <div className="w-4 h-4 rounded-full ring-2 ring-green-500 ring-inset bg-green-50"></div>
-                          <span className="text-gray-600">Pago</span>
+                          <span style={{ color: '#A0A8C0' }}>Pago</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <div className="w-4 h-4 rounded-full ring-2 ring-orange-400 ring-inset bg-orange-50"></div>
-                          <span className="text-gray-600">A pagar</span>
+                          <span style={{ color: '#A0A8C0' }}>A pagar</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <div className="w-4 h-4 rounded-full ring-2 ring-red-500 ring-inset bg-red-50"></div>
-                          <span className="text-gray-600">Não quis pão</span>
+                          <span style={{ color: '#A0A8C0' }}>Não quis pão</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <div className="w-4 h-4 rounded-full bg-gray-100"></div>
-                          <span className="text-gray-600">Sem entrega</span>
+                          <span style={{ color: '#A0A8C0' }}>Sem entrega</span>
                         </div>
                       </div>
                     </div>
                   )}
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p style={{ color: '#A0A8C0' }} className="text-xs mt-1">
                   Clique para ver o calendário com dias pagos e por pagar
                 </p>
               </div>
@@ -2105,7 +2111,8 @@ const DriverDailyDeliveries: React.FC = () => {
                   setConsumptionData(history);
                   setShowConsumptionModal(true);
                 }}
-                className="w-full mt-4 py-2 bg-purple-100 text-purple-700 rounded-lg font-medium hover:bg-purple-200 transition-colors flex justify-center items-center gap-2 border border-purple-200"
+                style={{ backgroundColor: '#1A1E29', borderColor: 'rgba(168, 85, 247, 0.3)', color: '#A855F7' }}
+                className="w-full mt-4 py-2 rounded-lg font-medium hover:opacity-80 transition-colors flex justify-center items-center gap-2 border"
               >
                 <Receipt size={18} />
                 Ver Consumo / Faturas Detalhadas
@@ -2126,14 +2133,16 @@ const DriverDailyDeliveries: React.FC = () => {
                   setServerPaidUntil(null);
                   setClientConsumptionHistory(null);
                 }}
-                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                style={{ backgroundColor: '#505569', color: '#FFFFFF' }}
+                className="flex-1 px-4 py-2 rounded-lg hover:opacity-90"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleRegisterPayment}
                 disabled={savingPayment || !paymentAmount || parseFloat(paymentAmount) <= 0}
-                className="flex-1 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                style={{ backgroundColor: '#F5A623', color: '#000000' }}
+                className="flex-1 px-4 py-2 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium"
               >
                 {savingPayment ? (
                   <>
@@ -2303,23 +2312,24 @@ const DriverDailyDeliveries: React.FC = () => {
       {/* Modal de Substituição de Produto */}
       {showSubstituteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full shadow-2xl overflow-hidden">
+          <div style={{ backgroundColor: '#13161E', borderColor: 'rgba(255,255,255,0.1)' }} className="rounded-xl max-w-md w-full shadow-2xl overflow-hidden border">
             {/* Header */}
-            <div className="p-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white">
+            <div style={{ backgroundColor: '#1A1E29', borderBottomColor: 'rgba(255,255,255,0.1)' }} className="p-4 border-b">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-bold flex items-center gap-2">
+                  <h3 style={{ color: '#FFFFFF' }} className="text-lg font-bold flex items-center gap-2">
                     <ArrowLeftRight size={20} />
                     Substituir Produto
                   </h3>
-                  <p className="text-orange-100 text-sm">{substituteClientName}</p>
+                  <p style={{ color: '#A0A8C0' }} className="text-sm">{substituteClientName}</p>
                 </div>
                 <button
                   onClick={() => {
                     setShowSubstituteModal(false);
                     setDeliveryItemsForSubstitute([]);
                   }}
-                  className="p-2 hover:bg-orange-400 rounded-lg transition-colors"
+                  style={{ color: '#F5A623' }}
+                  className="p-2 hover:opacity-80 rounded-lg transition-colors"
                 >
                   <X size={20} />
                 </button>
@@ -2330,7 +2340,7 @@ const DriverDailyDeliveries: React.FC = () => {
             <div className="p-4 space-y-4">
               {/* Produto Original */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label style={{ color: '#FFFFFF' }} className="block text-sm font-medium mb-1">
                   Produto a Substituir:
                 </label>
                 <select
@@ -2339,7 +2349,8 @@ const DriverDailyDeliveries: React.FC = () => {
                     setSubstituteOriginalProductId(e.target.value);
                     setSubstituteOriginalQty(''); // Limpar quantidade ao mudar produto
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                  style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB' }}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500"
                 >
                   <option value="">Selecione o produto original...</option>
                   {deliveryItemsForSubstitute.map(item => (
@@ -2353,7 +2364,7 @@ const DriverDailyDeliveries: React.FC = () => {
               {/* Quantidade do Original a Substituir */}
               {substituteOriginalProductId && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label style={{ color: '#FFFFFF' }} className="block text-sm font-medium mb-1">
                     Quantas unidades substituir?
                   </label>
                   {(() => {
@@ -2373,18 +2384,20 @@ const DriverDailyDeliveries: React.FC = () => {
                             }
                           }}
                           placeholder="Qtd"
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                          style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB' }}
+                          className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 font-bold"
                         />
                         <button
                           onClick={() => setSubstituteOriginalQty(maxQty.toString())}
-                          className="px-3 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 text-sm"
+                          style={{ backgroundColor: '#F5A623', color: '#000000' }}
+                          className="px-3 py-2 rounded-lg hover:opacity-90 text-sm font-medium"
                         >
                           Todas ({maxQty})
                         </button>
                       </div>
                     );
                   })()}
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p style={{ color: '#A0A8C0' }} className="text-xs mt-1">
                     As unidades não substituídas permanecerão na entrega
                   </p>
                 </div>
@@ -2392,13 +2405,14 @@ const DriverDailyDeliveries: React.FC = () => {
 
               {/* Novo Produto */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label style={{ color: '#FFFFFF' }} className="block text-sm font-medium mb-1">
                   Novo Produto:
                 </label>
                 <select
                   value={substituteNewProductId}
                   onChange={(e) => setSubstituteNewProductId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                  style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB' }}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500"
                 >
                   <option value="">Selecione o novo produto...</option>
                   {products.map(product => (
@@ -2411,7 +2425,7 @@ const DriverDailyDeliveries: React.FC = () => {
 
               {/* Quantidade do Novo Produto */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label style={{ color: '#FFFFFF' }} className="block text-sm font-medium mb-1">
                   Quantidade do novo produto:
                 </label>
                 <input
@@ -2420,43 +2434,46 @@ const DriverDailyDeliveries: React.FC = () => {
                   value={substituteQuantity}
                   onChange={(e) => setSubstituteQuantity(e.target.value)}
                   placeholder="Qtd"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                  style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB' }}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 font-bold"
                 />
               </div>
 
               {/* Resumo da troca */}
               {substituteOriginalProductId && substituteOriginalQty && substituteNewProductId && substituteQuantity && (
-                <div className="bg-orange-100 border border-orange-300 rounded-lg p-3">
-                  <p className="text-sm text-orange-800 font-medium">📋 Resumo da troca:</p>
-                  <p className="text-sm text-orange-700 mt-1">
+                <div style={{ backgroundColor: '#0D0F14', borderColor: 'rgba(245, 166, 35, 0.3)' }} className="border rounded-lg p-3">
+                  <p style={{ color: '#F5A623' }} className="text-sm font-medium">📋 Resumo da troca:</p>
+                  <p style={{ color: '#F5A623' }} className="text-sm mt-1">
                     {substituteOriginalQty}x {getProductName(substituteOriginalProductId)} → {substituteQuantity}x {getProductName(substituteNewProductId)}
                   </p>
                 </div>
               )}
 
               {/* Info */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-sm text-blue-700">
+              <div style={{ backgroundColor: '#0D0F14', borderColor: 'rgba(59, 130, 246, 0.3)' }} className="border rounded-lg p-3">
+                <p style={{ color: '#3B82F6' }} className="text-sm">
                   <strong>💡 Nota:</strong> Esta substituição é apenas para esta entrega. O registo do cliente não será alterado.
                 </p>
               </div>
             </div>
 
             {/* Botões */}
-            <div className="p-4 border-t border-gray-200 flex gap-3">
+            <div style={{ backgroundColor: '#13161E', borderTopColor: 'rgba(255,255,255,0.1)' }} className="p-4 border-t flex gap-3">
               <button
                 onClick={() => {
                   setShowSubstituteModal(false);
                   setDeliveryItemsForSubstitute([]);
                 }}
-                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                style={{ backgroundColor: '#505569', color: '#FFFFFF' }}
+                className="flex-1 px-4 py-2 rounded-lg hover:opacity-90"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSaveSubstitute}
                 disabled={savingSubstitute || !substituteOriginalProductId || !substituteOriginalQty || !substituteNewProductId || !substituteQuantity}
-                className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 flex items-center justify-center gap-2"
+                style={{ backgroundColor: '#F5A623', color: '#000000' }}
+                className="flex-1 px-4 py-2 rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 font-medium"
               >
                 {savingSubstitute ? (
                   <>
