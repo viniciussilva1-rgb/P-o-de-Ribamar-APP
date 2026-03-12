@@ -1899,18 +1899,28 @@ const DriverDailyDeliveries: React.FC = () => {
                     Dinheiro
                   </button>
                   <button
-                    onClick={() => setPaymentMethod('MB Way')}
+                    onClick={() => setPaymentMethod('MBWay')}
                     style={{
-                      borderColor: paymentMethod === 'MB Way' ? '#3B82F6' : 'rgba(255,255,255,0.1)',
-                      backgroundColor: paymentMethod === 'MB Way' ? 'rgba(59, 130, 246, 0.1)' : '#1A1E29',
-                      color: paymentMethod === 'MB Way' ? '#3B82F6' : '#A0A8C0'
+                      borderColor: paymentMethod === 'MBWay' ? '#3B82F6' : 'rgba(255,255,255,0.1)',
+                      backgroundColor: paymentMethod === 'MBWay' ? 'rgba(59, 130, 246, 0.1)' : '#1A1E29',
+                      color: paymentMethod === 'MBWay' ? '#3B82F6' : '#A0A8C0'
                     }}
                     className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all"
                   >
                     <CreditCard size={18} />
-                    MB Way
+                    MBWay
                   </button>
                 </div>
+
+                {/* Aviso para MBWay */}
+                {paymentMethod === 'MBWay' && (
+                  <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', borderColor: '#3B82F6' }} className="mt-3 p-3 border rounded-lg">
+                    <p style={{ color: '#3B82F6' }} className="text-sm">
+                      <strong>ℹ️ Importante:</strong> Este pagamento vai direto para o patrão (Tiago) e 
+                      <strong> NÃO entra no seu fecho semanal</strong>. Você conta e entrega apenas o dinheiro.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Data até quando fica pago - Calendário Personalizado */}

@@ -2247,6 +2247,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const client = clients.find(c => c.id === clientId);
     const route = client?.routeId ? routes.find(r => r.id === client.routeId) : null;
     
+    // Pagamentos em MBWay e Transferência vão direto para o patrão (não entram no fecho do entregador)
+    const isMbwayOrTransfer = method === 'MBWay' || method === 'Transferência';
+    
     const paymentData: DailyPaymentReceived = {
       id: paymentId,
       driverId,
@@ -2258,6 +2261,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       amount,
       method: method as DailyPaymentReceived['method'],
       paidUntil: paidUntil || today,
+      receivedByAdmin: isMbwayOrTransfer, // MBWay e Transferência marcadas como recebidas pelo admin
+      adminName: isMbwayOrTransfer ? 'Sistema' : undefined, // Marcação do sistema para rastreamento
       createdAt: now
     };
     

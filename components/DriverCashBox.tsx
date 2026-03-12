@@ -370,6 +370,24 @@ const DriverCashBox: React.FC = () => {
         </div>
       </div>
 
+      {/* Aviso: MBWay e Transferência não entram no fecho */}
+      {(totalMbwayToday > 0 || totalTransferToday > 0) && (
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+          <div className="flex items-start gap-3">
+            <AlertTriangle size={20} className="text-blue-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium text-blue-900 mb-1">Pagamentos não incluídos no seu fecho semanal:</p>
+              <p className="text-sm text-blue-700">
+                Os valores em <strong>MBWay ({formatCurrency(totalMbwayToday)})</strong> e 
+                <strong> Transferência ({formatCurrency(totalTransferToday)})</strong> vão diretos para o patrão (Tiago) e 
+                <strong> não entram no seu fecho semanal</strong>. Você apenas precisa entregar o dinheiro recebido 
+                <strong> ({formatCurrency(totalCashToday)})</strong>.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tabs de Navegação */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="flex border-b border-gray-200">
@@ -633,6 +651,23 @@ const DriverCashBox: React.FC = () => {
                   (Fundo {formatCurrency(cashFund?.initialAmount || 0)} + Dinheiro {formatCurrency(totalCashToday)})
                 </p>
               </div>
+
+              {/* Aviso: MBWay e Transferência não entram no fecho */}
+              {(totalMbwayToday > 0 || totalTransferToday > 0) && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle size={20} className="text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-blue-900 mb-1">Nota sobre o fecho diário:</p>
+                      <p className="text-sm text-blue-700">
+                        Os pagamentos em <strong>MBWay ({formatCurrency(totalMbwayToday)})</strong> e 
+                        <strong> Transferência ({formatCurrency(totalTransferToday)})</strong> NÃO entram no seu fecho diário. 
+                        Você conta e entrega apenas o <strong>dinheiro ({formatCurrency(totalCashToday)})</strong>.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Totais por Rota */}
               {closureData.routeTotals.length > 0 && (
@@ -1201,6 +1236,16 @@ const DriverCashBox: React.FC = () => {
                     </button>
                   ))}
                 </div>
+
+                {/* Aviso para MBWay e Transferência */}
+                {(paymentMethod === 'MBWay' || paymentMethod === 'Transferência') && (
+                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-700">
+                      <strong>ℹ️ Importante:</strong> Este pagamento vai direto para o patrão (Tiago) e 
+                      <strong> NÃO entra no seu fecho semanal</strong>. Você conta e entrega apenas o dinheiro.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
             
