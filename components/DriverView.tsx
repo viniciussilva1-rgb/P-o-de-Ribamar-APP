@@ -163,6 +163,7 @@ const QuickScheduleSetup: React.FC<{
           <select
             value={newProductId}
             onChange={(e) => setNewProductId(e.target.value)}
+            style={{ color: '#000000' }}
             className="flex-1 p-2 text-sm border border-amber-300 rounded-lg bg-white focus:ring-2 focus:ring-amber-500"
           >
             <option value="">Selecionar produto...</option>
@@ -175,6 +176,7 @@ const QuickScheduleSetup: React.FC<{
             min="1"
             value={newQuantity}
             onChange={(e) => setNewQuantity(e.target.value === '' ? '' : parseInt(e.target.value) || '')}
+            style={{ color: '#000000' }}
             className="w-20 p-2 text-sm border border-amber-300 rounded-lg text-center font-bold"
             placeholder="Qtd"
           />
