@@ -1164,45 +1164,48 @@ const DriverDailyDeliveries: React.FC = () => {
 
       {/* Filtros e Pesquisa */}
       {deliveries.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+        <div style={{ backgroundColor: '#13161E', borderColor: 'rgba(255,255,255,0.1)' }} className="rounded-xl border p-4 space-y-3">
           {/* Campo de Pesquisa */}
           <div className="relative">
-            <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <Search size={18} style={{ color: '#F5A623' }} className="absolute left-3 top-1/2 transform -translate-y-1/2" />
             <input
               type="text"
               placeholder="Pesquisar cliente por nome, endereço ou telefone para receber pagamento..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB' }}
+              className="w-full pl-10 pr-10 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                style={{ color: '#F5A623' }}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 hover:opacity-80"
               >
                 <X size={18} />
               </button>
             )}
           </div>
           {searchTerm && (
-            <p className="text-sm text-blue-600">
+            <p style={{ color: '#F5A623', fontSize: '0.875rem' }}>
               <span className="font-medium">{filteredDeliveries.length}</span> cliente(s) encontrado(s) para "{searchTerm}"
             </p>
           )}
           
           {/* Filtros de Status */}
           <div className="flex items-center gap-2 flex-wrap">
-            <Filter size={18} className="text-gray-400" />
-            <span className="text-sm text-gray-500">Filtrar:</span>
+            <Filter size={18} style={{ color: '#F5A623' }} />
+            <span style={{ color: '#A0A8C0' }} className="text-sm">Filtrar:</span>
             {(['all', 'pending', 'delivered', 'not_delivered'] as const).map(filter => (
               <button
                 key={filter}
                 onClick={() => setStatusFilter(filter)}
-                className={`px-3 py-1 rounded-full text-sm transition-colors ${
-                  statusFilter === filter
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
+                style={{
+                  backgroundColor: statusFilter === filter ? '#F5A623' : '#1A1E29',
+                  color: statusFilter === filter ? '#000000' : '#FFFFFF',
+                  borderColor: statusFilter === filter ? '#F5A623' : 'rgba(255,255,255,0.1)'
+                }}
+                className="px-3 py-1 rounded-full text-sm transition-colors border"
               >
                 {filter === 'all' ? 'Todos' : 
                  filter === 'pending' ? 'Pendentes' :
