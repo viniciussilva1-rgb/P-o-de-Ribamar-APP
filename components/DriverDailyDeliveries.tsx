@@ -2155,37 +2155,39 @@ const DriverDailyDeliveries: React.FC = () => {
       {/* Modal de Extras */}
       {showExtraModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full shadow-2xl overflow-hidden">
+          <div style={{ backgroundColor: '#13161E', borderColor: 'rgba(255,255,255,0.1)' }} className="rounded-xl max-w-md w-full shadow-2xl overflow-hidden border flex flex-col max-h-screen">
             {/* Header */}
-            <div className="p-4 bg-gradient-to-r from-purple-600 to-purple-700 text-white">
+            <div style={{ backgroundColor: '#1A1E29', borderBottomColor: 'rgba(255,255,255,0.1)' }} className="p-4 border-b">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-bold flex items-center gap-2">
+                  <h3 style={{ color: '#FFFFFF' }} className="text-lg font-bold flex items-center gap-2">
                     <ShoppingBag size={20} />
                     Adicionar Extra
                   </h3>
-                  <p className="text-purple-100 text-sm">{extraClientName}</p>
+                  <p style={{ color: '#A0A8C0' }} className="text-sm">{extraClientName}</p>
                 </div>
                 <button
                   onClick={() => {
                     setShowExtraModal(false);
                     setExtraItems([]);
                   }}
-                  className="p-2 hover:bg-purple-500 rounded-lg transition-colors"
+                  style={{ color: '#F5A623' }}
+                  className="p-2 hover:opacity-80 rounded-lg transition-colors"
                 >
                   <X size={20} />
                 </button>
               </div>
             </div>
 
-            {/* Conteúdo */}
-            <div className="p-4 space-y-4">
+            {/* Conteúdo com scroll */}
+            <div className="p-4 space-y-4 overflow-y-auto flex-1">
               {/* Seleção de produto */}
               <div className="flex gap-2">
                 <select
                   value={extraProductId}
                   onChange={(e) => setExtraProductId(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                  style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB' }}
+                  className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500"
                 >
                   <option value="">Selecione o produto...</option>
                   {products.map(product => (
@@ -2200,12 +2202,14 @@ const DriverDailyDeliveries: React.FC = () => {
                   value={extraQuantity}
                   onChange={(e) => setExtraQuantity(e.target.value)}
                   placeholder="Qtd"
-                  className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-center"
+                  style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB' }}
+                  className="w-20 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 text-center font-bold"
                 />
                 <button
                   onClick={handleAddExtraItem}
                   disabled={!extraProductId || !extraQuantity}
-                  className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                  style={{ backgroundColor: '#F5A623' }}
+                  className="px-3 py-2 text-black rounded-lg hover:opacity-90 disabled:opacity-50 font-medium"
                 >
                   <Plus size={20} />
                 </button>
@@ -2213,24 +2217,25 @@ const DriverDailyDeliveries: React.FC = () => {
 
               {/* Lista de extras adicionados */}
               {extraItems.length > 0 && (
-                <div className="border border-purple-200 rounded-lg overflow-hidden">
-                  <div className="bg-purple-50 px-3 py-2 text-sm font-medium text-purple-700">
+                <div style={{ backgroundColor: '#1A1E29', borderColor: 'rgba(255,255,255,0.1)' }} className="border rounded-lg overflow-hidden">
+                  <div style={{ backgroundColor: '#0D0F14', color: '#F5A623' }} className="px-3 py-2 text-sm font-medium">
                     Itens Extras
                   </div>
-                  <div className="divide-y divide-gray-100">
+                  <div style={{ borderColor: 'rgba(255,255,255,0.05)' }} className="divide-y">
                     {extraItems.map(item => (
-                      <div key={item.productId} className="flex items-center justify-between px-3 py-2">
+                      <div key={item.productId} style={{ borderBottomColor: 'rgba(255,255,255,0.05)' }} className="flex items-center justify-between px-3 py-2 border-b">
                         <div>
-                          <span className="font-medium">{item.productName}</span>
-                          <span className="text-gray-500 ml-2">x{item.quantity}</span>
+                          <span style={{ color: '#FFFFFF' }} className="font-medium">{item.productName}</span>
+                          <span style={{ color: '#A0A8C0' }} className="ml-2">x{item.quantity}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-purple-600">
+                          <span style={{ color: '#F5A623' }} className="font-semibold">
                             €{(item.quantity * item.unitPrice).toFixed(2)}
                           </span>
                           <button
                             onClick={() => handleRemoveExtraItem(item.productId)}
-                            className="p-1 text-red-500 hover:bg-red-50 rounded"
+                            style={{ color: '#EF4444' }}
+                            className="p-1 hover:opacity-80 rounded"
                           >
                             <X size={16} />
                           </button>
@@ -2238,43 +2243,45 @@ const DriverDailyDeliveries: React.FC = () => {
                       </div>
                     ))}
                   </div>
-                  <div className="bg-purple-100 px-3 py-2 flex justify-between items-center">
-                    <span className="font-medium text-purple-700">Total Extra:</span>
-                    <span className="text-lg font-bold text-purple-700">€{extraTotal.toFixed(2)}</span>
+                  <div style={{ backgroundColor: '#0D0F14', borderTopColor: 'rgba(255,255,255,0.1)' }} className="px-3 py-2 flex justify-between items-center border-t">
+                    <span style={{ color: '#FFFFFF' }} className="font-medium">Total Extra:</span>
+                    <span style={{ color: '#F5A623' }} className="text-lg font-bold">€{extraTotal.toFixed(2)}</span>
                   </div>
                 </div>
               )}
 
               {extraItems.length === 0 && (
-                <div className="text-center py-6 text-gray-400">
-                  <ShoppingBag size={32} className="mx-auto mb-2 opacity-50" />
-                  <p>Adicione produtos extras acima</p>
+                <div className="text-center py-6">
+                  <ShoppingBag size={32} style={{ color: '#505569' }} className="mx-auto mb-2 opacity-50" />
+                  <p style={{ color: '#A0A8C0' }}>Adicione produtos extras acima</p>
                 </div>
               )}
 
               {/* Info */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-sm text-blue-700">
+              <div style={{ backgroundColor: '#0D0F14', borderColor: 'rgba(245, 166, 35, 0.3)' }} className="border rounded-lg p-3">
+                <p style={{ color: '#F5A623' }} className="text-sm">
                   <strong>💡 Dica:</strong> Ao salvar, os itens extras serão adicionados à entrega.
                 </p>
               </div>
             </div>
 
             {/* Botões */}
-            <div className="p-4 border-t border-gray-200 flex gap-3">
+            <div style={{ backgroundColor: '#13161E', borderTopColor: 'rgba(255,255,255,0.1)' }} className="p-4 border-t flex gap-3">
               <button
                 onClick={() => {
                   setShowExtraModal(false);
                   setExtraItems([]);
                 }}
-                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                style={{ backgroundColor: '#505569', color: '#FFFFFF' }}
+                className="flex-1 px-4 py-2 rounded-lg hover:opacity-90"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSaveExtras}
                 disabled={savingExtra || extraItems.length === 0}
-                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                style={{ backgroundColor: '#F5A623', color: '#000000' }}
+                className="flex-1 px-4 py-2 rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 font-medium"
               >
                 {savingExtra ? (
                   <>
