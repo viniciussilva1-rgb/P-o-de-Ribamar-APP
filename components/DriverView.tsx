@@ -121,10 +121,10 @@ const QuickScheduleSetup: React.FC<{
   };
 
   return (
-    <div className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-4 space-y-4">
+    <div className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-3 space-y-3">
       <div className="flex items-center gap-2">
         <Copy size={18} className="text-amber-600" />
-        <h4 className="font-bold text-amber-800">Aplicar em Múltiplos Dias</h4>
+        <h4 className="font-bold text-amber-800 text-sm">Aplicar em Múltiplos Dias</h4>
         <span className="text-xs bg-amber-200 text-amber-700 px-2 py-0.5 rounded-full">Rápido</span>
       </div>
       
@@ -133,7 +133,7 @@ const QuickScheduleSetup: React.FC<{
       </p>
 
       {/* Seletor de Produtos */}
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         <label className="text-xs font-semibold text-gray-600 uppercase">1. Escolha os Produtos</label>
         
         {/* Lista de produtos selecionados */}
@@ -192,10 +192,10 @@ const QuickScheduleSetup: React.FC<{
       </div>
 
       {/* Seletor de Dias */}
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <label className="text-xs font-semibold text-gray-600 uppercase">2. Escolha os Dias</label>
-          <div className="flex gap-2">
+          <div className="flex gap-1">
             <button 
               type="button"
               onClick={selectAllWeekdays}
@@ -222,7 +222,7 @@ const QuickScheduleSetup: React.FC<{
           </div>
         </div>
         
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-1 flex-wrap">
           {daysOptions.map(day => (
             <button
               key={day.key}
@@ -1421,7 +1421,7 @@ export const DriverView: React.FC = () => {
             </div>
 
             {/* Tabs */}
-            <div className="flex overflow-x-auto border-b border-gray-200 px-4 bg-gray-50/50">
+            <div className="sticky top-0 z-40 flex overflow-x-auto border-b border-gray-200 px-4 bg-white shadow-sm">
               {[
                 { id: 'geral', label: 'Geral', icon: <User size={14} /> },
                 { id: 'entrega', label: 'Entrega', icon: <Calendar size={14} /> },
