@@ -335,7 +335,8 @@ const DriverDailyLoad: React.FC = () => {
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
+              style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB' }}
+              className="px-3 py-2 border rounded-lg text-sm"
             />
           </div>
         </div>
@@ -654,7 +655,8 @@ const DriverDailyLoad: React.FC = () => {
                         }
                       }}
                       placeholder="0"
-                      className="w-20 text-center px-2 py-2 border border-gray-200 rounded-lg font-semibold"
+                      style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB' }}
+                      className="w-20 text-center px-2 py-2 border rounded-lg font-bold text-lg"
                     />
                     <button
                       onClick={() => updateLoadQuantity(product.id, 10)}
@@ -677,7 +679,8 @@ const DriverDailyLoad: React.FC = () => {
             value={loadObservations}
             onChange={(e) => setLoadObservations(e.target.value)}
             placeholder="Ex: Pedido especial do cliente X, verificar endereço..."
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg resize-none"
+            style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB' }}
+            className="w-full px-3 py-2 border rounded-lg resize-none"
             rows={3}
           />
         </div>
@@ -804,7 +807,8 @@ const DriverDailyLoad: React.FC = () => {
                         }
                       }}
                       placeholder="0"
-                      className="w-16 px-2 py-1.5 border border-gray-200 rounded-lg text-center font-semibold text-sm"
+                      style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB' }}
+                      className="w-16 px-2 py-1.5 border rounded-lg text-center font-bold text-sm"
                     />
                   </div>
                   <div className="text-center">
@@ -826,7 +830,8 @@ const DriverDailyLoad: React.FC = () => {
             value={returnObservations}
             onChange={(e) => setReturnObservations(e.target.value)}
             placeholder="Ex: Cliente Y não estava, devolução por qualidade..."
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg resize-none"
+            style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB' }}
+            className="w-full px-3 py-2 border rounded-lg resize-none"
             rows={3}
           />
         </div>
