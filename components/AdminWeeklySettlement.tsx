@@ -372,34 +372,34 @@ const AdminWeeklySettlement: React.FC = () => {
       </div>
 
       {/* Detalhes por Método de Pagamento */}
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-        <h3 className="text-sm font-medium text-gray-500 mb-3">Totais por Método de Pagamento</h3>
+      <div style={{ backgroundColor: '#13161E', borderColor: 'rgba(255,255,255,0.1)' }} className="rounded-xl p-4 shadow-sm border">
+        <h3 style={{ color: '#F5A623' }} className="text-sm font-bold mb-3">Totais por Método de Pagamento</h3>
         <div className="grid grid-cols-3 gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <Banknote className="text-green-600" size={18} />
+            <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)' }} className="p-2 rounded-lg">
+              <Banknote style={{ color: '#10B981' }} size={18} />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Dinheiro</p>
-              <p className="font-semibold text-gray-800">{formatCurrency(totalStats.cashTotal)}</p>
+              <p style={{ color: '#A0A8C0' }} className="text-xs">Dinheiro</p>
+              <p style={{ color: '#10B981' }} className="font-bold text-sm">{formatCurrency(totalStats.cashTotal)}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Smartphone className="text-blue-600" size={18} />
+            <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)' }} className="p-2 rounded-lg">
+              <Smartphone style={{ color: '#3B82F6' }} size={18} />
             </div>
             <div>
-              <p className="text-xs text-gray-500">MBWay</p>
-              <p className="font-semibold text-gray-800">{formatCurrency(totalStats.mbwayTotal)}</p>
+              <p style={{ color: '#A0A8C0' }} className="text-xs">MBWay</p>
+              <p style={{ color: '#3B82F6' }} className="font-bold text-sm">{formatCurrency(totalStats.mbwayTotal)}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <ArrowRightLeft className="text-purple-600" size={18} />
+            <div style={{ backgroundColor: 'rgba(168, 85, 247, 0.1)' }} className="p-2 rounded-lg">
+              <ArrowRightLeft style={{ color: '#A855F7' }} size={18} />
             </div>
             <div>
-              <p className="text-xs text-gray-500">Transferência</p>
-              <p className="font-semibold text-gray-800">{formatCurrency(totalStats.transferTotal)}</p>
+              <p style={{ color: '#A0A8C0' }} className="text-xs">Transferência</p>
+              <p style={{ color: '#A855F7' }} className="font-bold text-sm">{formatCurrency(totalStats.transferTotal)}</p>
             </div>
           </div>
         </div>
@@ -407,40 +407,46 @@ const AdminWeeklySettlement: React.FC = () => {
 
       {/* Lista de Entregadores */}
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-800">Entregadores - Valores Pendentes</h3>
+        <h3 style={{ color: '#FFFFFF' }} className="text-lg font-semibold">Entregadores - Valores Pendentes</h3>
         
         {driversSettlements.map(({ driver, calculated, lastSettlement, history, hasNewValues, periodStart, periodEnd }) => (
           <div 
             key={driver.id} 
-            className={`bg-white rounded-xl shadow-sm border overflow-hidden ${
-              hasNewValues ? 'border-amber-200' : 'border-green-200'
-            }`}
+            style={{ 
+              backgroundColor: '#13161E',
+              borderColor: hasNewValues ? 'rgba(245, 166, 35, 0.3)' : 'rgba(16, 185, 129, 0.3)'
+            }}
+            className="rounded-xl shadow-sm border overflow-hidden"
           >
             {/* Header do Entregador */}
             <div
               onClick={() => setExpandedDriver(expandedDriver === driver.id ? null : driver.id)}
-              className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+              style={{ backgroundColor: '#1A1E29' }}
+              className="p-4 cursor-pointer hover:opacity-80 transition-colors"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
-                    hasNewValues ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
-                  }`}>
+                    hasNewValues ? 'text-amber-600' : 'text-green-500'
+                  }`}
+                  style={{
+                    backgroundColor: hasNewValues ? 'rgba(245, 166, 35, 0.1)' : 'rgba(16, 185, 129, 0.1)'
+                  }}>
                     {driver.name.charAt(0)}
                   </div>
                   <div>
-                    <p className="font-medium text-gray-800">{driver.name}</p>
+                    <p style={{ color: '#FFFFFF' }} className="font-medium">{driver.name}</p>
                     <div className="flex items-center gap-2 text-sm flex-wrap">
-                      <span className="text-gray-500">
+                      <span style={{ color: '#A0A8C0' }}>
                         {formatDateShort(periodStart)} - {formatDateShort(periodEnd)}
                       </span>
                       {hasNewValues ? (
-                        <span className="flex items-center gap-1 text-amber-600">
+                        <span style={{ color: '#F5A623' }} className="flex items-center gap-1">
                           <Clock size={14} />
                           Pendente
                         </span>
                       ) : (
-                        <span className="flex items-center gap-1 text-green-600">
+                        <span style={{ color: '#10B981' }} className="flex items-center gap-1">
                           <CheckCircle size={14} />
                           Em dia
                         </span>
@@ -451,7 +457,8 @@ const AdminWeeklySettlement: React.FC = () => {
                             e.stopPropagation();
                             setShowingHistory(showingHistory === driver.id ? null : driver.id);
                           }}
-                          className="flex items-center gap-1 text-blue-600 hover:text-blue-700"
+                          style={{ color: '#3B82F6' }}
+                          className="flex items-center gap-1 hover:opacity-80"
                         >
                           <History size={14} />
                           {history.length} fecho(s)
@@ -463,47 +470,50 @@ const AdminWeeklySettlement: React.FC = () => {
                 
                 <div className="flex items-center gap-6">
                   <div className="text-right hidden md:block">
-                    <p className="text-sm text-gray-500">Total Recebido</p>
-                    <p className="font-semibold text-green-600">{formatCurrency(calculated.totalReceived)}</p>
+                    <p style={{ color: '#A0A8C0' }} className="text-sm">Total Recebido</p>
+                    <p style={{ color: '#10B981' }} className="font-bold">{formatCurrency(calculated.totalReceived)}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-gray-500">A Entregar</p>
-                    <p className="font-bold text-amber-600 text-lg">{formatCurrency(calculated.totalToSettle)}</p>
+                    <p style={{ color: '#A0A8C0' }} className="text-sm">A Entregar</p>
+                    <p style={{ color: '#F5A623' }} className="font-bold text-lg">{formatCurrency(calculated.totalToSettle)}</p>
                   </div>
-                  {expandedDriver === driver.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                  <div style={{ color: '#F5A623' }}>
+                    {expandedDriver === driver.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Histórico de Fechos */}
             {showingHistory === driver.id && history.length > 0 && (
-              <div className="border-t border-blue-100 p-4 bg-blue-50">
-                <h4 className="text-sm font-medium text-blue-800 mb-3 flex items-center gap-2">
+              <div style={{ backgroundColor: '#1A1E29', borderTopColor: 'rgba(255,255,255,0.1)' }} className="border-t p-4">
+                <h4 style={{ color: '#3B82F6' }} className="text-sm font-bold mb-3 flex items-center gap-2">
                   <History size={16} />
                   Histórico de Fechos
                 </h4>
-                <p className="text-xs text-gray-500 mb-2">
+                <p style={{ color: '#A0A8C0' }} className="text-xs mb-2">
                   💡 Clique no ícone de lixeira para cancelar um fecho feito por engano
                 </p>
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {history.map((settlement, index) => (
                     <div 
                       key={settlement.id} 
-                      className="bg-white p-3 rounded-lg border border-blue-200"
+                      style={{ backgroundColor: '#0D0F14', borderColor: 'rgba(59, 130, 246, 0.3)' }}
+                      className="p-3 rounded-lg border"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-800">
+                          <p style={{ color: '#FFFFFF' }} className="text-sm font-medium">
                             {formatDateTime(settlement.confirmedAt || settlement.createdAt || '')}
                           </p>
                           {settlement.observations && (
-                            <p className="text-xs text-gray-500 italic mt-1">"{settlement.observations}"</p>
+                            <p style={{ color: '#A0A8C0' }} className="text-xs italic mt-1">"{settlement.observations}"</p>
                           )}
                         </div>
                         <div className="text-right flex items-center gap-3">
                           <div>
-                            <p className="font-semibold text-green-600">{formatCurrency(settlement.totalReceived)}</p>
-                            <p className="text-xs text-gray-500">
+                            <p style={{ color: '#10B981' }} className="font-bold">{formatCurrency(settlement.totalReceived)}</p>
+                            <p style={{ color: '#A0A8C0' }} className="text-xs">
                               {formatCurrency(settlement.cashTotal)} em dinheiro
                             </p>
                           </div>
@@ -513,7 +523,8 @@ const AdminWeeklySettlement: React.FC = () => {
                               handleCancelSettlement(settlement.id, settlement.totalReceived);
                             }}
                             disabled={cancellingSettlementId === settlement.id}
-                            className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors disabled:opacity-50"
+                            style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#EF4444' }}
+                            className="p-2 rounded-lg hover:opacity-80 transition-colors disabled:opacity-50"
                             title="Cancelar este fecho"
                           >
                             {cancellingSettlementId === settlement.id ? (
@@ -529,7 +540,8 @@ const AdminWeeklySettlement: React.FC = () => {
                           e.stopPropagation();
                           setSelectedSettlement(settlement);
                         }}
-                        className="w-full mt-2 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors flex items-center justify-center gap-1"
+                        style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3B82F6' }}
+                        className="w-full mt-2 py-1.5 text-sm rounded-lg hover:opacity-80 transition-colors flex items-center justify-center gap-1 font-medium"
                       >
                         <Eye size={14} />
                         Ver Detalhes do Fecho
@@ -542,15 +554,15 @@ const AdminWeeklySettlement: React.FC = () => {
 
             {/* Detalhes Expandidos */}
             {expandedDriver === driver.id && (
-              <div className="border-t border-gray-100 p-4 bg-gray-50 space-y-4">
+              <div style={{ backgroundColor: '#1A1E29', borderTopColor: 'rgba(255,255,255,0.1)' }} className="border-t p-4 space-y-4">
                 {/* Info do último fecho */}
                 {lastSettlement && (
-                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-sm text-blue-700">
+                  <div style={{ backgroundColor: '#0D0F14', borderColor: 'rgba(59, 130, 246, 0.3)' }} className="p-3 border rounded-lg">
+                    <p style={{ color: '#3B82F6' }} className="text-sm">
                       <strong>Último fecho:</strong> {formatDateTime(lastSettlement.confirmedAt || '')} 
                       <span className="ml-2">({formatCurrency(lastSettlement.totalReceived)})</span>
                     </p>
-                    <p className="text-xs text-blue-600 mt-1">
+                    <p style={{ color: '#3B82F6' }} className="text-xs mt-1 opacity-80">
                       Os valores abaixo são apenas do período APÓS este fecho
                     </p>
                   </div>
@@ -558,38 +570,38 @@ const AdminWeeklySettlement: React.FC = () => {
 
                 {/* Resumo por Método */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="bg-white p-3 rounded-lg">
-                    <p className="text-xs text-gray-500">Dinheiro</p>
-                    <p className="font-semibold text-green-600">{formatCurrency(calculated.cashTotal)}</p>
+                  <div style={{ backgroundColor: '#0D0F14', borderColor: 'rgba(16, 185, 129, 0.2)' }} className="p-3 rounded-lg border">
+                    <p style={{ color: '#A0A8C0' }} className="text-xs">Dinheiro</p>
+                    <p style={{ color: '#10B981' }} className="font-bold text-sm">{formatCurrency(calculated.cashTotal)}</p>
                   </div>
-                  <div className="bg-white p-3 rounded-lg">
-                    <p className="text-xs text-gray-500">MBWay</p>
-                    <p className="font-semibold text-blue-600">{formatCurrency(calculated.mbwayTotal)}</p>
+                  <div style={{ backgroundColor: '#0D0F14', borderColor: 'rgba(59, 130, 246, 0.2)' }} className="p-3 rounded-lg border">
+                    <p style={{ color: '#A0A8C0' }} className="text-xs">MBWay</p>
+                    <p style={{ color: '#3B82F6' }} className="font-bold text-sm">{formatCurrency(calculated.mbwayTotal)}</p>
                   </div>
-                  <div className="bg-white p-3 rounded-lg">
-                    <p className="text-xs text-gray-500">Transferência</p>
-                    <p className="font-semibold text-purple-600">{formatCurrency(calculated.transferTotal)}</p>
+                  <div style={{ backgroundColor: '#0D0F14', borderColor: 'rgba(168, 85, 247, 0.2)' }} className="p-3 rounded-lg border">
+                    <p style={{ color: '#A0A8C0' }} className="text-xs">Transferência</p>
+                    <p style={{ color: '#A855F7' }} className="font-bold text-sm">{formatCurrency(calculated.transferTotal)}</p>
                   </div>
-                  <div className="bg-white p-3 rounded-lg">
-                    <p className="text-xs text-gray-500">Outros</p>
-                    <p className="font-semibold text-gray-600">{formatCurrency(calculated.otherTotal)}</p>
+                  <div style={{ backgroundColor: '#0D0F14', borderColor: 'rgba(160, 168, 192, 0.2)' }} className="p-3 rounded-lg border">
+                    <p style={{ color: '#A0A8C0' }} className="text-xs">Outros</p>
+                    <p style={{ color: '#A0A8C0' }} className="font-bold text-sm">{formatCurrency(calculated.otherTotal)}</p>
                   </div>
                 </div>
 
                 {/* Por Rota */}
                 {calculated.routeTotals.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Por Rota</h4>
+                    <h4 style={{ color: '#FFFFFF' }} className="text-sm font-medium mb-2">Por Rota</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       {calculated.routeTotals.map(rt => (
-                        <div key={rt.routeId} className="bg-white p-3 rounded-lg flex items-center justify-between">
+                        <div key={rt.routeId} style={{ backgroundColor: '#0D0F14', borderColor: 'rgba(255,255,255,0.1)' }} className="p-3 rounded-lg flex items-center justify-between border">
                           <div className="flex items-center gap-2">
-                            <MapPin size={16} className="text-amber-500" />
-                            <span className="text-sm font-medium">{rt.routeName}</span>
+                            <MapPin size={16} style={{ color: '#F5A623' }} />
+                            <span style={{ color: '#FFFFFF' }} className="text-sm font-medium">{rt.routeName}</span>
                           </div>
                           <div className="text-right">
-                            <p className="font-semibold text-gray-800">{formatCurrency(rt.totalReceived)}</p>
-                            <p className="text-xs text-gray-500">{rt.clientsPaid} clientes</p>
+                            <p style={{ color: '#10B981' }} className="font-bold text-sm">{formatCurrency(rt.totalReceived)}</p>
+                            <p style={{ color: '#A0A8C0' }} className="text-xs">{rt.clientsPaid} clientes</p>
                           </div>
                         </div>
                       ))}
@@ -600,23 +612,23 @@ const AdminWeeklySettlement: React.FC = () => {
                 {/* Lista de Clientes que Pagaram */}
                 {calculated.clientPayments.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Clientes que Pagaram ({calculated.clientPayments.length})</h4>
-                    <div className="bg-white rounded-lg overflow-hidden">
+                    <h4 style={{ color: '#FFFFFF' }} className="text-sm font-medium mb-2">Clientes que Pagaram ({calculated.clientPayments.length})</h4>
+                    <div style={{ backgroundColor: '#0D0F14', borderColor: 'rgba(255,255,255,0.1)' }} className="rounded-lg overflow-hidden border">
                       <div className="max-h-64 overflow-y-auto">
                         <table className="w-full text-sm">
-                          <thead className="bg-gray-100 sticky top-0">
+                          <thead style={{ backgroundColor: '#1A1E29', borderBottomColor: 'rgba(255,255,255,0.1)' }} className="sticky top-0 border-b">
                             <tr>
-                              <th className="text-left p-2 font-medium text-gray-600">Cliente</th>
-                              <th className="text-left p-2 font-medium text-gray-600">Rota</th>
-                              <th className="text-left p-2 font-medium text-gray-600">Método</th>
-                              <th className="text-right p-2 font-medium text-gray-600">Valor</th>
+                              <th style={{ color: '#A0A8C0' }} className="text-left p-2 font-medium">Cliente</th>
+                              <th style={{ color: '#A0A8C0' }} className="text-left p-2 font-medium">Rota</th>
+                              <th style={{ color: '#A0A8C0' }} className="text-left p-2 font-medium">Método</th>
+                              <th style={{ color: '#A0A8C0' }} className="text-right p-2 font-medium">Valor</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-gray-100">
+                          <tbody className="divide-y divide-gray-700">
                             {calculated.clientPayments.map(cp => (
-                              <tr key={cp.clientId} className="hover:bg-gray-50">
-                                <td className="p-2">{cp.clientName}</td>
-                                <td className="p-2 text-gray-500">{cp.routeName || '-'}</td>
+                              <tr key={cp.clientId} style={{ backgroundColor: '#1A1E29' }} className="hover:opacity-80">
+                                <td style={{ color: '#FFFFFF' }} className="p-2">{cp.clientName}</td>
+                                <td style={{ color: '#A0A8C0' }} className="p-2">{cp.routeName || '-'}</td>
                                 <td className="p-2">
                                   <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                                     cp.method === 'Dinheiro' ? 'bg-green-100 text-green-700' :
@@ -627,7 +639,7 @@ const AdminWeeklySettlement: React.FC = () => {
                                     {cp.method}
                                   </span>
                                 </td>
-                                <td className="p-2 text-right font-medium">{formatCurrency(cp.totalPaid)}</td>
+                                <td style={{ color: '#FFFFFF' }} className="p-2 text-right font-bold">{formatCurrency(cp.totalPaid)}</td>
                               </tr>
                             ))}
                           </tbody>
