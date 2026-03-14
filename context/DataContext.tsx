@@ -2262,7 +2262,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       method: method as DailyPaymentReceived['method'],
       paidUntil: paidUntil || today,
       receivedByAdmin: isMbwayOrTransfer, // MBWay e Transferência marcadas como recebidas pelo admin
-      adminName: isMbwayOrTransfer ? 'Sistema' : undefined, // Marcação do sistema para rastreamento
+      adminName: isMbwayOrTransfer ? 'Sistema' : 'Driver', // Marcação do sistema para rastreamento
       createdAt: now
     };
     
