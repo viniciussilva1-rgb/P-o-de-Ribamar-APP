@@ -2505,20 +2505,21 @@ const DriverDailyDeliveries: React.FC = () => {
       {/* Modal de Ajuste de Quantidade */}
       {showAdjustModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-sm w-full shadow-2xl overflow-hidden">
+          <div style={{ backgroundColor: '#13161E', borderColor: 'rgba(255,255,255,0.1)' }} className="rounded-xl max-w-sm w-full shadow-2xl overflow-hidden border">
             {/* Header */}
-            <div className="p-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+            <div style={{ backgroundColor: '#1A1E29', borderBottomColor: 'rgba(255,255,255,0.1)' }} className="p-4 border-b">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-bold flex items-center gap-2">
+                  <h3 style={{ color: '#FFFFFF' }} className="text-lg font-bold flex items-center gap-2">
                     <Edit3 size={20} />
                     Ajustar Quantidade
                   </h3>
-                  <p className="text-blue-100 text-sm">{adjustClientName}</p>
+                  <p style={{ color: '#A0A8C0' }} className="text-sm">{adjustClientName}</p>
                 </div>
                 <button
                   onClick={() => setShowAdjustModal(false)}
-                  className="p-2 hover:bg-blue-400 rounded-lg transition-colors"
+                  style={{ color: '#F5A623' }}
+                  className="p-2 hover:opacity-80 rounded-lg transition-colors"
                 >
                   <X size={20} />
                 </button>
@@ -2528,11 +2529,11 @@ const DriverDailyDeliveries: React.FC = () => {
             {/* Conteúdo */}
             <div className="p-4 space-y-4">
               {/* Produto */}
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-sm text-gray-500">Produto:</p>
-                <p className="font-medium text-lg">{adjustProductName}</p>
+              <div style={{ backgroundColor: '#1A1E29', borderColor: 'rgba(255,255,255,0.1)' }} className="rounded-lg p-3 border">
+                <p style={{ color: '#F5A623' }} className="text-sm font-bold mb-1">Produto:</p>
+                <p style={{ color: '#FFFFFF' }} className="font-medium text-lg">{adjustProductName}</p>
                 {adjustOriginalQty !== adjustCurrentQty && (
-                  <p className="text-xs text-blue-600 mt-1">
+                  <p style={{ color: '#3B82F6' }} className="text-xs mt-1">
                     Quantidade original do registo: {adjustOriginalQty}
                   </p>
                 )}
@@ -2540,7 +2541,7 @@ const DriverDailyDeliveries: React.FC = () => {
 
               {/* Quantidade */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label style={{ color: '#FFFFFF' }} className="block text-sm font-bold mb-2">
                   Nova Quantidade:
                 </label>
                 <div className="flex items-center gap-3">
@@ -2549,7 +2550,7 @@ const DriverDailyDeliveries: React.FC = () => {
                       const current = parseInt(adjustNewQty) || 0;
                       if (current > 0) setAdjustNewQty((current - 1).toString());
                     }}
-                    className="w-12 h-12 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 flex items-center justify-center text-2xl font-bold"
+                    className="w-12 h-12 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center justify-center text-2xl font-bold"
                   >
                     −
                   </button>
@@ -2558,14 +2559,15 @@ const DriverDailyDeliveries: React.FC = () => {
                     min="0"
                     value={adjustNewQty}
                     onChange={(e) => setAdjustNewQty(e.target.value)}
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-center text-2xl font-bold focus:ring-2 focus:ring-blue-500"
+                    style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB' }}
+                    className="flex-1 px-4 py-3 border rounded-lg text-center text-2xl font-bold focus:ring-2 focus:ring-blue-500"
                   />
                   <button
                     onClick={() => {
                       const current = parseInt(adjustNewQty) || 0;
                       setAdjustNewQty((current + 1).toString());
                     }}
-                    className="w-12 h-12 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 flex items-center justify-center text-2xl font-bold"
+                    className="w-12 h-12 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center text-2xl font-bold"
                   >
                     +
                   </button>
@@ -2576,7 +2578,8 @@ const DriverDailyDeliveries: React.FC = () => {
               {adjustOriginalQty !== parseInt(adjustNewQty) && (
                 <button
                   onClick={() => setAdjustNewQty(adjustOriginalQty.toString())}
-                  className="w-full px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm flex items-center justify-center gap-2"
+                  style={{ backgroundColor: '#505569', color: '#FFFFFF' }}
+                  className="w-full px-3 py-2 rounded-lg hover:opacity-90 text-sm flex items-center justify-center gap-2 font-medium"
                 >
                   <RefreshCw size={14} />
                   Restaurar quantidade original ({adjustOriginalQty})
@@ -2585,33 +2588,35 @@ const DriverDailyDeliveries: React.FC = () => {
 
               {/* Aviso */}
               {parseInt(adjustNewQty) === 0 && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                  <p className="text-sm text-red-700">
+                <div style={{ backgroundColor: '#1A1E29', borderColor: 'rgba(239, 68, 68, 0.3)' }} className="border rounded-lg p-3">
+                  <p style={{ color: '#EF4444' }} className="text-sm">
                     <strong>⚠️ Atenção:</strong> Quantidade 0 removerá este produto da entrega de hoje.
                   </p>
                 </div>
               )}
 
               {/* Info */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-sm text-blue-700">
+              <div style={{ backgroundColor: '#1A1E29', borderColor: 'rgba(59, 130, 246, 0.3)' }} className="border rounded-lg p-3">
+                <p style={{ color: '#3B82F6' }} className="text-sm">
                   <strong>💡 Nota:</strong> Este ajuste é apenas para hoje. O registo do cliente não será alterado.
                 </p>
               </div>
             </div>
 
             {/* Botões */}
-            <div className="p-4 border-t border-gray-200 flex gap-3">
+            <div style={{ backgroundColor: '#13161E', borderTopColor: 'rgba(255,255,255,0.1)' }} className="p-4 border-t flex gap-3">
               <button
                 onClick={() => setShowAdjustModal(false)}
-                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                style={{ backgroundColor: '#505569', color: '#FFFFFF' }}
+                className="flex-1 px-4 py-2 rounded-lg hover:opacity-90"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSaveAdjust}
                 disabled={savingAdjust || adjustNewQty === '' || parseInt(adjustNewQty) === adjustCurrentQty}
-                className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 flex items-center justify-center gap-2"
+                style={{ backgroundColor: '#3B82F6', color: '#FFFFFF' }}
+                className="flex-1 px-4 py-2 rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 font-medium"
               >
                 {savingAdjust ? (
                   <>
