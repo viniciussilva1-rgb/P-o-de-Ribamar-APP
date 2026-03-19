@@ -997,13 +997,14 @@ const DriverDailyDeliveries: React.FC = () => {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#13161E', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '0.5rem', paddingLeft: '0.75rem', paddingRight: '0.75rem', paddingTop: '0.5rem', paddingBottom: '0.5rem' }}>
-            <Calendar size={18} style={{ color: '#A0A8C0' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#13161E', border: '2px solid #F5A623', borderRadius: '0.5rem', paddingLeft: '0.75rem', paddingRight: '0.75rem', paddingTop: '0.5rem', paddingBottom: '0.5rem' }}>
+            <Calendar size={18} style={{ color: '#F5A623' }} />
             <input
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="border-none focus:ring-0 text-sm"
+              style={{ backgroundColor: '#FFFFFF', color: '#000000', border: 'none', borderRadius: '0.25rem', padding: '0.25rem 0.5rem' }}
+              className="focus:ring-2 focus:ring-orange-500 text-sm font-medium"
             />
           </div>
           <button
@@ -1541,12 +1542,18 @@ const DriverDailyDeliveries: React.FC = () => {
                                 )}
                               </div>
 
+                              {/* Labels */}
+                              <div className="flex items-center gap-2 mb-2">
+                                <span style={{ color: '#F5A623', fontSize: '0.875rem', fontWeight: 'bold' }}>Selecione Produtos e Quantidade:</span>
+                              </div>
+
                               {/* Seletor de produto + quantidade */}
                               <div className="flex gap-2 mb-3">
                                 <select
                                   value={selectedProductToAdd}
                                   onChange={(e) => setSelectedProductToAdd(e.target.value)}
-                                  className="flex-1 px-3 py-2 border border-purple-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-400"
+                                  style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB' }}
+                                  className="flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-400"
                                 >
                                   <option value="">Selecione um produto...</option>
                                   {products
@@ -1573,7 +1580,8 @@ const DriverDailyDeliveries: React.FC = () => {
                                       setQuantityToAdd(Number(val));
                                     }
                                   }}
-                                  className="w-20 px-3 py-2 border border-purple-200 rounded-lg text-sm text-center font-bold"
+                                  style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB' }}
+                                  className="w-20 px-3 py-2 border rounded-lg text-sm text-center font-bold focus:ring-2 focus:ring-purple-400"
                                 />
                                 <button
                                   onClick={() => handleAddDynamicProduct(delivery.clientId)}
