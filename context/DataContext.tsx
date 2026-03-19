@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { User, Client, UserRole, Product, ProductionData, DailyProductionRecord, Route, PaymentTransaction, DeliverySchedule, DailyLoad, LoadItem, ReturnItem, DailyLoadReport, ProductionSuggestion, ClientDelivery, DeliveryStatus, DriverDailySummary, AdminDeliveryReport, DeliveryItem, DynamicConsumptionRecord, ProductConsumptionStats, DynamicClientHistory, DynamicClientPrediction, DynamicLoadSummary, DailyCashFund, DailyDriverClosure, DailyPaymentReceived, WeeklyDriverSettlement, ClientPaymentSummary, ClientConsumptionHistory, ClientInvoice, DailyProductionAnalysis, DailyProductionAnalysisItem, WeekdayProductionComparison, ProductionAnalysisSuggestion } from '../types';
 import { INITIAL_PRODUCTS, MOCK_ADMIN_EMAIL } from '../constants';
 import { db } from '../firebaseConfig'; // Import database
-import { collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot, query, where, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot, query, where, getDocs, writeBatch, getDoc } from 'firebase/firestore';
 
 interface DataContextType {
   users: User[];
@@ -185,20 +185,59 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // 3. Products
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'products'), (snapshot) => {
-      const list = snapshot.docs.map(doc => doc.data() as Product);
-      
-      // Seed inicial se vazio (apenas uma vez)
-      if (list.length === 0 && !productsSeeded) {
-        setProductsSeeded(true);
-        INITIAL_PRODUCTS.forEach(p => {
-            setDoc(doc(db, 'products', p.id), p);
+    // Verificar se o seed foi feito consultando Firestore, não apenas estado local
+    const checkAndSeedProducts = async () => {
+      try {
+        // Verificar config de seed no Firestore
+        const configDoc = await getDoc(doc(db, '_metadata', 'app_config'));
+        const isSeedDone = configDoc.exists() && configDoc.data()?.products_seeded === true;
+        
+        // Setup listener para produtos
+        const unsubscribe = onSnapshot(collection(db, 'products'), async (snapshot) => {
+          const list = snapshot.docs.map(doc => doc.data() as Product);
+          
+          // Apenas fazer seed se:
+          // 1. Lista vazia
+          // 2. Seed ainda não foi marcado como feito no Firestore
+          // 3. Estado local ainda não foi marcado
+          if (list.length === 0 && !isSeedDone && !productsSeeded) {
+            console.log('[SEED] Realizando seed inicial dos produtos...');
+            setProductsSeeded(true);
+            
+            // Adicionar todos os produtos ao Firestore
+            const batch = writeBatch(db);
+            INITIAL_PRODUCTS.forEach(p => {
+              batch.set(doc(db, 'products', p.id), p);
+            });
+            
+            // Marcar seed como feito no Firestore para evitar repetição
+            batch.set(doc(db, '_metadata', 'app_config'), 
+              { products_seeded: true, seeded_at: new Date().toISOString() },
+              { merge: true }
+            );
+            
+            await batch.commit();
+            console.log('[SEED] Produtos iniciais salvos com sucesso');
+            
+          } else if (list.length > 0) {
+            setProducts(list);
+          }
         });
-      } else if (list.length > 0) {
-        setProducts(list);
+        
+        return unsubscribe;
+      } catch (err) {
+        console.error('[SEED] Erro ao verificar/fazer seed:', err);
       }
+    };
+
+    let unsubscribe: (() => void) | undefined;
+    checkAndSeedProducts().then(unsub => {
+      if (unsub) unsubscribe = unsub;
     });
-    return () => unsubscribe();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, [productsSeeded]);
 
   // 4. Routes
