@@ -218,6 +218,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             
             await batch.commit();
             console.log('[SEED] Produtos iniciais salvos com sucesso');
+            setProducts(INITIAL_PRODUCTS); // Carregar no estado local
             
           } else if (list.length > 0) {
             setProducts(list);
