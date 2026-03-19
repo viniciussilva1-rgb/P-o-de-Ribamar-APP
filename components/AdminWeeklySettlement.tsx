@@ -965,22 +965,24 @@ const AdminWeeklySettlement: React.FC = () => {
       {/* Modal de Detalhes do Fecho */}
       {selectedSettlement && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+          <div style={{ backgroundColor: '#0D0F14', borderRadius: '0.75rem', maxWidth: '42rem', width: '100%', maxHeight: '90vh', overflow: 'hidden', boxShadow: '0 25px 50px rgba(0,0,0,0.7)' }}>
             {/* Header do Modal */}
-            <div className="p-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
-              <div className="flex items-center justify-between">
+            <div style={{ padding: '1rem', backgroundColor: '#1A1E29', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                  <h3 className="text-lg font-bold flex items-center gap-2">
+                  <h3 style={{ fontSize: '1.125rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#FFFFFF' }}>
                     <FileText size={20} />
                     Detalhes do Fecho
                   </h3>
-                  <p className="text-blue-100 text-sm">
+                  <p style={{ color: '#A0A8C0', fontSize: '0.875rem' }}>
                     {selectedSettlement.driverName} - {formatDateTime(selectedSettlement.confirmedAt || '')}
                   </p>
                 </div>
                 <button
                   onClick={() => setSelectedSettlement(null)}
-                  className="p-2 hover:bg-blue-500 rounded-lg transition-colors"
+                  style={{ padding: '0.5rem', backgroundColor: 'transparent', borderRadius: '0.5rem', cursor: 'pointer', color: '#A0A8C0' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#505569')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                 >
                   <X size={20} />
                 </button>
@@ -988,67 +990,67 @@ const AdminWeeklySettlement: React.FC = () => {
             </div>
 
             {/* Conteúdo do Modal */}
-            <div className="p-4 overflow-y-auto max-h-[calc(90vh-120px)] space-y-4">
+            <div style={{ padding: '1rem', overflowY: 'auto', maxHeight: 'calc(90vh - 120px)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {/* Resumo Geral */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="bg-gray-50 p-3 rounded-lg text-center">
-                  <p className="text-xs text-gray-500 uppercase">Total Entregue</p>
-                  <p className="text-lg font-bold text-gray-800">{formatCurrency(selectedSettlement.totalDelivered)}</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.75rem' }}>
+                <div style={{ backgroundColor: '#13161E', padding: '0.75rem', borderRadius: '0.5rem', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <p style={{ fontSize: '0.75rem', color: '#F5A623', textTransform: 'uppercase', fontWeight: 'bold' }}>Total Entregue</p>
+                  <p style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#FFFFFF' }}>{formatCurrency(selectedSettlement.totalDelivered)}</p>
                 </div>
-                <div className="bg-green-50 p-3 rounded-lg text-center">
-                  <p className="text-xs text-gray-500 uppercase">Total Recebido</p>
-                  <p className="text-lg font-bold text-green-600">{formatCurrency(selectedSettlement.totalReceived)}</p>
+                <div style={{ backgroundColor: '#13161E', padding: '0.75rem', borderRadius: '0.5rem', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <p style={{ fontSize: '0.75rem', color: '#10B981', textTransform: 'uppercase', fontWeight: 'bold' }}>Total Recebido</p>
+                  <p style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#10B981' }}>{formatCurrency(selectedSettlement.totalReceived)}</p>
                 </div>
-                <div className="bg-amber-50 p-3 rounded-lg text-center">
-                  <p className="text-xs text-gray-500 uppercase">Dinheiro</p>
-                  <p className="text-lg font-bold text-amber-600">{formatCurrency(selectedSettlement.cashTotal)}</p>
+                <div style={{ backgroundColor: '#13161E', padding: '0.75rem', borderRadius: '0.5rem', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <p style={{ fontSize: '0.75rem', color: '#F59E0B', textTransform: 'uppercase', fontWeight: 'bold' }}>Dinheiro</p>
+                  <p style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#F59E0B' }}>{formatCurrency(selectedSettlement.cashTotal)}</p>
                 </div>
-                <div className="bg-blue-50 p-3 rounded-lg text-center">
-                  <p className="text-xs text-gray-500 uppercase">MBWay/Transf.</p>
-                  <p className="text-lg font-bold text-blue-600">
+                <div style={{ backgroundColor: '#13161E', padding: '0.75rem', borderRadius: '0.5rem', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <p style={{ fontSize: '0.75rem', color: '#3B82F6', textTransform: 'uppercase', fontWeight: 'bold' }}>MBWay/Transf.</p>
+                  <p style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#3B82F6' }}>
                     {formatCurrency(selectedSettlement.mbwayTotal + selectedSettlement.transferTotal)}
                   </p>
                 </div>
               </div>
 
               {/* Detalhes por Método */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h4 className="text-sm font-medium text-gray-700 mb-3">Por Método de Pagamento</h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-green-100 rounded">
-                      <Banknote className="text-green-600" size={14} />
+              <div style={{ backgroundColor: '#13161E', padding: '1rem', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <h4 style={{ fontSize: '0.875rem', fontWeight: 'bold', color: '#F5A623', marginBottom: '0.75rem' }}>Por Método de Pagamento</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{ padding: '0.5rem', backgroundColor: '#1A1E29', borderRadius: '0.375rem' }}>
+                      <Banknote style={{ color: '#10B981' }} size={16} />
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500">Dinheiro</p>
-                      <p className="font-semibold text-sm">{formatCurrency(selectedSettlement.cashTotal)}</p>
+                      <p style={{ fontSize: '0.75rem', color: '#A0A8C0' }}>Dinheiro</p>
+                      <p style={{ fontWeight: 'bold', fontSize: '0.875rem', color: '#10B981' }}>{formatCurrency(selectedSettlement.cashTotal)}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-blue-100 rounded">
-                      <Smartphone className="text-blue-600" size={14} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{ padding: '0.5rem', backgroundColor: '#1A1E29', borderRadius: '0.375rem' }}>
+                      <Smartphone style={{ color: '#3B82F6' }} size={16} />
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500">MBWay</p>
-                      <p className="font-semibold text-sm">{formatCurrency(selectedSettlement.mbwayTotal)}</p>
+                      <p style={{ fontSize: '0.75rem', color: '#A0A8C0' }}>MBWay</p>
+                      <p style={{ fontWeight: 'bold', fontSize: '0.875rem', color: '#3B82F6' }}>{formatCurrency(selectedSettlement.mbwayTotal)}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-purple-100 rounded">
-                      <ArrowRightLeft className="text-purple-600" size={14} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{ padding: '0.5rem', backgroundColor: '#1A1E29', borderRadius: '0.375rem' }}>
+                      <ArrowRightLeft style={{ color: '#A855F7' }} size={16} />
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500">Transferência</p>
-                      <p className="font-semibold text-sm">{formatCurrency(selectedSettlement.transferTotal)}</p>
+                      <p style={{ fontSize: '0.75rem', color: '#A0A8C0' }}>Transferência</p>
+                      <p style={{ fontWeight: 'bold', fontSize: '0.875rem', color: '#A855F7' }}>{formatCurrency(selectedSettlement.transferTotal)}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-gray-100 rounded">
-                      <Calculator className="text-gray-600" size={14} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{ padding: '0.5rem', backgroundColor: '#1A1E29', borderRadius: '0.375rem' }}>
+                      <Calculator style={{ color: '#A0A8C0' }} size={16} />
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500">Outros</p>
-                      <p className="font-semibold text-sm">{formatCurrency(selectedSettlement.otherTotal)}</p>
+                      <p style={{ fontSize: '0.75rem', color: '#A0A8C0' }}>Outros</p>
+                      <p style={{ fontWeight: 'bold', fontSize: '0.875rem', color: '#FFFFFF' }}>{formatCurrency(selectedSettlement.otherTotal)}</p>
                     </div>
                   </div>
                 </div>
@@ -1056,18 +1058,18 @@ const AdminWeeklySettlement: React.FC = () => {
 
               {/* Por Rota */}
               {selectedSettlement.routeTotals && selectedSettlement.routeTotals.length > 0 && (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">Por Rota</h4>
-                  <div className="space-y-2">
+                <div style={{ backgroundColor: '#13161E', padding: '1rem', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <h4 style={{ fontSize: '0.875rem', fontWeight: 'bold', color: '#F5A623', marginBottom: '0.75rem' }}>Por Rota</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     {selectedSettlement.routeTotals.map((rt) => (
-                      <div key={rt.routeId} className="bg-white p-3 rounded-lg flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <MapPin size={16} className="text-amber-500" />
-                          <span className="font-medium">{rt.routeName}</span>
+                      <div key={rt.routeId} style={{ backgroundColor: '#1A1E29', padding: '0.75rem', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <MapPin size={16} style={{ color: '#F5A623' }} />
+                          <span style={{ fontWeight: 'bold', color: '#FFFFFF' }}>{rt.routeName}</span>
                         </div>
-                        <div className="text-right">
-                          <p className="font-semibold">{formatCurrency(rt.totalReceived)}</p>
-                          <p className="text-xs text-gray-500">{rt.clientsPaid} cliente(s)</p>
+                        <div style={{ textAlign: 'right' }}>
+                          <p style={{ fontWeight: 'bold', color: '#10B981' }}>{formatCurrency(rt.totalReceived)}</p>
+                          <p style={{ fontSize: '0.75rem', color: '#A0A8C0' }}>{rt.clientsPaid} cliente(s)</p>
                         </div>
                       </div>
                     ))}
@@ -1077,41 +1079,49 @@ const AdminWeeklySettlement: React.FC = () => {
 
               {/* Dados da Entrega (valores entregues pelo entregador) */}
               {selectedSettlement.amountDelivered !== undefined && (
-                <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-4 rounded-lg border border-amber-200">
-                  <h4 className="text-sm font-medium text-amber-800 mb-3 flex items-center gap-2">
+                <div style={{ backgroundColor: '#13161E', padding: '1rem', borderRadius: '0.5rem', border: '2px solid #F5A623' }}>
+                  <h4 style={{ fontSize: '0.875rem', fontWeight: 'bold', color: '#F5A623', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <Banknote size={16} />
                     Dinheiro Entregue ao Admin
                   </h4>
                   
-                  <div className="grid grid-cols-2 gap-4 mb-3">
-                    <div className="bg-white p-3 rounded-lg">
-                      <p className="text-xs text-gray-500">Valor Esperado</p>
-                      <p className="text-lg font-bold text-amber-600">{formatCurrency(selectedSettlement.cashTotal)}</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '0.75rem' }}>
+                    <div style={{ backgroundColor: '#1A1E29', padding: '0.75rem', borderRadius: '0.5rem' }}>
+                      <p style={{ fontSize: '0.75rem', color: '#A0A8C0' }}>Valor Esperado</p>
+                      <p style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#F5A623' }}>{formatCurrency(selectedSettlement.cashTotal)}</p>
                     </div>
-                    <div className="bg-white p-3 rounded-lg">
-                      <p className="text-xs text-gray-500">Valor Entregue</p>
-                      <p className="text-lg font-bold text-green-600">{formatCurrency(selectedSettlement.amountDelivered)}</p>
+                    <div style={{ backgroundColor: '#1A1E29', padding: '0.75rem', borderRadius: '0.5rem' }}>
+                      <p style={{ fontSize: '0.75rem', color: '#A0A8C0' }}>Valor Entregue</p>
+                      <p style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#10B981' }}>{formatCurrency(selectedSettlement.amountDelivered)}</p>
                     </div>
                   </div>
                   
                   {/* Diferença */}
                   {selectedSettlement.settlementDifference !== undefined && (
-                    <div className={`p-3 rounded-lg ${
-                      Math.abs(selectedSettlement.settlementDifference) < 0.01 
-                        ? 'bg-green-100 border border-green-300' 
+                    <div style={{
+                      padding: '0.75rem',
+                      borderRadius: '0.5rem',
+                      backgroundColor: Math.abs(selectedSettlement.settlementDifference) < 0.01 
+                        ? '#1A1E29' 
                         : selectedSettlement.settlementDifference > 0 
-                          ? 'bg-blue-100 border border-blue-300'
-                          : 'bg-red-100 border border-red-300'
-                    }`}>
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-gray-700">Diferença:</span>
-                        <span className={`font-bold ${
-                          Math.abs(selectedSettlement.settlementDifference) < 0.01 
-                            ? 'text-green-700' 
+                          ? '#1A1E29'
+                          : '#1A1E29',
+                      borderLeft: Math.abs(selectedSettlement.settlementDifference) < 0.01 
+                        ? '4px solid #10B981' 
+                        : selectedSettlement.settlementDifference > 0 
+                          ? '4px solid #3B82F6'
+                          : '4px solid #EF4444'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontWeight: 'bold', color: '#FFFFFF' }}>Diferença:</span>
+                        <span style={{
+                          fontWeight: 'bold',
+                          color: Math.abs(selectedSettlement.settlementDifference) < 0.01 
+                            ? '#10B981' 
                             : selectedSettlement.settlementDifference > 0 
-                              ? 'text-blue-700'
-                              : 'text-red-700'
-                        }`}>
+                              ? '#3B82F6'
+                              : '#EF4444'
+                        }}>
                           {selectedSettlement.settlementDifference > 0 ? '+' : ''}
                           {formatCurrency(selectedSettlement.settlementDifference)}
                           {Math.abs(selectedSettlement.settlementDifference) < 0.01 && ' ✓'}
@@ -1122,17 +1132,17 @@ const AdminWeeklySettlement: React.FC = () => {
                   
                   {/* Detalhes da contagem (moedas e notas) */}
                   {(selectedSettlement.deliveredCoins !== undefined || selectedSettlement.deliveredNotes !== undefined) && (
-                    <div className="mt-3 grid grid-cols-2 gap-3">
+                    <div style={{ marginTop: '0.75rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                       {selectedSettlement.deliveredCoins !== undefined && (
-                        <div className="bg-amber-100 p-2 rounded-lg">
-                          <p className="text-xs text-amber-700">Total em Moedas</p>
-                          <p className="font-bold text-amber-800">{formatCurrency(selectedSettlement.deliveredCoins)}</p>
+                        <div style={{ backgroundColor: '#1A1E29', padding: '0.5rem', borderRadius: '0.375rem' }}>
+                          <p style={{ fontSize: '0.75rem', color: '#F5A623' }}>Total em Moedas</p>
+                          <p style={{ fontWeight: 'bold', color: '#F5A623' }}>{formatCurrency(selectedSettlement.deliveredCoins)}</p>
                         </div>
                       )}
                       {selectedSettlement.deliveredNotes !== undefined && (
-                        <div className="bg-green-100 p-2 rounded-lg">
-                          <p className="text-xs text-green-700">Total em Notas</p>
-                          <p className="font-bold text-green-800">{formatCurrency(selectedSettlement.deliveredNotes)}</p>
+                        <div style={{ backgroundColor: '#1A1E29', padding: '0.5rem', borderRadius: '0.375rem' }}>
+                          <p style={{ fontSize: '0.75rem', color: '#10B981' }}>Total em Notas</p>
+                          <p style={{ fontWeight: 'bold', color: '#10B981' }}>{formatCurrency(selectedSettlement.deliveredNotes)}</p>
                         </div>
                       )}
                     </div>
@@ -1140,9 +1150,9 @@ const AdminWeeklySettlement: React.FC = () => {
                   
                   {/* Detalhes por denominação */}
                   {selectedSettlement.coinDetails && Object.keys(selectedSettlement.coinDetails).some(k => (selectedSettlement.coinDetails as any)[k] > 0) && (
-                    <div className="mt-3">
-                      <p className="text-xs text-amber-700 mb-2">Contagem de Moedas:</p>
-                      <div className="flex flex-wrap gap-2">
+                    <div style={{ marginTop: '0.75rem' }}>
+                      <p style={{ fontSize: '0.75rem', color: '#F5A623', marginBottom: '0.5rem', fontWeight: 'bold' }}>Contagem de Moedas:</p>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                         {[
                           { key: 'cent1', label: '1c' },
                           { key: 'cent2', label: '2c' },
@@ -1156,7 +1166,7 @@ const AdminWeeklySettlement: React.FC = () => {
                           const count = (selectedSettlement.coinDetails as any)?.[coin.key] || 0;
                           if (count === 0) return null;
                           return (
-                            <span key={coin.key} className="px-2 py-1 bg-amber-200 rounded text-xs font-medium text-amber-800">
+                            <span key={coin.key} style={{ padding: '0.25rem 0.5rem', backgroundColor: '#1A1E29', borderRadius: '0.25rem', fontSize: '0.75rem', fontWeight: 'bold', color: '#F5A623', border: '1px solid rgba(245, 166, 35, 0.3)' }}>
                               {count}x {coin.label}
                             </span>
                           );
@@ -1166,9 +1176,9 @@ const AdminWeeklySettlement: React.FC = () => {
                   )}
                   
                   {selectedSettlement.noteDetails && Object.keys(selectedSettlement.noteDetails).some(k => (selectedSettlement.noteDetails as any)[k] > 0) && (
-                    <div className="mt-3">
-                      <p className="text-xs text-green-700 mb-2">Contagem de Notas:</p>
-                      <div className="flex flex-wrap gap-2">
+                    <div style={{ marginTop: '0.75rem' }}>
+                      <p style={{ fontSize: '0.75rem', color: '#10B981', marginBottom: '0.5rem', fontWeight: 'bold' }}>Contagem de Notas:</p>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                         {[
                           { key: 'note5', label: '€5' },
                           { key: 'note10', label: '€10' },
@@ -1181,7 +1191,7 @@ const AdminWeeklySettlement: React.FC = () => {
                           const count = (selectedSettlement.noteDetails as any)?.[note.key] || 0;
                           if (count === 0) return null;
                           return (
-                            <span key={note.key} className="px-2 py-1 bg-green-200 rounded text-xs font-medium text-green-800">
+                            <span key={note.key} style={{ padding: '0.25rem 0.5rem', backgroundColor: '#1A1E29', borderRadius: '0.25rem', fontSize: '0.75rem', fontWeight: 'bold', color: '#10B981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
                               {count}x {note.label}
                             </span>
                           );
@@ -1194,37 +1204,45 @@ const AdminWeeklySettlement: React.FC = () => {
 
               {/* Clientes que Pagaram */}
               {selectedSettlement.clientPayments && selectedSettlement.clientPayments.length > 0 && (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">
+                <div style={{ backgroundColor: '#13161E', padding: '1rem', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <h4 style={{ fontSize: '0.875rem', fontWeight: 'bold', color: '#F5A623', marginBottom: '0.75rem' }}>
                     Clientes que Pagaram ({selectedSettlement.clientPayments.length})
                   </h4>
-                  <div className="bg-white rounded-lg overflow-hidden border border-gray-200">
-                    <div className="max-h-64 overflow-y-auto">
-                      <table className="w-full text-sm">
-                        <thead className="bg-gray-100 sticky top-0">
+                  <div style={{ backgroundColor: '#1A1E29', borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <div style={{ maxHeight: '256px', overflowY: 'auto' }}>
+                      <table style={{ width: '100%', fontSize: '0.875rem' }}>
+                        <thead style={{ backgroundColor: '#0D0F14', position: 'sticky', top: 0 }}>
                           <tr>
-                            <th className="text-left p-2 font-medium text-gray-600">Cliente</th>
-                            <th className="text-left p-2 font-medium text-gray-600">Rota</th>
-                            <th className="text-left p-2 font-medium text-gray-600">Método</th>
-                            <th className="text-right p-2 font-medium text-gray-600">Valor</th>
+                            <th style={{ textAlign: 'left', padding: '0.5rem', fontWeight: 'bold', color: '#F5A623' }}>Cliente</th>
+                            <th style={{ textAlign: 'left', padding: '0.5rem', fontWeight: 'bold', color: '#F5A623' }}>Rota</th>
+                            <th style={{ textAlign: 'left', padding: '0.5rem', fontWeight: 'bold', color: '#F5A623' }}>Método</th>
+                            <th style={{ textAlign: 'right', padding: '0.5rem', fontWeight: 'bold', color: '#F5A623' }}>Valor</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {selectedSettlement.clientPayments.map((cp) => (
-                            <tr key={cp.clientId} className="hover:bg-gray-50">
-                              <td className="p-2 font-medium">{cp.clientName}</td>
-                              <td className="p-2 text-gray-500">{cp.routeName || '-'}</td>
-                              <td className="p-2">
-                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                                  cp.method === 'Dinheiro' ? 'bg-green-100 text-green-700' :
-                                  cp.method === 'MBWay' ? 'bg-blue-100 text-blue-700' :
-                                  cp.method === 'Transferência' ? 'bg-purple-100 text-purple-700' :
-                                  'bg-gray-100 text-gray-700'
-                                }`}>
+                        <tbody style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                          {selectedSettlement.clientPayments.map((cp, idx) => (
+                            <tr key={cp.clientId} style={{ borderBottom: idx !== selectedSettlement.clientPayments.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none', backgroundColor: idx % 2 === 0 ? '#13161E' : '#0D0F14' }}>
+                              <td style={{ padding: '0.5rem', fontWeight: 'bold', color: '#FFFFFF' }}>{cp.clientName}</td>
+                              <td style={{ padding: '0.5rem', color: '#A0A8C0' }}>{cp.routeName || '-'}</td>
+                              <td style={{ padding: '0.5rem' }}>
+                                <span style={{
+                                  padding: '0.25rem 0.5rem',
+                                  borderRadius: '0.25rem',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 'bold',
+                                  backgroundColor: cp.method === 'Dinheiro' ? 'rgba(16, 185, 129, 0.2)' :
+                                    cp.method === 'MBWay' ? 'rgba(59, 130, 246, 0.2)' :
+                                    cp.method === 'Transferência' ? 'rgba(168, 85, 247, 0.2)' :
+                                    'rgba(160, 168, 192, 0.2)',
+                                  color: cp.method === 'Dinheiro' ? '#10B981' :
+                                    cp.method === 'MBWay' ? '#3B82F6' :
+                                    cp.method === 'Transferência' ? '#A855F7' :
+                                    '#A0A8C0'
+                                }}>
                                   {cp.method}
                                 </span>
                               </td>
-                              <td className="p-2 text-right font-semibold">{formatCurrency(cp.totalPaid)}</td>
+                              <td style={{ padding: '0.5rem', textAlign: 'right', fontWeight: 'bold', color: '#10B981' }}>{formatCurrency(cp.totalPaid)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -1236,40 +1254,63 @@ const AdminWeeklySettlement: React.FC = () => {
 
               {/* Observações */}
               {selectedSettlement.observations && (
-                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                  <h4 className="text-sm font-medium text-yellow-800 mb-2">Observações</h4>
-                  <p className="text-sm text-yellow-700 italic">"{selectedSettlement.observations}"</p>
+                <div style={{ backgroundColor: '#13161E', padding: '1rem', borderRadius: '0.5rem', border: '2px solid #F5A623' }}>
+                  <h4 style={{ fontSize: '0.875rem', fontWeight: 'bold', color: '#F5A623', marginBottom: '0.5rem' }}>Observações</h4>
+                  <p style={{ fontSize: '0.875rem', color: '#A0A8C0', fontStyle: 'italic' }}>"{selectedSettlement.observations}"</p>
                 </div>
               )}
             </div>
 
             {/* Footer do Modal */}
-            <div className="p-4 border-t border-gray-200 bg-gray-50">
-              <div className="flex gap-3">
-                <button
-                  onClick={() => handleCancelSettlement(selectedSettlement.id, selectedSettlement.totalReceived)}
-                  disabled={cancellingSettlementId === selectedSettlement.id}
-                  className="flex-1 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  {cancellingSettlementId === selectedSettlement.id ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" />
-                      Cancelando...
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 size={16} />
-                      Cancelar Fecho
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={() => setSelectedSettlement(null)}
-                  className="flex-1 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                >
-                  Fechar
-                </button>
-              </div>
+            <div style={{ padding: '1rem', borderTop: '1px solid rgba(255,255,255,0.1)', backgroundColor: '#1A1E29', display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={() => handleCancelSettlement(selectedSettlement.id, selectedSettlement.totalReceived)}
+                disabled={cancellingSettlementId === selectedSettlement.id}
+                style={{
+                  flex: 1,
+                  padding: '0.5rem',
+                  backgroundColor: '#EF4444',
+                  color: '#FFFFFF',
+                  borderRadius: '0.5rem',
+                  border: 'none',
+                  cursor: cancellingSettlementId === selectedSettlement.id ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  opacity: cancellingSettlementId === selectedSettlement.id ? 0.5 : 1,
+                  fontWeight: 'bold',
+                  fontSize: '0.875rem'
+                }}
+              >
+                {cancellingSettlementId === selectedSettlement.id ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Cancelando...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={16} />
+                    Cancelar Fecho
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => setSelectedSettlement(null)}
+                style={{
+                  flex: 1,
+                  padding: '0.5rem',
+                  backgroundColor: '#505569',
+                  color: '#FFFFFF',
+                  borderRadius: '0.5rem',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '0.875rem'
+                }}
+              >
+                Fechar
+              </button>
             </div>
           </div>
         </div>
