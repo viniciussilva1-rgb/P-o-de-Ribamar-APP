@@ -709,9 +709,9 @@ const DriverCashBox: React.FC = () => {
               {showDetailedCount ? (
                 <div className="space-y-6">
                   {/* Moedas */}
-                  <div className="bg-gradient-to-br from-amber-50 to-yellow-50 p-5 rounded-2xl border border-amber-200">
-                    <h4 className="text-lg font-semibold text-amber-800 mb-4 flex items-center gap-2">
-                      <span className="text-2xl">🪙</span> Moedas
+                  <div style={{ backgroundColor: '#13161E', borderRadius: '1rem', padding: '1.25rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <h4 style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#F5A623', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span>🪙</span> Moedas
                     </h4>
                     <div className="grid grid-cols-4 gap-3">
                       {[
@@ -724,8 +724,8 @@ const DriverCashBox: React.FC = () => {
                         { key: 'euro1', label: '€1', value: 1.00 },
                         { key: 'euro2', label: '€2', value: 2.00 },
                       ].map(coin => (
-                        <div key={coin.key} className="bg-white rounded-xl p-3 shadow-sm border border-amber-100">
-                          <p className="text-xs text-gray-500 text-center mb-1">{coin.label}</p>
+                        <div key={coin.key} style={{ backgroundColor: '#1A1E29', borderRadius: '0.75rem', padding: '0.75rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+                          <p style={{ fontSize: '0.75rem', color: '#F5A623', textAlign: 'center', marginBottom: '0.5rem', fontWeight: 'bold' }}>{coin.label}</p>
                           <input
                             type="number"
                             inputMode="numeric"
@@ -735,40 +735,40 @@ const DriverCashBox: React.FC = () => {
                               ...prev,
                               [coin.key]: parseInt(e.target.value) || 0
                             }))}
-                            className="w-full text-center text-lg font-bold border-0 bg-transparent focus:ring-0"
+                            style={{ width: '100%', textAlign: 'center', fontSize: '1.125rem', fontWeight: 'bold', color: '#000000', backgroundColor: '#FFFFFF', border: 'none', borderRadius: '0.25rem', padding: '0.25rem' }}
                             placeholder="0"
                           />
-                          <p className="text-xs text-amber-600 text-center">
+                          <p style={{ fontSize: '0.75rem', color: '#10B981', textAlign: 'center', marginTop: '0.25rem' }}>
                             {formatCurrency((coinCounts[coin.key as keyof typeof coinCounts] || 0) * coin.value)}
                           </p>
                         </div>
                       ))}
                     </div>
-                    <div className="mt-4 p-3 bg-amber-100 rounded-xl">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-amber-800">Total em Moedas:</span>
-                        <span className="text-xl font-bold text-amber-700">{formatCurrency(totalCoins)}</span>
+                    <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: '#1A1E29', borderRadius: '0.75rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 'bold', color: '#F5A623' }}>Total em Moedas:</span>
+                        <span style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#10B981' }}>{formatCurrency(totalCoins)}</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Notas */}
-                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-5 rounded-2xl border border-green-200">
-                    <h4 className="text-lg font-semibold text-green-800 mb-4 flex items-center gap-2">
-                      <span className="text-2xl">💵</span> Notas
+                  <div style={{ backgroundColor: '#13161E', borderRadius: '1rem', padding: '1.25rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <h4 style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#F5A623', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span>💵</span> Notas
                     </h4>
                     <div className="grid grid-cols-4 gap-3">
                       {[
-                        { key: 'note5', label: '€5', color: 'bg-gray-100' },
-                        { key: 'note10', label: '€10', color: 'bg-red-50' },
-                        { key: 'note20', label: '€20', color: 'bg-blue-50' },
-                        { key: 'note50', label: '€50', color: 'bg-orange-50' },
-                        { key: 'note100', label: '€100', color: 'bg-green-50' },
-                        { key: 'note200', label: '€200', color: 'bg-yellow-50' },
-                        { key: 'note500', label: '€500', color: 'bg-purple-50' },
+                        { key: 'note5', label: '€5', value: 5 },
+                        { key: 'note10', label: '€10', value: 10 },
+                        { key: 'note20', label: '€20', value: 20 },
+                        { key: 'note50', label: '€50', value: 50 },
+                        { key: 'note100', label: '€100', value: 100 },
+                        { key: 'note200', label: '€200', value: 200 },
+                        { key: 'note500', label: '€500', value: 500 },
                       ].map(note => (
-                        <div key={note.key} className={`${note.color} rounded-xl p-3 shadow-sm border border-green-100`}>
-                          <p className="text-xs text-gray-600 text-center mb-1 font-medium">{note.label}</p>
+                        <div key={note.key} style={{ backgroundColor: '#1A1E29', borderRadius: '0.75rem', padding: '0.75rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+                          <p style={{ fontSize: '0.75rem', color: '#F5A623', textAlign: 'center', marginBottom: '0.5rem', fontWeight: 'bold' }}>{note.label}</p>
                           <input
                             type="number"
                             inputMode="numeric"
@@ -778,19 +778,19 @@ const DriverCashBox: React.FC = () => {
                               ...prev,
                               [note.key]: parseInt(e.target.value) || 0
                             }))}
-                            className="w-full text-center text-lg font-bold border-0 bg-transparent focus:ring-0"
+                            style={{ width: '100%', textAlign: 'center', fontSize: '1.125rem', fontWeight: 'bold', color: '#000000', backgroundColor: '#FFFFFF', border: 'none', borderRadius: '0.25rem', padding: '0.25rem' }}
                             placeholder="0"
                           />
-                          <p className="text-xs text-green-600 text-center">
-                            {formatCurrency((noteCounts[note.key as keyof typeof noteCounts] || 0) * parseInt(note.label.replace('€', '')))}
+                          <p style={{ fontSize: '0.75rem', color: '#10B981', textAlign: 'center', marginTop: '0.25rem' }}>
+                            {formatCurrency((noteCounts[note.key as keyof typeof noteCounts] || 0) * note.value)}
                           </p>
                         </div>
                       ))}
                     </div>
-                    <div className="mt-4 p-3 bg-green-100 rounded-xl">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-green-800">Total em Notas:</span>
-                        <span className="text-xl font-bold text-green-700">{formatCurrency(totalNotes)}</span>
+                    <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: '#1A1E29', borderRadius: '0.75rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 'bold', color: '#F5A623' }}>Total em Notas:</span>
+                        <span style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#10B981' }}>{formatCurrency(totalNotes)}</span>
                       </div>
                     </div>
                   </div>
