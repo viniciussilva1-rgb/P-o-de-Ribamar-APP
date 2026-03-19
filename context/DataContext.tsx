@@ -185,23 +185,29 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // 3. Products
   useEffect(() => {
-    // Verificar se o seed foi feito consultando Firestore, não apenas estado local
+    // Verificar se o seed foi feito consultando Firestore
     const checkAndSeedProducts = async () => {
       try {
+        // Primeiro: verificar se há algum produto no Firestore
+        const productsSnapshot = await getDocs(collection(db, 'products'));
+        const hasProducts = productsSnapshot.size > 0;
+        
         // Verificar config de seed no Firestore
         const configDoc = await getDoc(doc(db, '_metadata', 'app_config'));
         const isSeedDone = configDoc.exists() && configDoc.data()?.products_seeded === true;
+        
+        console.log(`[SEED] Status: hasProducts=${hasProducts}, isSeedDone=${isSeedDone}`);
         
         // Setup listener para produtos
         const unsubscribe = onSnapshot(collection(db, 'products'), async (snapshot) => {
           const list = snapshot.docs.map(doc => doc.data() as Product);
           
-          // Apenas fazer seed se:
-          // 1. Lista vazia
-          // 2. Seed ainda não foi marcado como feito no Firestore
-          // 3. Estado local ainda não foi marcado
-          if (list.length === 0 && !isSeedDone && !productsSeeded) {
-            console.log('[SEED] Realizando seed inicial dos produtos...');
+          // SEGURANÇA: Apenas fazer seed se:
+          // 1. Nenhum produto existe no Firestore
+          // 2. Seed ainda não foi marcado como feito
+          // 3. NÃO fazer seed nunca mais se já há dados (protege contra sobrescrita)
+          if (list.length === 0 && !isSeedDone && !hasProducts && !productsSeeded) {
+            console.log('[SEED] Realizando seed inicial dos produtos (primeira execução)...');
             setProductsSeeded(true);
             
             // Adicionar todos os produtos ao Firestore
@@ -210,7 +216,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               batch.set(doc(db, 'products', p.id), p);
             });
             
-            // Marcar seed como feito no Firestore para evitar repetição
+            // Marcar seed como feito no Firestore para NUNCA mais repetir
             batch.set(doc(db, '_metadata', 'app_config'), 
               { products_seeded: true, seeded_at: new Date().toISOString() },
               { merge: true }
@@ -218,10 +224,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             
             await batch.commit();
             console.log('[SEED] Produtos iniciais salvos com sucesso');
-            setProducts(INITIAL_PRODUCTS); // Carregar no estado local
+            setProducts(INITIAL_PRODUCTS);
             
           } else if (list.length > 0) {
+            console.log(`[PRODUCTS] Carregando ${list.length} produtos do Firestore`);
             setProducts(list);
+          } else if (list.length === 0 && hasProducts) {
+            console.error('[SEED] AVISO: Sem produtos na lista mas hasProducts=true. Possível erro de sincronização.');
           }
         });
         
