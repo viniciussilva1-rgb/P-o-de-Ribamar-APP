@@ -545,8 +545,8 @@ const DriverCashBox: React.FC = () => {
           {activeSection === 'fund' && (
             <div className="space-y-6 max-w-xl">
               <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">Fundo de Caixa</h3>
-                <p className="text-sm text-gray-500">
+                <h3 style={{ color: '#F5A623', fontSize: '1.125rem', fontWeight: 'bold' }}>Fundo de Caixa</h3>
+                <p style={{ color: '#A0A8C0', fontSize: '0.875rem' }}>
                   Registre o valor inicial que você está levando hoje. Este valor é único para o dia e serve para todas as rotas.
                 </p>
               </div>
@@ -561,8 +561,8 @@ const DriverCashBox: React.FC = () => {
               )}
 
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div style={{ backgroundColor: '#13161E', borderRadius: '0.75rem', padding: '1rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <label style={{ color: '#F5A623', fontSize: '0.875rem', fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
                     Valor Inicial do Fundo de Caixa (€)
                   </label>
                   <input
@@ -576,19 +576,21 @@ const DriverCashBox: React.FC = () => {
                         setFundAmount(val);
                       }
                     }}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent text-lg"
+                    style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB', width: '100%', padding: '0.75rem 1rem', borderRadius: '0.5rem', fontSize: '1.125rem' }}
+                    className="font-medium focus:ring-2 focus:ring-amber-500 focus:border-transparent border"
                     placeholder="0.00"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div style={{ backgroundColor: '#13161E', borderRadius: '0.75rem', padding: '1rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <label style={{ color: '#F5A623', fontSize: '0.875rem', fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
                     Observações (opcional)
                   </label>
                   <textarea
                     value={fundObservations}
                     onChange={(e) => setFundObservations(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB', width: '100%', padding: '0.75rem 1rem', borderRadius: '0.5rem' }}
+                    className="border focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                     rows={3}
                     placeholder="Notas sobre o fundo de caixa..."
                   />
@@ -626,8 +628,8 @@ const DriverCashBox: React.FC = () => {
           {activeSection === 'closure' && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">Fecho Diário</h3>
-                <p className="text-sm text-gray-500">
+                <h3 style={{ color: '#F5A623', fontSize: '1.125rem', fontWeight: 'bold' }}>Fecho Diário</h3>
+                <p style={{ color: '#A0A8C0', fontSize: '0.875rem' }}>
                   Conte o dinheiro no final do dia e confira se bate com o esperado.
                 </p>
               </div>
@@ -811,8 +813,8 @@ const DriverCashBox: React.FC = () => {
                 </div>
               ) : (
                 /* Campo de Contagem Simples */
-                <div className="max-w-md">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="max-w-md" style={{ backgroundColor: '#13161E', borderRadius: '0.75rem', padding: '1rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <label style={{ color: '#F5A623', fontSize: '0.875rem', fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
                     Valor Contado no Caixa (€)
                   </label>
                   <input
@@ -826,7 +828,8 @@ const DriverCashBox: React.FC = () => {
                         setCountedAmount(val);
                       }
                     }}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent text-lg"
+                    style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB', width: '100%', padding: '0.75rem 1rem', borderRadius: '0.5rem', fontSize: '1.125rem' }}
+                    className="font-medium focus:ring-2 focus:ring-amber-500 focus:border-transparent border"
                     placeholder="0.00"
                   />
                 </div>
@@ -872,14 +875,15 @@ const DriverCashBox: React.FC = () => {
               )}
 
               {/* Observações */}
-              <div className="max-w-md">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="max-w-md" style={{ backgroundColor: '#13161E', borderRadius: '0.75rem', padding: '1rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <label style={{ color: '#F5A623', fontSize: '0.875rem', fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>
                   Observações (opcional)
                 </label>
                 <textarea
                   value={closureObservations}
                   onChange={(e) => setClosureObservations(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB', width: '100%', padding: '0.75rem 1rem', borderRadius: '0.5rem' }}
+                  className="border focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                   rows={3}
                   placeholder="Observações sobre o fecho do dia..."
                 />
