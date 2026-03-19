@@ -185,69 +185,57 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // 3. Products
   useEffect(() => {
-    // Verificar se o seed foi feito consultando Firestore
-    const checkAndSeedProducts = async () => {
-      try {
-        // Primeiro: verificar se há algum produto no Firestore
-        const productsSnapshot = await getDocs(collection(db, 'products'));
-        const hasProducts = productsSnapshot.size > 0;
+    // Setup listener para produtos (escuta Firestore em tempo real)
+    const unsubscribe = onSnapshot(collection(db, 'products'), async (snapshot) => {
+      const list = snapshot.docs.map(doc => doc.data() as Product);
+      
+      console.log(`[PRODUCTS] Recebido snapshot com ${list.length} produtos`);
+      
+      // Se há produtos, carregar
+      if (list.length > 0) {
+        console.log('[PRODUCTS] Carregando produtos do Firestore');
+        setProducts(list);
+        return;
+      }
+      
+      // Se não há produtos e ainda não foi feito seed, fazer seed
+      if (list.length === 0 && !productsSeeded) {
+        console.log('[SEED] Nenhum produto encontrado. Iniciando seed...');
         
-        // Verificar config de seed no Firestore
+        // Verificar se já foi marcado como seed feito no Firestore
         const configDoc = await getDoc(doc(db, '_metadata', 'app_config'));
         const isSeedDone = configDoc.exists() && configDoc.data()?.products_seeded === true;
         
-        console.log(`[SEED] Status: hasProducts=${hasProducts}, isSeedDone=${isSeedDone}`);
+        if (isSeedDone) {
+          console.log('[SEED] Seed já foi feito antes. Aguardando dados do Firestore...');
+          setProductsSeeded(true);
+          return;
+        }
         
-        // Setup listener para produtos
-        const unsubscribe = onSnapshot(collection(db, 'products'), async (snapshot) => {
-          const list = snapshot.docs.map(doc => doc.data() as Product);
-          
-          // SEGURANÇA: Apenas fazer seed se:
-          // 1. Nenhum produto existe no Firestore
-          // 2. Seed ainda não foi marcado como feito
-          // 3. NÃO fazer seed nunca mais se já há dados (protege contra sobrescrita)
-          if (list.length === 0 && !isSeedDone && !hasProducts && !productsSeeded) {
-            console.log('[SEED] Realizando seed inicial dos produtos (primeira execução)...');
-            setProductsSeeded(true);
-            
-            // Adicionar todos os produtos ao Firestore
-            const batch = writeBatch(db);
-            INITIAL_PRODUCTS.forEach(p => {
-              batch.set(doc(db, 'products', p.id), p);
-            });
-            
-            // Marcar seed como feito no Firestore para NUNCA mais repetir
-            batch.set(doc(db, '_metadata', 'app_config'), 
-              { products_seeded: true, seeded_at: new Date().toISOString() },
-              { merge: true }
-            );
-            
-            await batch.commit();
-            console.log('[SEED] Produtos iniciais salvos com sucesso');
-            setProducts(INITIAL_PRODUCTS);
-            
-          } else if (list.length > 0) {
-            console.log(`[PRODUCTS] Carregando ${list.length} produtos do Firestore`);
-            setProducts(list);
-          } else if (list.length === 0 && hasProducts) {
-            console.error('[SEED] AVISO: Sem produtos na lista mas hasProducts=true. Possível erro de sincronização.');
-          }
-        });
+        // Fazer seed apenas se nunca foi feito
+        console.log('[SEED] Primeiro seed: adicionando produtos iniciais...');
+        setProductsSeeded(true);
         
-        return unsubscribe;
-      } catch (err) {
-        console.error('[SEED] Erro ao verificar/fazer seed:', err);
+        try {
+          const batch = writeBatch(db);
+          INITIAL_PRODUCTS.forEach(p => {
+            batch.set(doc(db, 'products', p.id), p);
+          });
+          batch.set(doc(db, '_metadata', 'app_config'), 
+            { products_seeded: true, seeded_at: new Date().toISOString() },
+            { merge: true }
+          );
+          await batch.commit();
+          console.log('[SEED] ✓ Seed concluído com sucesso. Produtos adicionados ao Firestore.');
+          setProducts(INITIAL_PRODUCTS);
+        } catch (err) {
+          console.error('[SEED] ✗ Erro ao fazer seed:', err);
+          setProductsSeeded(false);
+        }
       }
-    };
-
-    let unsubscribe: (() => void) | undefined;
-    checkAndSeedProducts().then(unsub => {
-      if (unsub) unsubscribe = unsub;
     });
-
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
+    
+    return () => unsubscribe();
   }, [productsSeeded]);
 
   // 4. Routes
