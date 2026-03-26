@@ -655,56 +655,52 @@ const AdminWeeklySettlement: React.FC = () => {
                 {hasNewValues && (
                   <div className="pt-4 border-t border-gray-200">
                     {confirmingSettlement === driver.id ? (
-                      <div className="space-y-4 bg-amber-50 p-4 rounded-xl border border-amber-200">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-lg font-semibold text-amber-800 flex items-center gap-2">
+                      <div style={{ display: 'grid', gridAutoFlow: 'row', gap: '1rem', backgroundColor: '#13161E', padding: '1rem', borderRadius: '0.75rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <h4 style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#F5A623', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <Calculator size={20} />
                             Confirmar Fecho - {driver.name}
                           </h4>
                           <button
                             onClick={resetConfirmationForm}
-                            className="p-1 text-gray-400 hover:text-gray-600"
+                            style={{ padding: '0.25rem', backgroundColor: 'transparent', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', color: '#A0A8C0' }}
                           >
                             <X size={18} />
                           </button>
                         </div>
                         
                         {/* Valor Esperado */}
-                        <div className="p-4 bg-amber-100 border-2 border-amber-300 rounded-xl">
-                          <p className="text-sm text-amber-700 mb-1">Valor Esperado (Dinheiro)</p>
-                          <p className="text-2xl font-bold text-amber-800">{formatCurrency(calculated.cashTotal)}</p>
-                          <p className="text-xs text-amber-600 mt-1">
+                        <div style={{ padding: '1rem', backgroundColor: '#1A1E29', border: '2px solid #F5A623', borderRadius: '0.75rem' }}>
+                          <p style={{ fontSize: '0.875rem', color: '#F5A623', marginBottom: '0.25rem', fontWeight: 'bold' }}>Valor Esperado (Dinheiro)</p>
+                          <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#F5A623' }}>{formatCurrency(calculated.cashTotal)}</p>
+                          <p style={{ fontSize: '0.75rem', color: '#A0A8C0', marginTop: '0.25rem' }}>
                             Este é o valor em dinheiro que o entregador deve entregar
                           </p>
                         </div>
 
                         {/* Toggle para contagem detalhada */}
-                        <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', backgroundColor: '#1A1E29', borderRadius: '0.75rem', border: '1px solid rgba(255,255,255,0.1)' }}>
                           <button
                             onClick={() => setShowDetailedCount(!showDetailedCount)}
-                            className={`relative w-14 h-7 rounded-full transition-colors ${
-                              showDetailedCount ? 'bg-amber-500' : 'bg-gray-300'
-                            }`}
+                            style={{ position: 'relative', width: '3.5rem', height: '1.75rem', borderRadius: '9999px', transition: 'background-color 0.3s', backgroundColor: showDetailedCount ? '#F5A623' : '#505569', border: 'none', cursor: 'pointer' }}
                           >
-                            <span className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                              showDetailedCount ? 'translate-x-7' : 'translate-x-0'
-                            }`} />
+                            <span style={{ position: 'absolute', top: '0.25rem', left: '0.25rem', width: '1.25rem', height: '1.25rem', backgroundColor: '#FFFFFF', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', transition: 'transform 0.3s', transform: showDetailedCount ? 'translateX(1.75rem)' : 'translateX(0)' }} />
                           </button>
                           <div>
-                            <p className="font-medium text-gray-800">Contagem Detalhada</p>
-                            <p className="text-sm text-gray-500">Contar moedas e notas separadamente</p>
+                            <p style={{ fontWeight: 'bold', color: '#FFFFFF' }}>Contagem Detalhada</p>
+                            <p style={{ fontSize: '0.875rem', color: '#A0A8C0' }}>Contar moedas e notas separadamente</p>
                           </div>
                         </div>
 
                         {/* Contagem Detalhada de Moedas e Notas */}
                         {showDetailedCount ? (
-                          <div className="space-y-4">
+                          <div style={{ display: 'grid', gap: '1rem' }}>
                             {/* Moedas */}
-                            <div className="bg-gradient-to-br from-amber-50 to-yellow-50 p-4 rounded-xl border border-amber-200">
-                              <h5 className="text-md font-semibold text-amber-800 mb-3 flex items-center gap-2">
-                                <span className="text-xl">🪙</span> Moedas
+                            <div style={{ backgroundColor: '#13161E', padding: '1rem', borderRadius: '0.75rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+                              <h5 style={{ fontSize: '1rem', fontWeight: 'bold', color: '#F5A623', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <span style={{ fontSize: '1.25rem' }}>🪙</span> Moedas
                               </h5>
-                              <div className="grid grid-cols-4 gap-2">
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem' }}>
                                 {[
                                   { key: 'cent1', label: '1c', value: 0.01 },
                                   { key: 'cent2', label: '2c', value: 0.02 },
@@ -715,8 +711,8 @@ const AdminWeeklySettlement: React.FC = () => {
                                   { key: 'euro1', label: '€1', value: 1.00 },
                                   { key: 'euro2', label: '€2', value: 2.00 },
                                 ].map(coin => (
-                                  <div key={coin.key} className="bg-white rounded-lg p-2 shadow-sm border border-amber-100">
-                                    <p className="text-xs text-gray-500 text-center mb-1">{coin.label}</p>
+                                  <div key={coin.key} style={{ backgroundColor: '#1A1E29', borderRadius: '0.5rem', padding: '0.5rem', boxShadow: '0 1px 2px rgba(0,0,0,0.1)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                    <p style={{ fontSize: '0.75rem', color: '#A0A8C0', textAlign: 'center', marginBottom: '0.25rem' }}>{coin.label}</p>
                                     <input
                                       type="number"
                                       inputMode="numeric"
@@ -726,40 +722,40 @@ const AdminWeeklySettlement: React.FC = () => {
                                         ...prev,
                                         [coin.key]: parseInt(e.target.value) || 0
                                       }))}
-                                      className="w-full text-center text-lg font-bold border-0 bg-transparent focus:ring-0"
+                                      style={{ width: '100%', textAlign: 'center', fontSize: '1.125rem', fontWeight: 'bold', border: 'none', backgroundColor: '#FFFFFF', color: '#000000', borderRadius: '0.25rem', padding: '0.25rem 0' }}
                                       placeholder="0"
                                     />
-                                    <p className="text-xs text-amber-600 text-center">
+                                    <p style={{ fontSize: '0.75rem', color: '#F5A623', textAlign: 'center' }}>
                                       {formatCurrency((coinCounts[coin.key as keyof typeof coinCounts] || 0) * coin.value)}
                                     </p>
                                   </div>
                                 ))}
                               </div>
-                              <div className="mt-3 p-2 bg-amber-100 rounded-lg">
-                                <div className="flex justify-between items-center">
-                                  <span className="font-medium text-amber-800 text-sm">Total em Moedas:</span>
-                                  <span className="text-lg font-bold text-amber-700">{formatCurrency(totalCoins)}</span>
+                              <div style={{ marginTop: '0.75rem', padding: '0.5rem', backgroundColor: '#1A1E29', borderRadius: '0.5rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span style={{ fontWeight: 'bold', color: '#F5A623', fontSize: '0.875rem' }}>Total em Moedas:</span>
+                                  <span style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#F5A623' }}>{formatCurrency(totalCoins)}</span>
                                 </div>
                               </div>
                             </div>
 
                             {/* Notas */}
-                            <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-xl border border-green-200">
-                              <h5 className="text-md font-semibold text-green-800 mb-3 flex items-center gap-2">
-                                <span className="text-xl">💵</span> Notas
+                            <div style={{ backgroundColor: '#13161E', padding: '1rem', borderRadius: '0.75rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+                              <h5 style={{ fontSize: '1rem', fontWeight: 'bold', color: '#10B981', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <span style={{ fontSize: '1.25rem' }}>💵</span> Notas
                               </h5>
-                              <div className="grid grid-cols-4 gap-2">
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem' }}>
                                 {[
-                                  { key: 'note5', label: '€5', color: 'bg-gray-100' },
-                                  { key: 'note10', label: '€10', color: 'bg-red-50' },
-                                  { key: 'note20', label: '€20', color: 'bg-blue-50' },
-                                  { key: 'note50', label: '€50', color: 'bg-orange-50' },
-                                  { key: 'note100', label: '€100', color: 'bg-green-50' },
-                                  { key: 'note200', label: '€200', color: 'bg-yellow-50' },
-                                  { key: 'note500', label: '€500', color: 'bg-purple-50' },
+                                  { key: 'note5', label: '€5' },
+                                  { key: 'note10', label: '€10' },
+                                  { key: 'note20', label: '€20' },
+                                  { key: 'note50', label: '€50' },
+                                  { key: 'note100', label: '€100' },
+                                  { key: 'note200', label: '€200' },
+                                  { key: 'note500', label: '€500' },
                                 ].map(note => (
-                                  <div key={note.key} className={`${note.color} rounded-lg p-2 shadow-sm border border-green-100`}>
-                                    <p className="text-xs text-gray-600 text-center mb-1 font-medium">{note.label}</p>
+                                  <div key={note.key} style={{ backgroundColor: '#1A1E29', borderRadius: '0.5rem', padding: '0.5rem', boxShadow: '0 1px 2px rgba(0,0,0,0.1)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                    <p style={{ fontSize: '0.75rem', color: '#A0A8C0', textAlign: 'center', marginBottom: '0.25rem', fontWeight: 'bold' }}>{note.label}</p>
                                     <input
                                       type="number"
                                       inputMode="numeric"
@@ -769,33 +765,33 @@ const AdminWeeklySettlement: React.FC = () => {
                                         ...prev,
                                         [note.key]: parseInt(e.target.value) || 0
                                       }))}
-                                      className="w-full text-center text-lg font-bold border-0 bg-transparent focus:ring-0"
+                                      style={{ width: '100%', textAlign: 'center', fontSize: '1.125rem', fontWeight: 'bold', border: 'none', backgroundColor: '#FFFFFF', color: '#000000', borderRadius: '0.25rem', padding: '0.25rem 0' }}
                                       placeholder="0"
                                     />
-                                    <p className="text-xs text-green-600 text-center">
+                                    <p style={{ fontSize: '0.75rem', color: '#10B981', textAlign: 'center' }}>
                                       {formatCurrency((noteCounts[note.key as keyof typeof noteCounts] || 0) * parseInt(note.label.replace('€', '')))}
                                     </p>
                                   </div>
                                 ))}
                               </div>
-                              <div className="mt-3 p-2 bg-green-100 rounded-lg">
-                                <div className="flex justify-between items-center">
-                                  <span className="font-medium text-green-800 text-sm">Total em Notas:</span>
-                                  <span className="text-lg font-bold text-green-700">{formatCurrency(totalNotes)}</span>
+                              <div style={{ marginTop: '0.75rem', padding: '0.5rem', backgroundColor: '#1A1E29', borderRadius: '0.5rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span style={{ fontWeight: 'bold', color: '#10B981', fontSize: '0.875rem' }}>Total em Notas:</span>
+                                  <span style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#10B981' }}>{formatCurrency(totalNotes)}</span>
                                 </div>
                               </div>
                             </div>
 
                             {/* Total Geral */}
-                            <div className="bg-gradient-to-r from-amber-500 to-amber-600 p-4 rounded-xl text-white">
-                              <div className="flex justify-between items-center">
+                            <div style={{ backgroundColor: '#F5A623', padding: '1rem', borderRadius: '0.75rem', color: '#000000' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div>
-                                  <p className="text-amber-100 text-sm">Total Entregue</p>
-                                  <p className="text-xs text-amber-200 mt-1">Moedas + Notas</p>
+                                  <p style={{ color: '#000000', fontSize: '0.875rem', fontWeight: 'bold' }}>Total Entregue</p>
+                                  <p style={{ fontSize: '0.75rem', color: '#000000', marginTop: '0.25rem', opacity: 0.8 }}>Moedas + Notas</p>
                                 </div>
-                                <div className="text-right">
-                                  <p className="text-2xl font-bold">{formatCurrency(calculatedTotal)}</p>
-                                  <p className="text-xs text-amber-200">
+                                <div style={{ textAlign: 'right' }}>
+                                  <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#000000' }}>{formatCurrency(calculatedTotal)}</p>
+                                  <p style={{ fontSize: '0.75rem', color: '#000000', opacity: 0.8 }}>
                                     {formatCurrency(totalCoins)} + {formatCurrency(totalNotes)}
                                   </p>
                                 </div>
@@ -805,7 +801,7 @@ const AdminWeeklySettlement: React.FC = () => {
                         ) : (
                           /* Campo de Valor Simples */
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 'bold', color: '#F5A623', marginBottom: '0.5rem' }}>
                               Valor Entregue pelo Entregador (€)
                             </label>
                             <input
@@ -819,7 +815,7 @@ const AdminWeeklySettlement: React.FC = () => {
                                   setDeliveredAmount(val);
                                 }
                               }}
-                              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent text-lg"
+                              style={{ width: '100%', padding: '0.75rem 1rem', border: '1px solid #D1D5DB', borderRadius: '0.75rem', fontSize: '1.125rem', backgroundColor: '#FFFFFF', color: '#000000' }}
                               placeholder="0.00"
                             />
                           </div>
@@ -831,37 +827,37 @@ const AdminWeeklySettlement: React.FC = () => {
                           const difference = amountDelivered - calculated.cashTotal;
                           
                           if (amountDelivered > 0) {
+                            const isCorrreact = Math.abs(difference) < 0.01;
+                            const hasExtra = difference > 0;
+                            const bgColor = isCorrreact ? '#13161E' : hasExtra ? '#13161E' : '#13161E';
+                            const borderColor = isCorreck ? '#10B981' : hasExtra ? '#3B82F6' : '#EF4444';
+                            const textColor = isCorrected ? '#10B981' : hasExtra ? '#3B82F6' : '#EF4444';
+                            
                             return (
-                              <div className={`p-4 rounded-xl border-2 ${
-                                Math.abs(difference) < 0.01 
-                                  ? 'bg-green-50 border-green-300' 
-                                  : difference > 0 
-                                    ? 'bg-blue-50 border-blue-300'
-                                    : 'bg-red-50 border-red-300'
-                              }`}>
-                                <div className="flex items-center gap-3">
-                                  {Math.abs(difference) < 0.01 ? (
+                              <div style={{ padding: '1rem', borderRadius: '0.75rem', border: `2px solid ${borderColor}`, backgroundColor: bgColor }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                  {isCorrected ? (
                                     <>
-                                      <CheckCircle size={28} className="text-green-600" />
+                                      <CheckCircle size={28} style={{ color: '#10B981' }} />
                                       <div>
-                                        <p className="text-lg font-bold text-green-700">Valor Correto! ✓</p>
-                                        <p className="text-sm text-green-600">O entregador entregou o valor exato</p>
+                                        <p style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#10B981' }}>Valor Correto! ✓</p>
+                                        <p style={{ fontSize: '0.875rem', color: '#A0A8C0' }}>O entregador entregou o valor exato</p>
                                       </div>
                                     </>
-                                  ) : difference > 0 ? (
+                                  ) : hasExtra ? (
                                     <>
-                                      <TrendingUp size={28} className="text-blue-600" />
+                                      <TrendingUp size={28} style={{ color: '#3B82F6' }} />
                                       <div>
-                                        <p className="text-lg font-bold text-blue-700">Sobra: {formatCurrency(difference)}</p>
-                                        <p className="text-sm text-blue-600">Entregou mais do que o esperado</p>
+                                        <p style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#3B82F6' }}>Sobra: {formatCurrency(difference)}</p>
+                                        <p style={{ fontSize: '0.875rem', color: '#A0A8C0' }}>Entregou mais do que o esperado</p>
                                       </div>
                                     </>
                                   ) : (
                                     <>
-                                      <AlertCircle size={28} className="text-red-600" />
+                                      <AlertCircle size={28} style={{ color: '#EF4444' }} />
                                       <div>
-                                        <p className="text-lg font-bold text-red-700">Falta: {formatCurrency(Math.abs(difference))}</p>
-                                        <p className="text-sm text-red-600">Entregou menos do que o esperado</p>
+                                        <p style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#EF4444' }}>Falta: {formatCurrency(Math.abs(difference))}</p>
+                                        <p style={{ fontSize: '0.875rem', color: '#A0A8C0' }}>Entregou menos do que o esperado</p>
                                       </div>
                                     </>
                                   )}
@@ -874,49 +870,49 @@ const AdminWeeklySettlement: React.FC = () => {
 
                         {/* Data do Fecho */}
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 'bold', color: '#F5A623', marginBottom: '0.5rem' }}>
                             Data do Fecho
                           </label>
                           <input
                             type="date"
                             value={settlementDate}
                             onChange={(e) => setSettlementDate(e.target.value)}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                            style={{ width: '100%', padding: '0.75rem 1rem', border: '1px solid #D1D5DB', borderRadius: '0.75rem', backgroundColor: '#FFFFFF', color: '#000000' }}
                           />
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p style={{ fontSize: '0.75rem', color: '#A0A8C0', marginTop: '0.25rem' }}>
                             Selecione a data em que o fecho deve ser registrado. Padrão: hoje ({formatDateShort(today)})
                           </p>
                         </div>
 
                         {/* Observações */}
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 'bold', color: '#F5A623', marginBottom: '0.5rem' }}>
                             Observações (opcional)
                           </label>
                           <textarea
                             value={settlementObservations}
                             onChange={(e) => setSettlementObservations(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                            style={{ width: '100%', padding: '0.75rem', border: '1px solid #D1D5DB', borderRadius: '0.5rem', backgroundColor: '#FFFFFF', color: '#000000', fontFamily: 'inherit' }}
                             rows={2}
                             placeholder="Observações do fecho (diferenças, justificativas, etc)..."
                           />
                         </div>
 
                         {/* Botões */}
-                        <div className="flex gap-2">
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
                           <button
                             onClick={resetConfirmationForm}
-                            className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100"
+                            style={{ flex: 1, padding: '0.75rem', border: '1px solid #D1D5DB', color: '#FFFFFF', backgroundColor: '#EF4444', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 'bold' }}
                           >
                             Cancelar
                           </button>
                           <button
                             onClick={() => handleConfirmSettlement(driver.id, calculated.cashTotal)}
                             disabled={loading || (showDetailedCount ? calculatedTotal <= 0 : !deliveredAmount || parseFloat(deliveredAmount) <= 0)}
-                            className="flex-1 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                            style={{ flex: 1, padding: '0.75rem', backgroundColor: '#10B981', color: '#FFFFFF', borderRadius: '0.5rem', border: 'none', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', opacity: loading || (showDetailedCount ? calculatedTotal <= 0 : !deliveredAmount || parseFloat(deliveredAmount) <= 0) ? 0.5 : 1 }}
                           >
                             {loading ? (
-                              <RefreshCw size={18} className="animate-spin" />
+                              <RefreshCw size={18} style={{ animation: 'spin 1s linear infinite' }} />
                             ) : (
                               <Check size={18} />
                             )}
