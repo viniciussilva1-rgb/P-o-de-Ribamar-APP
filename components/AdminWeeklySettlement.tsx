@@ -204,6 +204,18 @@ const AdminWeeklySettlement: React.FC = () => {
     return { start, end: endDate.toISOString().split('T')[0] };
   }, [driversSettlements, today]);
 
+  // Calcular valor esperado baseado na data selecionada
+  const settlementDateValue = useMemo(() => {
+    if (!confirmingSettlement) return null;
+    
+    const driver = drivers.find(d => d.id === confirmingSettlement);
+    if (!driver) return null;
+    
+    // Calcular usando a data selecionada ao invés de hoje
+    const calculated = calculateWeeklySettlement(driver.id, settlementDate);
+    return calculated.cashTotal;
+  }, [confirmingSettlement, settlementDate, drivers, calculateWeeklySettlement]);
+
   // Totais gerais (valores pendentes a receber)
   const totalStats = useMemo(() => {
     return driversSettlements.reduce((acc, ds) => ({
@@ -655,7 +667,7 @@ const AdminWeeklySettlement: React.FC = () => {
                 {hasNewValues && (
                   <div className="pt-4 border-t border-gray-200">
                     {confirmingSettlement === driver.id ? (
-                      <div style={{ display: 'grid', gridAutoFlow: 'row', gap: '1rem', backgroundColor: '#13161E', padding: '1rem', borderRadius: '0.75rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+                      <div style={{ display: 'grid', gridAutoFlow: 'row', gap: '1rem', backgroundColor: '#13161E', padding: '1rem', borderRadius: '0.75rem', border: '1px solid rgba(255,255,255,0.1)', zIndex: 40, position: 'relative', overflow: 'visible' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                           <h4 style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#F5A623', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <Calculator size={20} />
@@ -663,7 +675,7 @@ const AdminWeeklySettlement: React.FC = () => {
                           </h4>
                           <button
                             onClick={resetConfirmationForm}
-                            style={{ padding: '0.25rem', backgroundColor: 'transparent', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', color: '#A0A8C0' }}
+                            style={{ padding: '0.25rem', backgroundColor: 'transparent', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', color: '#A0A8C0', zIndex: 41 }}
                           >
                             <X size={18} />
                           </button>
@@ -672,9 +684,9 @@ const AdminWeeklySettlement: React.FC = () => {
                         {/* Valor Esperado */}
                         <div style={{ padding: '1rem', backgroundColor: '#1A1E29', border: '2px solid #F5A623', borderRadius: '0.75rem' }}>
                           <p style={{ fontSize: '0.875rem', color: '#F5A623', marginBottom: '0.25rem', fontWeight: 'bold' }}>Valor Esperado (Dinheiro)</p>
-                          <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#F5A623' }}>{formatCurrency(calculated.cashTotal)}</p>
+                          <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#F5A623' }}>{formatCurrency(settlementDateValue || 0)}</p>
                           <p style={{ fontSize: '0.75rem', color: '#A0A8C0', marginTop: '0.25rem' }}>
-                            Este é o valor em dinheiro que o entregador deve entregar
+                            Este é o valor em dinheiro que o entregador deve entregar até {formatDateShort(settlementDate)}
                           </p>
                         </div>
 
@@ -907,7 +919,7 @@ const AdminWeeklySettlement: React.FC = () => {
                             Cancelar
                           </button>
                           <button
-                            onClick={() => handleConfirmSettlement(driver.id, calculated.cashTotal)}
+                            onClick={() => handleConfirmSettlement(driver.id, settlementDateValue || 0)}
                             disabled={loading || (showDetailedCount ? calculatedTotal <= 0 : !deliveredAmount || parseFloat(deliveredAmount) <= 0)}
                             style={{ flex: 1, padding: '0.75rem', backgroundColor: '#10B981', color: '#FFFFFF', borderRadius: '0.5rem', border: 'none', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', opacity: loading || (showDetailedCount ? calculatedTotal <= 0 : !deliveredAmount || parseFloat(deliveredAmount) <= 0) ? 0.5 : 1 }}
                           >
