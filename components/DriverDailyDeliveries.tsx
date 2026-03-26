@@ -535,12 +535,17 @@ const DriverDailyDeliveries: React.FC = () => {
       
       // Configurar estados para atualização otimista
       const confirmedPaidUntil = info.paidUntilDate || null;
-      setServerPaidUntil(confirmedPaidUntil);
-      setOptimisticPaidUntil(confirmedPaidUntil);
-      
-      // Data inicial do "pago até" é a data atual confirmada ou hoje
       const today = new Date().toISOString().split('T')[0];
-      setPaidUntilDate(confirmedPaidUntil || today);
+      
+      // Guardar a data anterior como referência para cálculos
+      setServerPaidUntil(confirmedPaidUntil);
+      
+      // Não marcar como selecionado otimisticamente no início
+      // (pois o usuário ainda não confirmou uma data)
+      setOptimisticPaidUntil(null);
+      
+      // Data inicial do "pago até" é SEMPRE hoje - é quando o pagamento vai até
+      setPaidUntilDate(today);
       
       // Calcular valor inicial baseado na schedule
       // Se já tem paidUntil, calcular valor apenas dos dias não pagos até hoje
@@ -661,17 +666,15 @@ const DriverDailyDeliveries: React.FC = () => {
       console.error('Erro ao registrar pagamento:', err);
       setError('Erro ao registrar pagamento');
       
-      // Rollback: reverter para o último estado confirmado
-      setOptimisticPaidUntil(previousPaidUntil);
+      // Rollback: reverter para o estado anterior a tentativa
+      // (nenhuma seleção foi confirmada)
+      setOptimisticPaidUntil(null);
       const today = new Date().toISOString().split('T')[0];
-      setPaidUntilDate(previousPaidUntil || today);
+      setPaidUntilDate(today);
       
-      // Recalcular valor para o estado anterior
-      if (paymentClientId && previousPaidUntil) {
+      // Recalcular valor para hoje (intervalo de previousPaidUntil até hoje)
+      if (paymentClientId) {
         const revertedAmount = calculatePaymentAmountForRange(paymentClientId, previousPaidUntil, today);
-        setPaymentAmount(revertedAmount > 0 ? revertedAmount.toFixed(2) : '');
-      } else if (paymentClientId) {
-        const revertedAmount = calculatePaymentAmountForRange(paymentClientId, null, today);
         setPaymentAmount(revertedAmount > 0 ? revertedAmount.toFixed(2) : '');
       }
     } finally {
