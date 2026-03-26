@@ -211,8 +211,8 @@ const AdminWeeklySettlement: React.FC = () => {
     const driver = drivers.find(d => d.id === confirmingSettlement);
     if (!driver) return null;
     
-    // Calcular usando a data selecionada ao invés de hoje
-    const calculated = calculateWeeklySettlement(driver.id, settlementDate);
+    // Calcular usando a data selecionada como data final do período
+    const calculated = calculateWeeklySettlement(driver.id, settlementDate, settlementDate);
     return calculated.cashTotal;
   }, [confirmingSettlement, settlementDate, drivers, calculateWeeklySettlement]);
 

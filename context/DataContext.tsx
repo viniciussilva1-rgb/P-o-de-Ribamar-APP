@@ -92,7 +92,7 @@ interface DataContextType {
   
   // Fecho Semanal (Admin)
   getWeeklySettlement: (driverId: string, weekStartDate: string) => WeeklyDriverSettlement | undefined;
-  calculateWeeklySettlement: (driverId: string, weekStartDate: string) => Omit<WeeklyDriverSettlement, 'id' | 'status' | 'confirmedAt' | 'confirmedBy' | 'observations' | 'createdAt' | 'updatedAt' | 'amountDelivered' | 'settlementDifference' | 'deliveredCoins' | 'deliveredNotes' | 'coinDetails' | 'noteDetails'>;
+  calculateWeeklySettlement: (driverId: string, weekStartDate: string, customEndDate?: string) => Omit<WeeklyDriverSettlement, 'id' | 'status' | 'confirmedAt' | 'confirmedBy' | 'observations' | 'createdAt' | 'updatedAt' | 'amountDelivered' | 'settlementDifference' | 'deliveredCoins' | 'deliveredNotes' | 'coinDetails' | 'noteDetails'>;
   confirmWeeklySettlement: (settlementId: string, adminId: string, observations?: string, deliveryData?: {
     amountDelivered: number;
     deliveredCoins?: number;
@@ -2546,14 +2546,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Calcular dados do Fecho Semanal
   // Considera apenas valores recebidos APÓS o último fecho confirmado
-  const calculateWeeklySettlement = (driverId: string, weekStartDate: string) => {
+  const calculateWeeklySettlement = (driverId: string, weekStartDate: string, customEndDate?: string) => {
     const driver = users.find(u => u.id === driverId);
     
     // Calcular data final da semana (domingo)
     const startDate = new Date(weekStartDate);
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + 6);
-    const weekEndDate = endDate.toISOString().split('T')[0];
+    // Se uma data final customizada foi fornecida (ex: data do fecho selecionada), usar ela
+    const weekEndDate = customEndDate || endDate.toISOString().split('T')[0];
     
     // Buscar o ÚLTIMO fecho confirmado deste entregador (independente da semana)
     // Isso garante que após um fecho, os valores sempre começam do zero
@@ -2575,13 +2576,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const matchesDriver = p.driverId === driverId;
       const notReceivedByAdmin = !p.receivedByAdmin; // Excluir pagamentos do admin
       
-      // Se há um fecho confirmado, só contar pagamentos APÓS a confirmação
+      // Se há um fecho confirmado, só contar pagamentos APÓS a confirmação E até a data do fecho
       if (lastSettlementTimestamp) {
         const paymentTimestamp = p.createdAt || '';
-        return matchesDriver && notReceivedByAdmin && paymentTimestamp > lastSettlementTimestamp;
+        return matchesDriver && notReceivedByAdmin && paymentTimestamp > lastSettlementTimestamp && p.date <= weekEndDate;
       }
       
-      // Se não há fecho anterior, considerar toda a semana atual
+      // Se não há fecho anterior, considerar toda a semana atual (até a data selecionada)
       const inDateRange = p.date >= weekStartDate && p.date <= weekEndDate;
       return matchesDriver && notReceivedByAdmin && inDateRange;
     });
@@ -2591,13 +2592,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const matchesDriver = d.driverId === driverId;
       const isDelivered = d.status === 'delivered';
       
-      // Se há um fecho confirmado, só contar entregas APÓS a confirmação
+      // Se há um fecho confirmado, só contar entregas APÓS a confirmação E até a data do fecho
       if (lastSettlementTimestamp) {
         const deliveryTimestamp = d.deliveredAt || d.createdAt || '';
-        return matchesDriver && isDelivered && deliveryTimestamp > lastSettlementTimestamp;
+        return matchesDriver && isDelivered && deliveryTimestamp > lastSettlementTimestamp && d.date <= weekEndDate;
       }
       
-      // Se não há fecho anterior, considerar toda a semana atual
+      // Se não há fecho anterior, considerar toda a semana atual (até a data selecionada)
       const inDateRange = d.date >= weekStartDate && d.date <= weekEndDate;
       return matchesDriver && inDateRange && isDelivered;
     });
