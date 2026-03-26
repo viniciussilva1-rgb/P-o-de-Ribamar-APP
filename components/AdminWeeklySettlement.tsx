@@ -428,9 +428,10 @@ const AdminWeeklySettlement: React.FC = () => {
             key={driver.id} 
             style={{ 
               backgroundColor: '#13161E',
-              borderColor: hasNewValues ? 'rgba(245, 166, 35, 0.3)' : 'rgba(16, 185, 129, 0.3)'
+              borderColor: hasNewValues ? 'rgba(245, 166, 35, 0.3)' : 'rgba(16, 185, 129, 0.3)',
+              overflow: 'visible'
             }}
-            className="rounded-xl shadow-sm border overflow-hidden"
+            className="rounded-xl shadow-sm border"
           >
             {/* Header do Entregador */}
             <div
