@@ -837,19 +837,19 @@ const AdminWeeklySettlement: React.FC = () => {
                         {/* Resultado - Diferença */}
                         {(() => {
                           const amountDelivered = showDetailedCount ? calculatedTotal : (parseFloat(deliveredAmount) || 0);
-                          const difference = amountDelivered - calculated.cashTotal;
+                          const difference = amountDelivered - (settlementDateValue || 0);
                           
                           if (amountDelivered > 0) {
-                            const isCorrreact = Math.abs(difference) < 0.01;
+                            const isCorrect = Math.abs(difference) < 0.01;
                             const hasExtra = difference > 0;
-                            const bgColor = isCorrreact ? '#13161E' : hasExtra ? '#13161E' : '#13161E';
-                            const borderColor = isCorreck ? '#10B981' : hasExtra ? '#3B82F6' : '#EF4444';
-                            const textColor = isCorrected ? '#10B981' : hasExtra ? '#3B82F6' : '#EF4444';
+                            const bgColor = isCorrect ? '#13161E' : hasExtra ? '#13161E' : '#13161E';
+                            const borderColor = isCorrect ? '#10B981' : hasExtra ? '#3B82F6' : '#EF4444';
+                            const textColor = isCorrect ? '#10B981' : hasExtra ? '#3B82F6' : '#EF4444';
                             
                             return (
                               <div style={{ padding: '1rem', borderRadius: '0.75rem', border: `2px solid ${borderColor}`, backgroundColor: bgColor }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                  {isCorrected ? (
+                                  {isCorrect ? (
                                     <>
                                       <CheckCircle size={28} style={{ color: '#10B981' }} />
                                       <div>
