@@ -1776,25 +1776,25 @@ export const DriverView: React.FC = () => {
                        
                        {/* Campos de data para cálculo do papel - COM CALENDÁRIO VISUAL */}
                        {clientForm.leaveReceipt && (
-                         <div className="mb-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
-                           <p className="text-xs font-semibold text-amber-700 mb-2">📋 Período para o Papel:</p>
-                           <div className="grid grid-cols-2 gap-3 mb-2">
+                         <div style={{ backgroundColor: '#13161E', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+                           <p style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#F5A623', marginBottom: '0.5rem' }}>📋 Período para o Papel:</p>
+                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem', marginBottom: '0.5rem' }}>
                              <div>
-                               <label className="block text-xs text-amber-600 mb-1">De:</label>
+                               <label style={{ display: 'block', fontSize: '0.75rem', color: '#F5A623', marginBottom: '0.25rem', fontWeight: 'bold' }}>De:</label>
                                <button
                                  type="button"
                                  onClick={() => { setSelectingDateType('from'); setShowPeriodCalendar(true); }}
-                                 className="w-full p-2 border border-amber-300 rounded-lg bg-white text-gray-900 text-sm text-left hover:bg-amber-50"
+                                 style={{ width: '100%', padding: '0.5rem', border: '1px solid #D1D5DB', borderRadius: '0.5rem', backgroundColor: '#FFFFFF', color: '#000000', fontSize: '0.875rem', textAlign: 'left', cursor: 'pointer' }}
                                >
                                  {calcDateFrom ? new Date(calcDateFrom).toLocaleDateString('pt-PT') : 'Selecionar...'}
                                </button>
                              </div>
                              <div>
-                               <label className="block text-xs text-amber-600 mb-1">Até:</label>
+                               <label style={{ display: 'block', fontSize: '0.75rem', color: '#F5A623', marginBottom: '0.25rem', fontWeight: 'bold' }}>Até:</label>
                                <button
                                  type="button"
                                  onClick={() => { setSelectingDateType('to'); setShowPeriodCalendar(true); }}
-                                 className="w-full p-2 border border-amber-300 rounded-lg bg-white text-gray-900 text-sm text-left hover:bg-amber-50"
+                                 style={{ width: '100%', padding: '0.5rem', border: '1px solid #D1D5DB', borderRadius: '0.5rem', backgroundColor: '#FFFFFF', color: '#000000', fontSize: '0.875rem', textAlign: 'left', cursor: 'pointer' }}
                                >
                                  {calcDateTo ? new Date(calcDateTo).toLocaleDateString('pt-PT') : 'Selecionar...'}
                                </button>
@@ -1803,13 +1803,13 @@ export const DriverView: React.FC = () => {
                            
                            {/* Calendário Visual */}
                            {showPeriodCalendar && editingClientId && (
-                             <div className="mt-3 bg-white rounded-lg border border-amber-300 p-3">
+                             <div style={{ marginTop: '0.75rem', backgroundColor: '#1A1E29', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.1)', padding: '0.75rem' }}>
                                {(() => {
                                  const paymentInfo = getClientPaymentInfo(editingClientId);
                                  return (
                                    <>
                                      {/* Header do calendário */}
-                                     <div className="flex justify-between items-center mb-3">
+                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                                        <button
                                          type="button"
                                          onClick={() => {
@@ -1817,11 +1817,11 @@ export const DriverView: React.FC = () => {
                                            newMonth.setMonth(newMonth.getMonth() - 1);
                                            setPeriodCalendarMonth(newMonth);
                                          }}
-                                         className="p-1 hover:bg-gray-100 rounded"
+                                         style={{ padding: '0.25rem', backgroundColor: '#13161E', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', color: '#F5A623' }}
                                        >
                                          <ChevronLeft size={20} />
                                        </button>
-                                       <span className="font-semibold text-gray-700 capitalize">
+                                       <span style={{ fontWeight: 'bold', color: '#F5A623', textTransform: 'capitalize' }}>
                                          {periodCalendarMonth.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' })}
                                        </span>
                                        <button
@@ -1831,21 +1831,21 @@ export const DriverView: React.FC = () => {
                                            newMonth.setMonth(newMonth.getMonth() + 1);
                                            setPeriodCalendarMonth(newMonth);
                                          }}
-                                         className="p-1 hover:bg-gray-100 rounded"
+                                         style={{ padding: '0.25rem', backgroundColor: '#13161E', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', color: '#F5A623' }}
                                        >
                                          <ChevronRight size={20} />
                                        </button>
                                      </div>
                                      
                                      {/* Dias da semana */}
-                                     <div className="grid grid-cols-7 gap-1 text-center mb-1">
+                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.25rem', textAlign: 'center', marginBottom: '0.25rem' }}>
                                        {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((day, i) => (
-                                         <div key={i} className="text-xs font-medium text-gray-500 py-1">{day}</div>
+                                         <div key={i} style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#A0A8C0', padding: '0.25rem 0' }}>{day}</div>
                                        ))}
                                      </div>
                                      
                                      {/* Dias do mês */}
-                                     <div className="grid grid-cols-7 gap-1">
+                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.25rem' }}>
                                        {(() => {
                                          const year = periodCalendarMonth.getFullYear();
                                          const month = periodCalendarMonth.getMonth();
@@ -1858,7 +1858,7 @@ export const DriverView: React.FC = () => {
                                          
                                          // Dias vazios antes do primeiro dia do mês
                                          for (let i = 0; i < firstDay.getDay(); i++) {
-                                           days.push(<div key={`empty-${i}`} className="w-8 h-8"></div>);
+                                           days.push(<div key={`empty-${i}`} style={{ width: '2rem', height: '2rem' }}></div>);
                                          }
                                          
                                          // Dias do mês
@@ -1873,26 +1873,33 @@ export const DriverView: React.FC = () => {
                                            const isSelectedTo = calcDateTo === dateStr;
                                            const isInRange = calcDateFrom && calcDateTo && dateStr >= calcDateFrom && dateStr <= calcDateTo;
                                            
-                                           let bgClass = 'bg-gray-50 hover:bg-gray-100';
-                                           let ringClass = '';
+                                           let bgColor = '#13161E';
+                                           let textColor = '#A0A8C0';
+                                           let borderStyle = '';
                                            
                                            if (isSelectedFrom || isSelectedTo) {
-                                             bgClass = 'bg-amber-500 text-white hover:bg-amber-600';
+                                             bgColor = '#F5A623';
+                                             textColor = '#000000';
                                            } else if (isInRange) {
-                                             bgClass = 'bg-amber-100 hover:bg-amber-200';
+                                             bgColor = '#2D3A4A';
+                                             textColor = '#F5A623';
                                            } else if (isFuture) {
-                                             bgClass = 'bg-gray-100 text-gray-400';
+                                             bgColor = '#0D0F14';
+                                             textColor = '#505569';
                                            } else if (isPaid) {
                                              // Dias pagos têm prioridade - mostrar em verde
-                                             ringClass = 'ring-2 ring-green-500 ring-inset';
-                                             bgClass = 'bg-green-50 hover:bg-green-100 text-green-700';
+                                             borderStyle = '2px solid #10B981';
+                                             bgColor = '#13161E';
+                                             textColor = '#10B981';
                                            } else if (isSkipped) {
                                              // Dias não entregues - mostrar em laranja
-                                             ringClass = 'ring-2 ring-orange-400 ring-inset';
-                                             bgClass = 'bg-orange-50 hover:bg-orange-100 text-orange-700';
+                                             borderStyle = '2px solid #F5A623';
+                                             bgColor = '#13161E';
+                                             textColor = '#F5A623';
                                            } else if (isUnpaid) {
-                                             ringClass = 'ring-2 ring-red-500 ring-inset';
-                                             bgClass = 'bg-red-50 hover:bg-red-100 text-red-700';
+                                             borderStyle = '2px solid #EF4444';
+                                             bgColor = '#13161E';
+                                             textColor = '#EF4444';
                                            }
                                            
                                            days.push(
@@ -1911,7 +1918,7 @@ export const DriverView: React.FC = () => {
                                                  }
                                                }}
                                                disabled={isFuture}
-                                               className={`w-8 h-8 rounded-full text-xs font-medium transition-all ${bgClass} ${ringClass} ${isFuture ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                                               style={{ width: '2rem', height: '2rem', borderRadius: '50%', fontSize: '0.75rem', fontWeight: 'bold', backgroundColor: bgColor, color: textColor, border: borderStyle, cursor: isFuture ? 'not-allowed' : 'pointer', opacity: isFuture ? 0.5 : 1 }}
                                              >
                                                {day}
                                              </button>
@@ -1923,14 +1930,14 @@ export const DriverView: React.FC = () => {
                                      </div>
                                      
                                      {/* Legenda */}
-                                     <div className="mt-3 pt-3 border-t border-gray-200 flex flex-wrap gap-2 text-xs">
-                                       <div className="flex items-center gap-1">
-                                         <div className="w-3 h-3 rounded-full ring-2 ring-green-500 ring-inset bg-green-50"></div>
-                                         <span className="text-gray-600">Pago</span>
+                                     <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.75rem' }}>
+                                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                         <div style={{ width: '0.75rem', height: '0.75rem', borderRadius: '50%', border: '2px solid #10B981', backgroundColor: '#13161E' }}></div>
+                                         <span style={{ color: '#A0A8C0' }}>Pago</span>
                                        </div>
-                                       <div className="flex items-center gap-1">
-                                         <div className="w-3 h-3 rounded-full ring-2 ring-red-500 ring-inset bg-red-50"></div>
-                                         <span className="text-gray-600">Deve</span>
+                                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                         <div style={{ width: '0.75rem', height: '0.75rem', borderRadius: '50%', border: '2px solid #EF4444', backgroundColor: '#13161E' }}></div>
+                                         <span style={{ color: '#A0A8C0' }}>Deve</span>
                                        </div>
                                        <div className="flex items-center gap-1">
                                          <div className="w-3 h-3 rounded-full ring-2 ring-orange-400 ring-inset bg-orange-50"></div>
