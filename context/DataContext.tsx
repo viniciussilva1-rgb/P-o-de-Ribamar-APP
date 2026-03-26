@@ -99,7 +99,7 @@ interface DataContextType {
     deliveredNotes?: number;
     coinDetails?: Record<string, number>;
     noteDetails?: Record<string, number>;
-  }) => Promise<void>;
+  }, settlementWeekDate?: string) => Promise<void>;
   cancelWeeklySettlement: (settlementId: string) => Promise<void>;
   getAllPendingSettlements: () => WeeklyDriverSettlement[];
   getSettlementHistory: (driverId: string) => WeeklyDriverSettlement[];
@@ -2712,7 +2712,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       deliveredNotes?: number;
       coinDetails?: Record<string, number>;
       noteDetails?: Record<string, number>;
-    }
+    },
+    settlementWeekDate?: string
   ): Promise<void> => {
     let driverId: string;
     let weekStartDate: string;
@@ -2721,20 +2722,25 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (settlementId.startsWith('settlement-')) {
       const parts = settlementId.split('-');
       driverId = parts[1];
-      // Verificar se o terceiro elemento é uma data válida ou timestamp
-      const potentialDate = parts.slice(2).join('-');
-      const parsedDate = new Date(potentialDate);
-      
-      if (isNaN(parsedDate.getTime()) || potentialDate.length > 10) {
-        // É um timestamp, não uma data - usar data de hoje
-        weekStartDate = new Date().toISOString().split('T')[0];
+      // Se foi fornecida uma data de fecho, usar essa; senão, tenta extrair do settlementId
+      if (settlementWeekDate) {
+        weekStartDate = settlementWeekDate;
       } else {
-        weekStartDate = potentialDate;
+        // Verificar se o terceiro elemento é uma data válida ou timestamp
+        const potentialDate = parts.slice(2).join('-');
+        const parsedDate = new Date(potentialDate);
+        
+        if (isNaN(parsedDate.getTime()) || potentialDate.length > 10) {
+          // É um timestamp, não uma data - usar data de hoje
+          weekStartDate = new Date().toISOString().split('T')[0];
+        } else {
+          weekStartDate = potentialDate;
+        }
       }
     } else {
       // settlementId é apenas o driverId
       driverId = settlementId;
-      weekStartDate = new Date().toISOString().split('T')[0];
+      weekStartDate = settlementWeekDate || new Date().toISOString().split('T')[0];
     }
     
     // Verificar se já existe um fecho confirmado para esta semana

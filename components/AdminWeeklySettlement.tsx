@@ -48,6 +48,7 @@ const AdminWeeklySettlement: React.FC = () => {
   const [showingHistory, setShowingHistory] = useState<string | null>(null);
   const [selectedSettlement, setSelectedSettlement] = useState<WeeklyDriverSettlement | null>(null);
   const [settlementObservations, setSettlementObservations] = useState('');
+  const [settlementDate, setSettlementDate] = useState<string>(today);
   const [loading, setLoading] = useState(false);
   const [cancellingSettlementId, setCancellingSettlementId] = useState<string | null>(null);
   
@@ -104,6 +105,7 @@ const AdminWeeklySettlement: React.FC = () => {
   const resetConfirmationForm = () => {
     setConfirmingSettlement(null);
     setSettlementObservations('');
+    setSettlementDate(today);
     setDeliveredAmount('');
     setShowDetailedCount(false);
     setCoinCounts({ cent1: 0, cent2: 0, cent5: 0, cent10: 0, cent20: 0, cent50: 0, euro1: 0, euro2: 0 });
@@ -255,7 +257,7 @@ const AdminWeeklySettlement: React.FC = () => {
         })
       };
       
-      await confirmWeeklySettlement(settlementId, currentUser.id, settlementObservations || undefined, deliveryData);
+      await confirmWeeklySettlement(settlementId, currentUser.id, settlementObservations || undefined, deliveryData, settlementDate);
       resetConfirmationForm();
       alert('Fecho confirmado com sucesso! Os valores foram zerados.');
     } catch (error: any) {
@@ -869,6 +871,22 @@ const AdminWeeklySettlement: React.FC = () => {
                           }
                           return null;
                         })()}
+
+                        {/* Data do Fecho */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Data do Fecho
+                          </label>
+                          <input
+                            type="date"
+                            value={settlementDate}
+                            onChange={(e) => setSettlementDate(e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Selecione a data em que o fecho deve ser registrado. Padrão: hoje ({formatDateShort(today)})
+                          </p>
+                        </div>
 
                         {/* Observações */}
                         <div>
