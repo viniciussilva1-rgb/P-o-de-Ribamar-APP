@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { useDebounce } from '../hooks/useDebounce';
-import { ClientDelivery, DeliveryStatus, Client, DynamicClientPrediction, ClientConsumptionHistory } from '../types';
+import { ClientDelivery, DeliveryStatus, Client, DynamicClientPrediction, ClientConsumptionHistory, DeliverySchedule } from '../types';
 import { 
   Package, Truck, CheckCircle, XCircle, Clock, MapPin, Phone, 
   User, AlertCircle, Loader2, Calendar, ChevronDown, ChevronRight, ChevronLeft,
@@ -679,6 +679,56 @@ const DriverDailyDeliveries: React.FC = () => {
       }
     } finally {
       setSavingPayment(false);
+    }
+  };
+
+  // Pagamento rápido para clientes com frequência DIÁRIA
+  // Registra pagamento e marca entrega como entregue automaticamente
+  const handleQuickDailyPayment = async (clientId: string, clientName: string, deliveryId: string, deliveryDate: string) => {
+    const client = clients.find(c => c.id === clientId);
+    
+    // Verificar se é cliente com pagamento diário
+    if (!client || client.paymentFrequency !== 'Diário') {
+      // Se não for diário, abrir modal normal
+      handleOpenPaymentModal(clientId, clientName);
+      return;
+    }
+
+    if (!currentUser?.id) return;
+
+    setProcessingId(deliveryId);
+    try {
+      // 1. Calcular valor do dia baseado na schedule
+      const today = new Date().toISOString().split('T')[0];
+      const paymentInfo = getClientPaymentInfo(clientId);
+      const dayAmount = calculatePaymentAmountForRange(clientId, paymentInfo.paidUntilDate, deliveryDate);
+      
+      const finalAmount = dayAmount > 0 ? dayAmount : 0;
+
+      if (finalAmount <= 0) {
+        setError('Não há valor a pagar neste dia para este cliente');
+        return;
+      }
+
+      // 2. Registrar pagamento automaticamente com método "Dinheiro"
+      await registerDailyPayment(currentUser.id, clientId, finalAmount, 'Dinheiro', deliveryDate);
+
+      // 3. Marcar entrega como entregue
+      await updateDeliveryStatus(deliveryId, 'delivered');
+
+      // 4. Mostrar feedback de sucesso
+      setError(`✅ ${clientName} - Pagamento de €${finalAmount.toFixed(2)} confirmado e entrega marcada!`);
+      
+      // Limpar mensagem após 5 segundos
+      setTimeout(() => {
+        setError('');
+      }, 5000);
+
+    } catch (err) {
+      console.error('Erro ao processar pagamento rápido:', err);
+      setError(`Erro ao processar pagamento: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -1731,7 +1781,7 @@ const DriverDailyDeliveries: React.FC = () => {
                             )}
                             {/* Botão Receber Pagamento */}
                             <button
-                              onClick={() => handleOpenPaymentModal(delivery.clientId, delivery.clientName)}
+                              onClick={() => handleQuickDailyPayment(delivery.clientId, delivery.clientName, delivery.id, delivery.date)}
                               className="flex items-center gap-1 px-3 py-2 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 text-sm"
                             >
                               <Banknote size={14} />
@@ -1753,7 +1803,7 @@ const DriverDailyDeliveries: React.FC = () => {
                                 <div className="flex flex-wrap gap-1 justify-end">
                                   {/* Botão Receber Pagamento */}
                                   <button
-                                    onClick={() => handleOpenPaymentModal(delivery.clientId, delivery.clientName)}
+                                    onClick={() => handleQuickDailyPayment(delivery.clientId, delivery.clientName, delivery.id, delivery.date)}
                                     className="flex items-center gap-1 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 text-xs"
                                   >
                                     <Banknote size={12} />
