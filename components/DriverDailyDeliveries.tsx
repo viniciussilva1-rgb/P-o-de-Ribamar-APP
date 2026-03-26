@@ -1799,6 +1799,26 @@ const DriverDailyDeliveries: React.FC = () => {
                                     {new Date(delivery.deliveredAt).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}
                                   </span>
                                 )}
+                                
+                                {/* Informações de Pagamento */}
+                                {(() => {
+                                  const paymentInfo = getClientPaymentInfo(delivery.clientId);
+                                  return (
+                                    <div className="text-xs text-gray-500 space-y-0.5 mb-2 text-right">
+                                      {paymentInfo.lastPaymentDate && (
+                                        <div>
+                                          <span className="font-medium">Último pag:</span> {new Date(paymentInfo.lastPaymentDate).toLocaleDateString('pt-PT')}
+                                        </div>
+                                      )}
+                                      {paymentInfo.paidUntilDate && (
+                                        <div>
+                                          <span className="font-medium">Pago até:</span> <span className="text-green-600">{new Date(paymentInfo.paidUntilDate).toLocaleDateString('pt-PT')}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
+                                
                                 {/* Botões de ação para entrega confirmada */}
                                 <div className="flex flex-wrap gap-1 justify-end">
                                   {/* Botão Receber Pagamento */}
@@ -1819,6 +1839,17 @@ const DriverDailyDeliveries: React.FC = () => {
                                     >
                                       <XCircle size={12} />
                                       {processingId === delivery.clientId ? '...' : 'Cancelar €'}
+                                    </button>
+                                  )}
+                                  {/* Botão Corrigir Valor (se tiver pagamento hoje) */}
+                                  {getClientTodayPayment(delivery.clientId) > 0 && (
+                                    <button
+                                      onClick={() => handleOpenPaymentModal(delivery.clientId, delivery.clientName)}
+                                      className="flex items-center gap-1 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 text-xs"
+                                      title="Editar valor do pagamento"
+                                    >
+                                      <Edit3 size={12} />
+                                      Corrigir €
                                     </button>
                                   )}
                                   {/* Botão Reverter Entrega */}
