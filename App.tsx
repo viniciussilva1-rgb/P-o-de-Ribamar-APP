@@ -93,11 +93,11 @@ const AppContent: React.FC = () => {
 
 function App() {
   return (
-    <DataProvider>
-      <AuthProvider>
+    <AuthProvider>
+      <DataProvider>
         <AppContent />
-      </AuthProvider>
-    </DataProvider>
+      </DataProvider>
+    </AuthProvider>
   );
 }
 

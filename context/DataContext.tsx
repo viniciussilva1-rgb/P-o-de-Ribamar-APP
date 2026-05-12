@@ -3,6 +3,7 @@ import { User, Client, UserRole, Product, ProductionData, DailyProductionRecord,
 import { INITIAL_PRODUCTS, MOCK_ADMIN_EMAIL } from '../constants';
 import { db } from '../firebaseConfig'; // Import database
 import { collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot, query, where, getDocs, writeBatch, getDoc } from 'firebase/firestore';
+import { useAuth } from './AuthContext';
 
 interface DataContextType {
   users: User[];
@@ -139,10 +140,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Flag para garantir que o seed de produtos só acontece uma vez
   const [productsSeeded, setProductsSeeded] = useState(false);
 
+  // Aguarda autenticação estar completa antes de fazer queries
+  const { loading: authLoading } = useAuth();
+
   // --- FIREBASE LISTENERS (Realtime Sync) ---
 
   // 1. Users
   useEffect(() => {
+    if (authLoading) return; // Aguarda autenticação estar completa
+
     const unsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
       const usersList = snapshot.docs.map(snap => {
         const data = snap.data() as Partial<User>;
@@ -172,19 +178,23 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUsers(usersList);
     });
     return () => unsubscribe();
-  }, []);
+  }, [authLoading]);
 
   // 2. Clients
   useEffect(() => {
+    if (authLoading) return; // Aguarda autenticação estar completa
+
     const unsubscribe = onSnapshot(collection(db, 'clients'), (snapshot) => {
       const list = snapshot.docs.map(doc => doc.data() as Client);
       setClients(list);
     });
     return () => unsubscribe();
-  }, []);
+  }, [authLoading]);
 
   // 3. Products
   useEffect(() => {
+    if (authLoading) return; // Aguarda autenticação estar completa
+
     // Setup listener para produtos (escuta Firestore em tempo real)
     const unsubscribe = onSnapshot(collection(db, 'products'), async (snapshot) => {
       const list = snapshot.docs.map(doc => doc.data() as Product);
@@ -219,20 +229,24 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
     
     return () => unsubscribe();
-  }, [productsSeeded]);
+  }, [productsSeeded, authLoading]);
 
   // 4. Routes
   useEffect(() => {
+    if (authLoading) return; // Aguarda autenticação estar completa
+
     const unsubscribe = onSnapshot(collection(db, 'routes'), (snapshot) => {
       const list = snapshot.docs.map(doc => doc.data() as Route);
       setRoutes(list);
     });
     return () => unsubscribe();
-  }, []);
+  }, [authLoading]);
 
   // 5. Production
   // Estratégia: Escutar coleção 'daily_production', onde ID = Data (YYYY-MM-DD)
   useEffect(() => {
+    if (authLoading) return; // Aguarda autenticação estar completa
+
     const unsubscribe = onSnapshot(collection(db, 'daily_production'), (snapshot) => {
       const prodMap: ProductionData = {};
       snapshot.docs.forEach(docSnap => {
@@ -241,10 +255,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setProductionData(prodMap);
     });
     return () => unsubscribe();
-  }, []);
+  }, [authLoading]);
 
   // 6. Daily Loads (Carga do Dia) - Apenas últimos 7 dias
   useEffect(() => {
+    if (authLoading) return; // Aguarda autenticação estar completa
+
     const today = new Date();
     const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
     const startDate = sevenDaysAgo.toISOString().split('T')[0];
@@ -262,10 +278,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setDailyLoads(loadsList);
     });
     return () => unsubscribe();
-  }, []);
+  }, [authLoading]);
 
   // 7. Client Deliveries (Entrega do Dia) - Apenas últimos 7 dias
   useEffect(() => {
+    if (authLoading) return; // Aguarda autenticação estar completa
+
     const today = new Date();
     const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
     const startDate = sevenDaysAgo.toISOString().split('T')[0];
@@ -283,11 +301,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setClientDeliveries(deliveriesList);
     });
     return () => unsubscribe();
-  }, []);
+  }, [authLoading]);
 
   // 7.1 Corrigir nomes de produtos genéricos nas entregas existentes
   useEffect(() => {
-    if (products.length === 0 || clientDeliveries.length === 0) return;
+    if (authLoading || products.length === 0 || clientDeliveries.length === 0) return;
     
     const fixProductNames = async () => {
       const deliveriesToFix = clientDeliveries.filter(d => 
@@ -334,6 +352,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // 8. Dynamic Consumption Records (Histórico de Escolha Dinâmica) - Apenas últimos 7 dias
   useEffect(() => {
+    if (authLoading) return; // Aguarda autenticação estar completa
+
     const today = new Date();
     const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
     const startDate = sevenDaysAgo.toISOString().split('T')[0];
@@ -351,10 +371,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setDynamicConsumptionRecords(recordsList);
     });
     return () => unsubscribe();
-  }, []);
+  }, [authLoading]);
 
   // 9. Daily Cash Funds (Fundo de Caixa Diário) - Apenas últimos 7 dias
   useEffect(() => {
+    if (authLoading) return; // Aguarda autenticação estar completa
+
     const today = new Date();
     const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
     const startDate = sevenDaysAgo.toISOString().split('T')[0];
@@ -372,10 +394,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setDailyCashFunds(fundsList);
     });
     return () => unsubscribe();
-  }, []);
+  }, [authLoading]);
 
   // 10. Daily Driver Closures (Fecho Diário do Entregador) - Apenas últimos 7 dias
   useEffect(() => {
+    if (authLoading) return; // Aguarda autenticação estar completa
+
     const today = new Date();
     const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
     const startDate = sevenDaysAgo.toISOString().split('T')[0];
@@ -393,10 +417,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setDailyDriverClosures(closuresList);
     });
     return () => unsubscribe();
-  }, []);
+  }, [authLoading]);
 
   // 11. Daily Payments Received (Pagamentos Recebidos) - Apenas últimos 7 dias
   useEffect(() => {
+    if (authLoading) return; // Aguarda autenticação estar completa
+
     const today = new Date();
     const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
     const startDate = sevenDaysAgo.toISOString().split('T')[0];
@@ -414,10 +440,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setDailyPaymentsReceived(paymentsList);
     });
     return () => unsubscribe();
-  }, []);
+  }, [authLoading]);
 
   // 12. Weekly Settlements (Fecho Semanal) - Apenas últimos 4 semanas
   useEffect(() => {
+    if (authLoading) return; // Aguarda autenticação estar completa
+
     const today = new Date();
     const fourWeeksAgo = new Date(today.getTime() - 4 * 7 * 24 * 60 * 60 * 1000);
     const startDate = fourWeeksAgo.toISOString().split('T')[0];
@@ -435,10 +463,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setWeeklySettlements(settlementsList);
     });
     return () => unsubscribe();
-  }, []);
+  }, [authLoading]);
 
   // 13. Production Analysis (Análise de Produção) - Apenas últimos 30 dias
   useEffect(() => {
+    if (authLoading) return; // Aguarda autenticação estar completa
+
     const today = new Date();
     const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
     const startDate = thirtyDaysAgo.toISOString().split('T')[0];
@@ -458,7 +488,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setProductionAnalysis(analysisList);
     });
     return () => unsubscribe();
-  }, []);
+  }, [authLoading]);
 
   // --- ACTIONS (Write to Firebase) ---
 
