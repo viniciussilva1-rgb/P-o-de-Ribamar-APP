@@ -297,16 +297,28 @@ const DriverDailyDeliveries: React.FC = () => {
 
   // Gerar entregas do dia
   const handleGenerateDeliveries = async () => {
-    if (!currentUser?.id) return;
+    if (!currentUser?.id) {
+      setError('Usuário não autenticado');
+      return;
+    }
     
     setLoading(true);
     setError('');
     
     try {
+      console.log(`[ENTREGAS] Gerando entregas para ${selectedDate}...`);
       const generated = await generateDailyDeliveries(currentUser.id, selectedDate);
+      console.log(`[ENTREGAS] ✓ ${generated.length} entregas geradas/carregadas para ${selectedDate}`);
+      
+      if (generated.length === 0) {
+        setError('Nenhum cliente agendado para este dia.');
+      } else {
+        setError(''); // Limpar erros anteriores
+      }
+      
       setDeliveries(generated);
     } catch (err: any) {
-      console.error('Erro ao gerar entregas:', err);
+      console.error('[ENTREGAS] ✗ Erro ao gerar entregas:', err);
       const errorMessage = err?.message || err?.code || 'Erro desconhecido';
       if (errorMessage.includes('permission-denied')) {
         setError('Erro de permissão. Contacte o administrador para verificar as regras do Firestore.');
@@ -1097,6 +1109,27 @@ const DriverDailyDeliveries: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Exibir Mensagem de Erro ou Info */}
+      {error && (
+        <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle size={20} className="text-red-500 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-medium text-red-800">Aviso</h3>
+              <p className="text-red-700 text-sm mt-1">{error}</p>
+              {error.includes('Nenhum cliente') && (
+                <button
+                  onClick={handleGenerateDeliveries}
+                  className="mt-3 text-sm font-medium text-red-600 hover:text-red-800 underline"
+                >
+                  Tentar novamente
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Seletor de Rota */}
       {myRoutes.length > 0 && (
