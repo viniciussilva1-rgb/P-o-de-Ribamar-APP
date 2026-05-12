@@ -590,7 +590,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const addProduct = async (product: Product) => {
-    await setDoc(doc(db, 'products', product.id), product);
+    await setDoc(doc(db, 'products', product.id), product, { merge: true });
   };
 
   const deleteProduct = async (id: string) => {
