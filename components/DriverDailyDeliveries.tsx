@@ -198,6 +198,33 @@ const DriverDailyDeliveries: React.FC = () => {
   const [paymentAmount, setPaymentAmount] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<string>('Dinheiro');
   const [paidUntilDate, setPaidUntilDate] = useState<string>(new Date().toISOString().split('T')[0]);
+
+  // Atualizar a data automaticamente quando passa da meia-noite
+  useEffect(() => {
+    const updateDateIfNeeded = () => {
+      const currentToday = new Date().toISOString().split('T')[0];
+      if (currentToday !== selectedDate) {
+        console.log(`[DATE] Data atualizada de ${selectedDate} para ${currentToday}`);
+        setSelectedDate(currentToday);
+      }
+    };
+
+    // Verificar a cada minuto se a data mudou
+    const interval = setInterval(updateDateIfNeeded, 60000);
+    
+    // Também verificar quando o documento fica visível novamente (abas)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        updateDateIfNeeded();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [selectedDate]);
   const [savingPayment, setSavingPayment] = useState(false);
   const [clientDebt, setClientDebt] = useState<number>(0);
 
