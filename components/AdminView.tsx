@@ -1172,15 +1172,19 @@ export const ProductCatalog: React.FC = () => {
     setLoading(true);
     
     try {
-      const productData = {
-        id: editingProduct?.id || `prod-${Date.now()}`,
-        name: newProductName,
-        price: parseFloat(newProductPrice) || 0,
-      };
-
       if (editingProduct) {
-        await updateProduct(editingProduct.id, productData);
+        // Atualizar produto existente - apenas name e price
+        await updateProduct(editingProduct.id, {
+          name: newProductName,
+          price: parseFloat(newProductPrice) || 0,
+        });
       } else {
+        // Criar novo produto
+        const productData = {
+          id: `prod-${Date.now()}`,
+          name: newProductName,
+          price: parseFloat(newProductPrice) || 0,
+        };
         await addProduct(productData);
       }
 

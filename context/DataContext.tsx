@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { User, Client, UserRole, Product, ProductionData, DailyProductionRecord, Route, PaymentTransaction, DeliverySchedule, DailyLoad, LoadItem, ReturnItem, DailyLoadReport, ProductionSuggestion, ClientDelivery, DeliveryStatus, DriverDailySummary, AdminDeliveryReport, DeliveryItem, DynamicConsumptionRecord, ProductConsumptionStats, DynamicClientHistory, DynamicClientPrediction, DynamicLoadSummary, DailyCashFund, DailyDriverClosure, DailyPaymentReceived, WeeklyDriverSettlement, ClientPaymentSummary, ClientConsumptionHistory, ClientInvoice, DailyProductionAnalysis, DailyProductionAnalysisItem, WeekdayProductionComparison, ProductionAnalysisSuggestion } from '../types';
 import { INITIAL_PRODUCTS, MOCK_ADMIN_EMAIL } from '../constants';
 import { db } from '../firebaseConfig'; // Import database
@@ -139,6 +139,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   
   // Flag para garantir que o seed de produtos só acontece uma vez
   const [productsSeeded, setProductsSeeded] = useState(false);
+  const seedAttempts = useRef(0);
 
   // Aguarda autenticação estar completa e verifica se há usuário autenticado
   const { loading: authLoading, currentUser } = useAuth();
@@ -210,20 +211,23 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       // Se não há produtos e ainda não foi feito seed, fazer seed
       if (list.length === 0 && !productsSeeded) {
-        console.log('[SEED] Nenhum produto encontrado. Iniciando seed...');
+        seedAttempts.current += 1;
+        console.log(`[SEED] Tentativa ${seedAttempts.current}: Nenhum produto encontrado. Iniciando seed...`);
         setProductsSeeded(true);
         
         try {
           const batch = writeBatch(db);
           INITIAL_PRODUCTS.forEach(p => {
-            batch.set(doc(db, 'products', p.id), p);
+            // ⚠️ IMPORTANTE: Usar merge: true para não sobrescrever preços já atualizados
+            batch.set(doc(db, 'products', p.id), p, { merge: true });
           });
           await batch.commit();
-          console.log('[SEED] ✓ Seed concluído com sucesso. Produtos adicionados ao Firestore.');
+          console.log(`[SEED] ✓ Seed concluído com sucesso. Produtos adicionados ao Firestore. (Tentativa: ${seedAttempts.current})`);
           setProducts(INITIAL_PRODUCTS);
         } catch (err) {
-          console.error('[SEED] ✗ Erro ao fazer seed:', err);
-          setProductsSeeded(false);
+          console.error(`[SEED] ✗ Erro ao fazer seed (Tentativa: ${seedAttempts.current}):`, err);
+          // NÃO resetar productsSeeded para evitar tentativas infinitas de seed
+          // setProductsSeeded(false);
         }
       }
     });
