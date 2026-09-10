@@ -132,7 +132,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
       image.src = dataUrl;
     });
 
-    const maxWidth = 1200;
+    const maxWidth = 1000;
     const ratio = img.width > maxWidth ? maxWidth / img.width : 1;
     const width = Math.round(img.width * ratio);
     const height = Math.round(img.height * ratio);
@@ -147,7 +147,17 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
     }
 
     ctx.drawImage(img, 0, 0, width, height);
-    return canvas.toDataURL('image/jpeg', 0.82);
+    // Tenta manter a imagem abaixo de ~750KB para evitar erro de limite no Firestore.
+    const qualitySteps = [0.8, 0.72, 0.66, 0.58];
+    for (const quality of qualitySteps) {
+      const candidate = canvas.toDataURL('image/jpeg', quality);
+      const estimatedBytes = Math.ceil((candidate.length * 3) / 4);
+      if (estimatedBytes < 750000) {
+        return candidate;
+      }
+    }
+
+    return canvas.toDataURL('image/jpeg', 0.5);
   };
 
   const openCardEditor = (bread: Bread) => {
@@ -202,7 +212,14 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
       setHeroImageFileEdit(null);
     } catch (error) {
       console.error('Erro ao salvar imagem principal da home:', error);
-      alert('Nao foi possivel salvar a imagem principal da home.');
+      const errorCode = (error as { code?: string })?.code || '';
+      if (errorCode.includes('permission-denied')) {
+        alert('Sem permissao para salvar no Firestore. Tente sair e entrar novamente no sistema.');
+      } else if (errorCode.includes('resource-exhausted') || errorCode.includes('invalid-argument')) {
+        alert('A imagem esta muito grande. Use uma imagem menor para continuar.');
+      } else {
+        alert('Nao foi possivel salvar a imagem principal da home.');
+      }
     } finally {
       setSavingHeroEdit(false);
     }

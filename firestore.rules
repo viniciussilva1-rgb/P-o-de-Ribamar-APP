@@ -39,6 +39,12 @@ service cloud.firestore {
       allow create, update, delete: if request.auth != null;
     }
 
+    // Conteudo da Home (publico): leitura para todos, escrita apenas autenticados
+    match /home_content/{docId} {
+      allow read: if true;
+      allow create, update, delete: if request.auth != null;
+    }
+
     // Produção diária: todos autenticados podem ler/escrever
     match /production/{date}/{document=**} {
       allow read, write: if request.auth != null;
