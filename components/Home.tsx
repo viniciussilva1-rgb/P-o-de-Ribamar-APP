@@ -13,10 +13,10 @@ interface Bread {
 const breads: Bread[] = [
   {
     id: '1',
-    name: 'Pao Rustico de Fermentacao Natural',
-    description: 'Casca crocante, miolo aerado e sabor marcante para acompanhar qualquer refeicao.',
-    image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1400&q=80',
-    price: 'EUR 3,90',
+    name: 'Bolinha',
+    description: 'Pao leve e macio, ideal para consumo diario.',
+    image: 'https://images.unsplash.com/photo-1608198093002-ad4e005484ec?auto=format&fit=crop&w=1400&q=80',
+    price: 'EUR 0,40',
   },
   {
     id: '2',
@@ -161,7 +161,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
       <section className="breads-section" id="catalogo">
         <div className="section-container">
           <h2 className="section-title">Selecao de Paes</h2>
-          <p className="section-subtitle">Fotografia real dos produtos e informacao objetiva para apoiar a decisao.</p>
+          <p className="section-subtitle">Catalogo informativo com os produtos disponiveis e respetivo preco unitario.</p>
 
           <div className="breads-grid">
             {breads.map((bread) => (
@@ -172,8 +172,8 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
                 <h3 className="bread-name">{bread.name}</h3>
                 <p className="bread-description">{bread.description}</p>
                 <div className="bread-footer">
-                  <span>{bread.price}</span>
-                  <button onClick={handleMakeOrderClick}>Pedir</button>
+                  <span className="unit-price">Preco unitario</span>
+                  <strong>{bread.price}</strong>
                 </div>
               </article>
             ))}
