@@ -15,7 +15,7 @@ const breads: Bread[] = [
     id: '1',
     name: 'Bolinha',
     description: 'Pao leve e macio, ideal para consumo diario.',
-    image: 'https://images.unsplash.com/photo-1608198093002-ad4e005484ec?auto=format&fit=crop&w=1400&q=80',
+    image: '/produtos/bolinha.jpg',
     price: 'EUR 0,40',
   },
   {
@@ -167,7 +167,14 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
             {breads.map((bread) => (
               <article key={bread.id} className="bread-card">
                 <div className="bread-image-wrap">
-                  <img src={bread.image} alt={bread.name} className="bread-image" />
+                  <img
+                    src={bread.image}
+                    alt={bread.name}
+                    className="bread-image"
+                    onError={(e) => {
+                      e.currentTarget.src = 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1400&q=80';
+                    }}
+                  />
                 </div>
                 <h3 className="bread-name">{bread.name}</h3>
                 <p className="bread-description">{bread.description}</p>
