@@ -4,6 +4,7 @@ import { DataProvider } from './context/DataContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Login } from './components/Login';
 import { Layout } from './components/Layout';
+import Home from './components/Home';
 import { DriversOverview, ProductCatalog, ProductionManager, ClientManager, RoutePriceEditor, ProductionAnalysis } from './components/AdminView';
 import { DriverView } from './components/DriverView';
 import DriverDailyLoad from './components/DriverDailyLoad';
@@ -19,7 +20,8 @@ import useSyncEntregadorFirestore from './hooks/useSyncEntregadorFirestore';
 const AppContent: React.FC = () => {
   const { currentUser } = useAuth();
   // Changed default to 'drivers' for Admin, 'my-clients' for Driver
-  const [activeTab, setActiveTab] = useState('drivers'); 
+  const [activeTab, setActiveTab] = useState('drivers');
+  const [viewMode, setViewMode] = useState<'home' | 'login' | 'dashboard'>('home');
 
   // Sincroniza automaticamente o entregador autenticado com Firestore (coleção 'entregadores')
   // Desativado temporariamente - coleção não está sendo usada
@@ -28,16 +30,27 @@ const AppContent: React.FC = () => {
   // Determine initial tab based on role if needed
   React.useEffect(() => {
     if (currentUser) {
+      setViewMode('dashboard');
       if (currentUser.role === UserRole.ADMIN && activeTab === 'my-clients') {
         setActiveTab('drivers');
       } else if (currentUser.role === UserRole.DRIVER && activeTab === 'drivers') {
         setActiveTab('dashboard');
       }
+    } else {
+      setViewMode('home');
     }
   }, [currentUser]);
 
-  if (!currentUser) {
+  if (viewMode === 'home' && !currentUser) {
+    return <Home />;
+  }
+
+  if (viewMode === 'login' && !currentUser) {
     return <Login />;
+  }
+
+  if (!currentUser) {
+    return <Home />;
   }
 
   const renderAdminContent = () => {
