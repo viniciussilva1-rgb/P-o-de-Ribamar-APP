@@ -496,11 +496,11 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
         </div>
       </section>
 
-      {isPreviewMode && isCardEditOpen && editingBread && (
+      {isPreviewMode && isCardEditOpen && (editingBread || isCreatingCard) && (
         <div className="home-edit-modal-backdrop">
           <div className="home-edit-modal">
             <div className="home-edit-modal-header">
-              <h3>Editar Produto na Home</h3>
+              <h3>{isCreatingCard ? 'Adicionar Produto na Home' : 'Editar Produto na Home'}</h3>
               <button
                 type="button"
                 onClick={() => {
