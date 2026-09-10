@@ -1201,6 +1201,7 @@ export const ProductCatalog: React.FC = () => {
             name: string;
             description: string;
             imageUrl: string;
+            priceSnapshot: number;
             sortOrder: number;
             active: boolean;
           }>;
@@ -1392,6 +1393,7 @@ export const ProductCatalog: React.FC = () => {
         name: homeName.trim() || selectedProduct.name,
         description: homeDescription.trim(),
         imageUrl,
+        priceSnapshot: selectedProduct.price,
         sortOrder: parseInt(homeSortOrder, 10) || 0,
         active: homeActive,
         updatedAt: new Date().toISOString(),

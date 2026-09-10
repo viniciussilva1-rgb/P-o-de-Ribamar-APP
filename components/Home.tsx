@@ -27,6 +27,7 @@ interface HomeProductDoc {
   name?: string;
   description?: string;
   imageUrl?: string;
+  priceSnapshot?: number;
   price?: number;
   active?: boolean;
   sortOrder?: number;
@@ -215,6 +216,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
           name: data.name,
           description: data.description,
           imageUrl: data.imageUrl,
+          priceSnapshot: data.priceSnapshot,
           price: data.price,
           active: data.active !== false,
           sortOrder: Number(data.sortOrder) || 9999,
@@ -262,7 +264,9 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
 
           const product = productById || productByName;
           const name = item.name?.trim() || product?.name || 'Produto';
-          const price = product ? product.price : (Number(item.price) || 0);
+          const price = product
+            ? product.price
+            : (Number(item.priceSnapshot) || Number(item.price) || 0);
 
           return {
             id: item.id,
