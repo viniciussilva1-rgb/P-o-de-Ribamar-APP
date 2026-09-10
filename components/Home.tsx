@@ -1,11 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Clock3, LogIn, Mail, MapPin, Phone, Truck } from 'lucide-react';
-import { collection, doc, onSnapshot } from 'firebase/firestore';
+import { collection, doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import '../styles/HomeStyles.css';
 
 interface Bread {
   id: string;
+  homeDocId?: string;
+  productId?: string;
+  sortOrder?: number;
   name: string;
   description: string;
   image: string;
@@ -90,8 +93,104 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
   const [products, setProducts] = useState<ProductDoc[]>([]);
   const [homeProductsConfig, setHomeProductsConfig] = useState<HomeProductDoc[]>([]);
   const [homeContent, setHomeContent] = useState<HomeContent>(defaultHomeContent);
+  const [isCardEditOpen, setIsCardEditOpen] = useState(false);
+  const [editingBread, setEditingBread] = useState<Bread | null>(null);
+  const [editCardName, setEditCardName] = useState('');
+  const [editCardDescription, setEditCardDescription] = useState('');
+  const [editCardImageUrl, setEditCardImageUrl] = useState('');
+  const [editCardImageFile, setEditCardImageFile] = useState<File | null>(null);
+  const [savingCardEdit, setSavingCardEdit] = useState(false);
 
   const formatPrice = (value: number) => `EUR ${value.toFixed(2).replace('.', ',')}`;
+
+  const fileToDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const compressImage = async (file: File): Promise<string> => {
+    const dataUrl = await fileToDataUrl(file);
+
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = reject;
+      image.src = dataUrl;
+    });
+
+    const maxWidth = 1200;
+    const ratio = img.width > maxWidth ? maxWidth / img.width : 1;
+    const width = Math.round(img.width * ratio);
+    const height = Math.round(img.height * ratio);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return dataUrl;
+    }
+
+    ctx.drawImage(img, 0, 0, width, height);
+    return canvas.toDataURL('image/jpeg', 0.82);
+  };
+
+  const openCardEditor = (bread: Bread) => {
+    setEditingBread(bread);
+    setEditCardName(bread.name);
+    setEditCardDescription(bread.description);
+    setEditCardImageUrl(bread.image);
+    setEditCardImageFile(null);
+    setIsCardEditOpen(true);
+  };
+
+  const handleSaveCardEdit = async () => {
+    if (!editingBread) return;
+
+    setSavingCardEdit(true);
+    try {
+      let imageUrl = editCardImageUrl.trim();
+      if (editCardImageFile) {
+        imageUrl = await compressImage(editCardImageFile);
+      }
+
+      const existingConfig = homeProductsConfig.find((item) => item.id === editingBread.homeDocId)
+        || homeProductsConfig.find((item) => item.productId === editingBread.productId);
+
+      const docId = existingConfig?.id || editingBread.homeDocId || `home-${editingBread.productId || Date.now()}`;
+      const resolvedProductId = editingBread.productId || existingConfig?.productId || editingBread.id;
+
+      const payload: Record<string, unknown> = {
+        productId: resolvedProductId,
+        name: editCardName.trim(),
+        description: editCardDescription.trim(),
+        imageUrl,
+        active: true,
+        sortOrder: existingConfig?.sortOrder ?? editingBread.sortOrder ?? 9999,
+        updatedAt: new Date().toISOString(),
+      };
+
+      if (!existingConfig) {
+        payload.createdAt = new Date().toISOString();
+      }
+
+      await setDoc(doc(db, 'home_products', docId), payload, { merge: true });
+
+      setIsCardEditOpen(false);
+      setEditingBread(null);
+      setEditCardImageFile(null);
+    } catch (error) {
+      console.error('Erro ao salvar edicao do card:', error);
+      alert('Nao foi possivel salvar a edicao deste produto.');
+    } finally {
+      setSavingCardEdit(false);
+    }
+  };
 
   useEffect(() => {
     const unsubscribeProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
@@ -162,7 +261,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
             : undefined;
 
           const product = productById || productByName;
-          const name = product?.name || item.name || 'Produto';
+          const name = item.name?.trim() || product?.name || 'Produto';
           const price = product ? product.price : (Number(item.price) || 0);
 
           return {
@@ -170,6 +269,9 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
             sortOrder: Number(item.sortOrder) || 9999,
             card: {
               id: item.id,
+              homeDocId: item.id,
+              productId: product?.id || item.productId,
+              sortOrder: Number(item.sortOrder) || 9999,
               name,
               description: item.description || 'Produto disponivel no catalogo da padaria.',
               image: item.imageUrl || 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1400&q=80',
@@ -188,6 +290,8 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
     if (products.length > 0) {
       return products.slice(0, 8).map((p) => ({
         id: p.id,
+        productId: p.id,
+        sortOrder: 9999,
         name: p.name,
         description: 'Produto disponivel no catalogo da padaria.',
         image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1400&q=80',
@@ -333,12 +437,91 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
                 <div className="bread-footer">
                   <span className="unit-price">Preco unitario</span>
                   <strong>{bread.price}</strong>
+                  {isPreviewMode && (
+                    <button
+                      type="button"
+                      className="home-card-edit-btn"
+                      onClick={() => openCardEditor(bread)}
+                    >
+                      Editar
+                    </button>
+                  )}
                 </div>
               </article>
             ))}
           </div>
         </div>
       </section>
+
+      {isPreviewMode && isCardEditOpen && editingBread && (
+        <div className="home-edit-modal-backdrop">
+          <div className="home-edit-modal">
+            <div className="home-edit-modal-header">
+              <h3>Editar Produto na Home</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCardEditOpen(false);
+                  setEditingBread(null);
+                  setEditCardImageFile(null);
+                }}
+              >
+                Fechar
+              </button>
+            </div>
+
+            <div className="home-edit-modal-body">
+              <label>Nome exibido</label>
+              <input
+                type="text"
+                value={editCardName}
+                onChange={(e) => setEditCardName(e.target.value)}
+              />
+
+              <label>Descricao</label>
+              <textarea
+                rows={4}
+                value={editCardDescription}
+                onChange={(e) => setEditCardDescription(e.target.value)}
+              ></textarea>
+
+              <label>Trocar imagem (do seu PC)</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  setEditCardImageFile(file);
+                }}
+              />
+
+              <p className="home-edit-modal-tip">O preco continua sincronizado com o produto oficial do sistema.</p>
+            </div>
+
+            <div className="home-edit-modal-actions">
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  setIsCardEditOpen(false);
+                  setEditingBread(null);
+                  setEditCardImageFile(null);
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="primary"
+                onClick={handleSaveCardEdit}
+                disabled={savingCardEdit}
+              >
+                {savingCardEdit ? 'Salvando...' : 'Salvar alteracoes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <section className="features-section" id="entrega">
         <div className="section-container">

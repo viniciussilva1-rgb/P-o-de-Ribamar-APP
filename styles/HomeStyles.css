@@ -379,6 +379,129 @@ body {
   letter-spacing: 0.03em;
 }
 
+.home-card-edit-btn {
+  margin-left: auto;
+  border: 1px solid rgba(127, 64, 25, 0.35);
+  background: #fff;
+  color: var(--brand-dark);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.home-card-edit-btn:hover {
+  border-color: rgba(127, 64, 25, 0.6);
+  background: rgba(127, 64, 25, 0.05);
+}
+
+.home-edit-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(14, 11, 8, 0.44);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.home-edit-modal {
+  width: min(620px, 100%);
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  box-shadow: 0 28px 60px rgba(22, 15, 10, 0.25);
+}
+
+.home-edit-modal-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.home-edit-modal-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #2a2017;
+}
+
+.home-edit-modal-header button {
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.home-edit-modal-body {
+  padding: 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.home-edit-modal-body label {
+  font-size: 0.9rem;
+  color: #35291f;
+  font-weight: 600;
+}
+
+.home-edit-modal-body input,
+.home-edit-modal-body textarea {
+  border: 1px solid #d8cdc0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  color: #221910;
+}
+
+.home-edit-modal-body input:focus,
+.home-edit-modal-body textarea:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 4px rgba(173, 95, 43, 0.13);
+}
+
+.home-edit-modal-tip {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+.home-edit-modal-actions {
+  padding: 12px 16px 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.home-edit-modal-actions button {
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 0;
+}
+
+.home-edit-modal-actions .secondary {
+  background: #efe7dc;
+  color: #4e3d2f;
+}
+
+.home-edit-modal-actions .primary {
+  background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+  color: #fff;
+}
+
+.home-edit-modal-actions .primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .features-section {
   padding: 86px 0;
   background: linear-gradient(180deg, #f6efe5 0%, #f4ecdf 100%);
