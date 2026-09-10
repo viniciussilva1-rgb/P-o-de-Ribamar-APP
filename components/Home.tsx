@@ -1,22 +1,44 @@
-import React, { useState, useEffect } from 'react';
-import { Mail, MapPin, Phone, Clock, ChefHat, Truck, LogIn } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowRight, Clock3, LogIn, Mail, MapPin, Phone, Truck } from 'lucide-react';
 import '../styles/HomeStyles.css';
 
 interface Bread {
   id: string;
   name: string;
   description: string;
-  emoji: string;
-  color: string;
+  image: string;
+  price: string;
 }
 
 const breads: Bread[] = [
-  { id: '1', name: 'Pão Francês', description: 'Crocante, quentinho e irresistível', emoji: '🥖', color: '#D4A574' },
-  { id: '2', name: 'Pão de Forma', description: 'Macio e perfeito para o café', emoji: '🍞', color: '#C19A6B' },
-  { id: '3', name: 'Pão Integral', description: 'Saudável e nutritivo', emoji: '🥬', color: '#8B7355' },
-  { id: '4', name: 'Broa', description: 'Tradicional e saborosa', emoji: '🥔', color: '#A0826D' },
-  { id: '5', name: 'Croissant', description: 'Folhado e delicioso', emoji: '🥐', color: '#DEB887' },
-  { id: '6', name: 'Pão de Queijo', description: 'Quentinho e com queijo derretido', emoji: '🧀', color: '#E8D4A2' },
+  {
+    id: '1',
+    name: 'Pao Rustico de Fermentacao Natural',
+    description: 'Casca crocante, miolo aerado e sabor marcante para acompanhar qualquer refeicao.',
+    image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1400&q=80',
+    price: 'EUR 3,90',
+  },
+  {
+    id: '2',
+    name: 'Baguete Artesanal',
+    description: 'Assada em alta temperatura para manter textura leve por dentro e dourado por fora.',
+    image: 'https://images.unsplash.com/photo-1608198093002-ad4e005484ec?auto=format&fit=crop&w=1400&q=80',
+    price: 'EUR 2,20',
+  },
+  {
+    id: '3',
+    name: 'Pao de Forma Integral',
+    description: 'Feito com blend de farinhas integrais selecionadas e fermentacao lenta.',
+    image: 'https://images.unsplash.com/photo-1483695028939-5bb13f8648b0?auto=format&fit=crop&w=1400&q=80',
+    price: 'EUR 4,60',
+  },
+  {
+    id: '4',
+    name: 'Croissant de Manteiga',
+    description: 'Folhado delicado com manteiga premium, ideal para cafe da manha ou brunch.',
+    image: 'https://images.unsplash.com/photo-1555507036-ab794f4afe5a?auto=format&fit=crop&w=1400&q=80',
+    price: 'EUR 2,80',
+  },
 ];
 
 interface HomeProps {
@@ -27,34 +49,6 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
   const [formData, setFormData] = useState({ name: '', email: '', message: '' });
   const [address, setAddress] = useState('');
   const [availabilityResult, setAvailabilityResult] = useState<string | null>(null);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [hoveredBread, setHoveredBread] = useState<string | null>(null);
-  const [flour, setFlour] = useState<Array<{ id: number; x: number; y: number }>>([]);
-
-  // Mouse tracking for interactive effects
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePosition({ x: e.clientX, y: e.clientY });
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
-
-  // Flour particles animation on hover
-  const createFlourParticles = (breadId: string) => {
-    setHoveredBread(breadId);
-    const newFlour = Array.from({ length: 12 }).map((_, i) => ({
-      id: Date.now() + i,
-      x: Math.random() * 100 - 50,
-      y: Math.random() * -100,
-    }));
-    setFlour([...flour, ...newFlour]);
-
-    setTimeout(() => {
-      setFlour((prev) => prev.filter((f) => !newFlour.some((nf) => nf.id === f.id)));
-    }, 2000);
-  };
 
   const handleContactSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,9 +61,15 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
   const checkAvailability = () => {
     // Aqui você pode conectar com seu backend para verificar disponibilidade
     if (address.trim()) {
-      setAvailabilityResult(`✅ Ótimo! Entregamos na sua morada! Você receberá seu pão fresquinho a porta da sua casa.`);
+      const normalizedAddress = address.toLowerCase();
+
+      if (normalizedAddress.includes('ribamar') || normalizedAddress.includes('lisboa') || normalizedAddress.includes('oeiras') || normalizedAddress.includes('cascais')) {
+        setAvailabilityResult('Disponibilidade confirmada: entregamos nesta morada entre 06:00 e 09:00.');
+      } else {
+        setAvailabilityResult('Estamos a validar a sua zona. A nossa equipa confirma a disponibilidade em ate 15 minutos.');
+      }
     } else {
-      setAvailabilityResult('❌ Por favor, digite seu endereço para verificar.');
+      setAvailabilityResult('Informe a sua morada para verificar disponibilidade.');
     }
   };
 
@@ -83,19 +83,15 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
   };
 
   return (
-    <div className="home-container">      {/* Header/Navbar */}
-      <header>
+    <div className="home-container">
+      <header className="home-header">
         <div className="home-header-content">
-          <div className="home-logo">
-            🥖 Pão de Ribamar
-          </div>
+          <div className="home-logo">Padaria Ribamar</div>
           <nav className="home-nav-buttons">
-            <a href="#poes" style={{ color: '#8B4513', textDecoration: 'none', fontWeight: '600' }}>
-              Nossos Pães
-            </a>
-            <a href="#contato" style={{ color: '#8B4513', textDecoration: 'none', fontWeight: '600' }}>
-              Contato
-            </a>
+            <a href="#catalogo">Catalogo</a>
+            <a href="#entrega">Entregas</a>
+            <a href="#disponibilidade">Disponibilidade</a>
+            <a href="#contato">Contacto</a>
             <button className="login-button-nav" onClick={handleMakeOrderClick}>
               <LogIn size={18} />
               Login
@@ -103,149 +99,122 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
           </nav>
         </div>
       </header>
-      {/* Flour particles */}
-      {flour.map((particle) => (
-        <div
-          key={particle.id}
-          className="flour-particle"
-          style={
-            {
-              '--flour-x': `${particle.x}px`,
-              '--flour-y': `${particle.y}px`,
-            } as React.CSSProperties
-          }
-        />
-      ))}
-
       <section className="hero-section">
+        <div className="hero-overlay"></div>
+        <div className="steam-layer" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
         <div className="hero-content">
           <div className="hero-text">
-            <h1 className="hero-title">
-              Pão de Ribamar
-              <span className="bread-emoji">🥖</span>
-            </h1>
-            <p className="hero-subtitle">O sabor da tradição. A qualidade do bom dia.</p>
+            <p className="hero-kicker">Padaria artesanal premium</p>
+            <h1 className="hero-title">Pao quente, entrega profissional e experiencia premium a porta.</h1>
+            <p className="hero-subtitle">Produzimos diariamente com fermentacao cuidada e entrega matinal em janelas previsiveis.</p>
             <p className="hero-description">
-              Pães frescos e quentinhos entregues diretamente na sua porta, cada manhã, com todo o carinho.
+              A home foi desenhada para transmitir confianca: fotos reais, linguagem clara, foco em servico e disponibilidade por zona.
             </p>
             <div className="hero-buttons">
               <button className="cta-button" onClick={handleMakeOrderClick}>
-                Fazer Pedido Agora
+                Entrar e Fazer Pedido
+                <ArrowRight size={18} />
               </button>
+              <a href="#catalogo" className="cta-link">Ver catalogo</a>
             </div>
           </div>
-          <div className="hero-animation">
-            <div className="oven-container">
-              <div className="oven">
-                <div className="oven-door"></div>
-                <div className="bread-inside">🥖</div>
-                <div className="steam steam-1"></div>
-                <div className="steam steam-2"></div>
-                <div className="steam steam-3"></div>
-              </div>
+
+          <div className="hero-media">
+            <img
+              src="https://images.unsplash.com/photo-1608198093002-ad4e005484ec?auto=format&fit=crop&w=1400&q=80"
+              alt="Pao artesanal recem assado"
+            />
+            <div className="hero-media-badge">
+              <span>Entrega diaria</span>
+              <strong>06:00 - 09:00</strong>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Our Breads Section */}
-      <section className="breads-section" id="poes">
+      <section className="breads-section" id="catalogo">
         <div className="section-container">
-          <h2 className="section-title">Nossos Pães Especiais</h2>
-          <p className="section-subtitle">Passe o mouse sobre cada pão para ver a magia acontecer! ✨</p>
+          <h2 className="section-title">Selecao de Paes</h2>
+          <p className="section-subtitle">Fotografia real dos produtos e informacao objetiva para apoiar a decisao.</p>
 
           <div className="breads-grid">
             {breads.map((bread) => (
-              <div
-                key={bread.id}
-                className={`bread-card ${hoveredBread === bread.id ? 'active' : ''}`}
-                style={{ '--card-color': bread.color } as React.CSSProperties}
-                onMouseEnter={() => createFlourParticles(bread.id)}
-              >
-                <div className="bread-emoji-large">{bread.emoji}</div>
+              <article key={bread.id} className="bread-card">
+                <div className="bread-image-wrap">
+                  <img src={bread.image} alt={bread.name} className="bread-image" />
+                </div>
                 <h3 className="bread-name">{bread.name}</h3>
                 <p className="bread-description">{bread.description}</p>
-
-                {/* Flour particles inside card */}
-                {hoveredBread === bread.id && (
-                  <div className="flour-burst">
-                    {Array.from({ length: 20 }).map((_, i) => (
-                      <div key={i} className="flour-dot" />
-                    ))}
-                  </div>
-                )}
-
-                {/* Hot steam effect */}
-                {hoveredBread === bread.id && (
-                  <>
-                    <div className="steam-effect steam-eff-1"></div>
-                    <div className="steam-effect steam-eff-2"></div>
-                  </>
-                )}
-              </div>
+                <div className="bread-footer">
+                  <span>{bread.price}</span>
+                  <button onClick={handleMakeOrderClick}>Pedir</button>
+                </div>
+              </article>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="features-section">
+      <section className="features-section" id="entrega">
         <div className="section-container">
-          <h2 className="section-title">Por Que Escolher a Gente?</h2>
+          <h2 className="section-title">Entrega a Porta com Padrao Profissional</h2>
 
           <div className="features-grid">
             <div className="feature-card">
               <div className="feature-icon">
-                <ChefHat size={40} />
+                <Clock3 size={32} />
               </div>
-              <h3>Feito com Amor</h3>
-              <p>Cada pão é preparado com ingredientes frescos e carinho genuíno.</p>
+              <h3>Horario previsivel</h3>
+              <p>Janelas de entrega definidas para facilitar a sua rotina diaria sem atrasos.</p>
             </div>
 
             <div className="feature-card">
               <div className="feature-icon">
-                <Truck size={40} />
+                <Truck size={32} />
               </div>
-              <h3>Entrega na Sua Porta</h3>
-              <p>Receba seu pão quentinho e fresquinho no conforto da sua casa.</p>
+              <h3>Entrega na sua porta</h3>
+              <p>Logistica dedicada para chegar fresco e no ponto ideal de consumo.</p>
             </div>
 
             <div className="feature-card">
               <div className="feature-icon">
-                <Clock size={40} />
+                <MapPin size={32} />
               </div>
-              <h3>Sempre na Hora</h3>
-              <p>Puntualidade garantida. Seu pão nunca chegará frio.</p>
+              <h3>Cobertura por zonas</h3>
+              <p>Atendimento por regiao para manter consistencia e qualidade de entrega.</p>
             </div>
 
             <div className="feature-card">
               <div className="feature-icon">
-                <MapPin size={40} />
+                <Phone size={32} />
               </div>
-              <h3>Cobertura Regional</h3>
-              <p>Entregamos em toda a região. Verifique sua disponibilidade.</p>
+              <h3>Suporte rapido</h3>
+              <p>Contacto directo para ajustes de pedido, morada e periodicidade.</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Availability Checker */}
-      <section className="availability-section">
+      <section className="availability-section" id="disponibilidade">
         <div className="section-container">
-          <h2 className="section-title">Entregamos na Sua Morada?</h2>
-          <p className="section-subtitle">Digite seu endereço para verificar disponibilidade</p>
+          <h2 className="section-title">Verifique a Disponibilidade da Sua Morada</h2>
+          <p className="section-subtitle">Introduza rua e localidade para validacao imediata.</p>
 
           <div className="availability-form">
             <div className="input-group">
               <input
                 type="text"
-                placeholder="Ex: Rua das Flores, 123, Bairro"
+                placeholder="Ex: Rua das Flores 123, Lisboa"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 className="availability-input"
               />
               <button onClick={checkAvailability} className="check-button">
-                Verificar
+                Verificar morada
               </button>
             </div>
 
@@ -258,10 +227,9 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
         </div>
       </section>
 
-      {/* Contact Section */}
       <section className="contact-section" id="contato">
         <div className="section-container">
-          <h2 className="section-title">Fale Conosco</h2>
+          <h2 className="section-title">Contacto Comercial</h2>
 
           <div className="contact-wrapper">
             <div className="contact-info">
@@ -269,7 +237,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
                 <Phone size={32} />
                 <div>
                   <h3>Telefone</h3>
-                  <p>(21) 9999-9999</p>
+                  <p>+351 910 000 000</p>
                 </div>
               </div>
 
@@ -277,15 +245,15 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
                 <Mail size={32} />
                 <div>
                   <h3>Email</h3>
-                  <p>contato@paoderibammar.com.br</p>
+                  <p>comercial@padariaribamar.pt</p>
                 </div>
               </div>
 
               <div className="info-item">
                 <MapPin size={32} />
                 <div>
-                  <h3>Localização</h3>
-                  <p>Ribamar, Rio de Janeiro, RJ</p>
+                  <h3>Base de operacao</h3>
+                  <p>Ribamar, Lisboa, Portugal</p>
                 </div>
               </div>
             </div>
@@ -294,7 +262,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
               <div className="form-group">
                 <input
                   type="text"
-                  placeholder="Seu Nome"
+                  placeholder="O seu nome"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
@@ -304,7 +272,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
               <div className="form-group">
                 <input
                   type="email"
-                  placeholder="Seu Email"
+                  placeholder="O seu email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
@@ -313,7 +281,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
 
               <div className="form-group">
                 <textarea
-                  placeholder="Sua Mensagem"
+                  placeholder="Descreva a sua necessidade"
                   rows={5}
                   value={formData.message}
                   onChange={(e) => setFormData({ ...formData, message: e.target.value })}
@@ -322,18 +290,17 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
               </div>
 
               <button type="submit" className="submit-button">
-                Enviar Mensagem
+                Enviar pedido de contacto
               </button>
             </form>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="footer">
         <div className="section-container">
-          <p>&copy; 2024 Pão de Ribamar. Todos os direitos reservados.</p>
-          <p>Feito com ❤️ e muita farinha.</p>
+          <p>&copy; 2026 Padaria Ribamar. Todos os direitos reservados.</p>
+          <p>Panificacao artesanal com logistica de entrega dedicada.</p>
         </div>
       </footer>
     </div>
