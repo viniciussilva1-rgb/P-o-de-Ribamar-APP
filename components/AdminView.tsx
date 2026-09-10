@@ -1168,22 +1168,28 @@ export const ProductCatalog: React.FC = () => {
 
   const [homeProducts, setHomeProducts] = useState<Array<{
     id: string;
+    productId: string;
     name: string;
     description: string;
     imageUrl: string;
-    price: number;
     sortOrder: number;
     active: boolean;
   }>>([]);
   const [isHomeModalOpen, setIsHomeModalOpen] = useState(false);
   const [editingHomeProductId, setEditingHomeProductId] = useState<string | null>(null);
+  const [homeProductId, setHomeProductId] = useState('');
   const [homeName, setHomeName] = useState('');
   const [homeDescription, setHomeDescription] = useState('');
-  const [homePrice, setHomePrice] = useState('');
   const [homeSortOrder, setHomeSortOrder] = useState('0');
   const [homeImageUrl, setHomeImageUrl] = useState('');
   const [homeImageFile, setHomeImageFile] = useState<File | null>(null);
   const [homeActive, setHomeActive] = useState(true);
+  const [homeHeroKicker, setHomeHeroKicker] = useState('Padaria artesanal premium');
+  const [homeHeroTitle, setHomeHeroTitle] = useState('Pao quente, entrega profissional e experiencia premium a porta.');
+  const [homeHeroSubtitle, setHomeHeroSubtitle] = useState('Produzimos diariamente com fermentacao cuidada e entrega matinal em janelas previsiveis.');
+  const [homeHeroDescription, setHomeHeroDescription] = useState('A home foi desenhada para transmitir confianca: fotos reais, linguagem clara, foco em servico e disponibilidade por zona.');
+  const [homeCatalogTitle, setHomeCatalogTitle] = useState('Selecao de Paes');
+  const [homeCatalogSubtitle, setHomeCatalogSubtitle] = useState('Catalogo informativo com os produtos disponiveis e respetivo preco unitario.');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -1191,20 +1197,24 @@ export const ProductCatalog: React.FC = () => {
       const list = snapshot.docs
         .map((docSnap) => {
           const data = docSnap.data() as Partial<{
+            productId: string;
             name: string;
             description: string;
             imageUrl: string;
-            price: number;
             sortOrder: number;
             active: boolean;
           }>;
 
+          const productId = String(data.productId || '');
+          const linkedProduct = products.find((p) => p.id === productId);
+          const resolvedName = linkedProduct?.name || data.name || 'Produto';
+
           return {
             id: docSnap.id,
-            name: data.name || 'Produto',
+            productId,
+            name: resolvedName,
             description: data.description || '',
             imageUrl: data.imageUrl || '',
-            price: Number(data.price) || 0,
             sortOrder: Number(data.sortOrder) || 0,
             active: data.active !== false,
           };
@@ -1212,6 +1222,30 @@ export const ProductCatalog: React.FC = () => {
         .sort((a, b) => a.sortOrder - b.sortOrder);
 
       setHomeProducts(list);
+    });
+
+    return () => unsubscribe();
+  }, [products]);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(doc(db, 'home_content', 'main'), (docSnap) => {
+      if (!docSnap.exists()) return;
+
+      const data = docSnap.data() as Partial<{
+        heroKicker: string;
+        heroTitle: string;
+        heroSubtitle: string;
+        heroDescription: string;
+        catalogTitle: string;
+        catalogSubtitle: string;
+      }>;
+
+      setHomeHeroKicker(data.heroKicker || 'Padaria artesanal premium');
+      setHomeHeroTitle(data.heroTitle || 'Pao quente, entrega profissional e experiencia premium a porta.');
+      setHomeHeroSubtitle(data.heroSubtitle || 'Produzimos diariamente com fermentacao cuidada e entrega matinal em janelas previsiveis.');
+      setHomeHeroDescription(data.heroDescription || 'A home foi desenhada para transmitir confianca: fotos reais, linguagem clara, foco em servico e disponibilidade por zona.');
+      setHomeCatalogTitle(data.catalogTitle || 'Selecao de Paes');
+      setHomeCatalogSubtitle(data.catalogSubtitle || 'Catalogo informativo com os produtos disponiveis e respetivo preco unitario.');
     });
 
     return () => unsubscribe();
@@ -1256,9 +1290,9 @@ export const ProductCatalog: React.FC = () => {
 
   const resetHomeForm = () => {
     setEditingHomeProductId(null);
+    setHomeProductId('');
     setHomeName('');
     setHomeDescription('');
-    setHomePrice('');
     setHomeSortOrder('0');
     setHomeImageUrl('');
     setHomeImageFile(null);
@@ -1317,17 +1351,17 @@ export const ProductCatalog: React.FC = () => {
 
   const openEditHomeProduct = (product: {
     id: string;
+    productId: string;
     name: string;
     description: string;
     imageUrl: string;
-    price: number;
     sortOrder: number;
     active: boolean;
   }) => {
     setEditingHomeProductId(product.id);
+    setHomeProductId(product.productId);
     setHomeName(product.name);
     setHomeDescription(product.description);
-    setHomePrice(String(product.price));
     setHomeSortOrder(String(product.sortOrder));
     setHomeImageUrl(product.imageUrl);
     setHomeImageFile(null);
@@ -1340,6 +1374,13 @@ export const ProductCatalog: React.FC = () => {
     setLoading(true);
 
     try {
+      const selectedProduct = products.find((p) => p.id === homeProductId);
+      if (!selectedProduct) {
+        alert('Selecione um produto do sistema para o item da home.');
+        setLoading(false);
+        return;
+      }
+
       let imageUrl = homeImageUrl.trim();
 
       if (homeImageFile) {
@@ -1347,10 +1388,10 @@ export const ProductCatalog: React.FC = () => {
       }
 
       const payload = {
-        name: homeName.trim(),
+        productId: selectedProduct.id,
+        name: homeName.trim() || selectedProduct.name,
         description: homeDescription.trim(),
         imageUrl,
-        price: parseFloat(homePrice) || 0,
         sortOrder: parseInt(homeSortOrder, 10) || 0,
         active: homeActive,
         updatedAt: new Date().toISOString(),
@@ -1376,6 +1417,28 @@ export const ProductCatalog: React.FC = () => {
   const handleDeleteHomeProduct = async (id: string) => {
     if (!window.confirm('Deseja excluir este item do catalogo da home?')) return;
     await deleteDoc(doc(db, 'home_products', id));
+  };
+
+  const handleSaveHomeContent = async () => {
+    setLoading(true);
+    try {
+      await setDoc(doc(db, 'home_content', 'main'), {
+        heroKicker: homeHeroKicker.trim(),
+        heroTitle: homeHeroTitle.trim(),
+        heroSubtitle: homeHeroSubtitle.trim(),
+        heroDescription: homeHeroDescription.trim(),
+        catalogTitle: homeCatalogTitle.trim(),
+        catalogSubtitle: homeCatalogSubtitle.trim(),
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+
+      alert('Textos da home atualizados com sucesso.');
+    } catch (err) {
+      console.error('Erro ao salvar textos da home:', err);
+      alert('Erro ao salvar textos da home.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -1427,7 +1490,7 @@ export const ProductCatalog: React.FC = () => {
         <div className="flex justify-between items-center mb-4">
           <div>
             <h3 className="text-xl font-bold text-white">Catalogo da Home (Site Publico)</h3>
-            <p className="text-sm text-gray-300 mt-1">Aqui voce altera foto, preco e produtos exibidos na home.</p>
+            <p className="text-sm text-gray-300 mt-1">Aqui voce altera foto, descricao, ordem e visibilidade. O preco vem sempre do produto oficial.</p>
           </div>
           <button
             onClick={() => {
@@ -1452,7 +1515,7 @@ export const ProductCatalog: React.FC = () => {
                 />
                 <div className="flex-1">
                   <p className="font-semibold text-white">{item.name}</p>
-                  <p className="text-amber-400 font-bold">€ {item.price.toFixed(2)}</p>
+                  <p className="text-amber-400 font-bold">€ {(products.find((p) => p.id === item.productId)?.price ?? 0).toFixed(2)}</p>
                   <p className="text-xs text-gray-300 mt-1">Ordem: {item.sortOrder} | {item.active ? 'Visivel' : 'Oculto'}</p>
                   <p className="text-xs text-gray-400 mt-2 line-clamp-2">{item.description}</p>
                 </div>
@@ -1477,6 +1540,49 @@ export const ProductCatalog: React.FC = () => {
           {homeProducts.length === 0 && (
             <div className="text-gray-300 text-sm">Ainda nao existe nenhum produto na colecao publica da home.</div>
           )}
+        </div>
+      </div>
+
+      <div className="rounded-xl p-5" style={{ backgroundColor: '#13161E', borderColor: 'rgba(255,255,255,0.1)', borderWidth: '1px' }}>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-xl font-bold text-white">Textos da Home</h3>
+            <p className="text-sm text-gray-300 mt-1">Administra os textos que o cliente ve na home publica.</p>
+          </div>
+          <button
+            onClick={handleSaveHomeContent}
+            disabled={loading}
+            className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition-colors shadow disabled:opacity-50"
+          >
+            Salvar textos
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Hero - Chamada curta</label>
+            <input value={homeHeroKicker} onChange={(e) => setHomeHeroKicker(e.target.value)} className="w-full px-3 py-2 rounded bg-white text-black" />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Catalogo - Titulo</label>
+            <input value={homeCatalogTitle} onChange={(e) => setHomeCatalogTitle(e.target.value)} className="w-full px-3 py-2 rounded bg-white text-black" />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm text-gray-300 mb-1">Hero - Titulo principal</label>
+            <input value={homeHeroTitle} onChange={(e) => setHomeHeroTitle(e.target.value)} className="w-full px-3 py-2 rounded bg-white text-black" />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm text-gray-300 mb-1">Hero - Subtitulo</label>
+            <input value={homeHeroSubtitle} onChange={(e) => setHomeHeroSubtitle(e.target.value)} className="w-full px-3 py-2 rounded bg-white text-black" />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm text-gray-300 mb-1">Hero - Descricao</label>
+            <textarea value={homeHeroDescription} onChange={(e) => setHomeHeroDescription(e.target.value)} className="w-full px-3 py-2 rounded bg-white text-black min-h-[80px]" />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm text-gray-300 mb-1">Catalogo - Subtitulo</label>
+            <textarea value={homeCatalogSubtitle} onChange={(e) => setHomeCatalogSubtitle(e.target.value)} className="w-full px-3 py-2 rounded bg-white text-black min-h-[72px]" />
+          </div>
         </div>
       </div>
 
@@ -1550,26 +1656,38 @@ export const ProductCatalog: React.FC = () => {
 
             <form onSubmit={handleSaveHomeProduct} style={{ display: 'grid', gap: '0.75rem' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#D1D5DB', marginBottom: '0.25rem' }}>Nome do Produto</label>
-                <input
-                  type="text"
-                  value={homeName}
-                  onChange={(e) => setHomeName(e.target.value)}
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#D1D5DB', marginBottom: '0.25rem' }}>Produto do Sistema</label>
+                <select
+                  value={homeProductId}
+                  onChange={(e) => {
+                    const selectedId = e.target.value;
+                    setHomeProductId(selectedId);
+                    const selected = products.find((p) => p.id === selectedId);
+                    if (selected && !homeName.trim()) {
+                      setHomeName(selected.name);
+                    }
+                  }}
                   style={{ width: '100%', padding: '0.75rem', borderRadius: '0.75rem', backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB', borderWidth: '1px', boxSizing: 'border-box', fontSize: '1rem' }}
                   required
-                />
+                >
+                  <option value="">Selecione um produto</option>
+                  {products.map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.name} - € {product.price.toFixed(2)}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#D1D5DB', marginBottom: '0.25rem' }}>Preco Unitario (€)</label>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#D1D5DB', marginBottom: '0.25rem' }}>Nome exibido (opcional)</label>
                   <input
-                    type="number"
-                    step="0.01"
-                    value={homePrice}
-                    onChange={(e) => setHomePrice(e.target.value)}
+                    type="text"
+                    value={homeName}
+                    onChange={(e) => setHomeName(e.target.value)}
                     style={{ width: '100%', padding: '0.75rem', borderRadius: '0.75rem', backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB', borderWidth: '1px', boxSizing: 'border-box', fontSize: '1rem' }}
-                    required
+                    placeholder="Se vazio, usa o nome do produto"
                   />
                 </div>
                 <div>
@@ -1605,7 +1723,7 @@ export const ProductCatalog: React.FC = () => {
                   style={{ width: '100%', padding: '0.5rem', borderRadius: '0.75rem', backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB', borderWidth: '1px', boxSizing: 'border-box', fontSize: '0.95rem' }}
                 />
                 <p style={{ marginTop: '0.5rem', color: '#9CA3AF', fontSize: '0.8rem' }}>
-                  Se nao selecionar ficheiro, a imagem atual sera mantida.
+                  Se nao selecionar ficheiro, a imagem atual sera mantida. O preco e sempre o do produto oficial.
                 </p>
               </div>
 

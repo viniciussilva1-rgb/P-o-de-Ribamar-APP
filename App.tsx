@@ -71,6 +71,8 @@ const AppContent: React.FC = () => {
         return <AdminDeliveryDashboard />;
       case 'weekly-settlement':
         return <AdminWeeklySettlement />;
+      case 'home-preview':
+        return <Home isPreviewMode />;
       case 'drivers':
       default:
         return <DriversOverview />;

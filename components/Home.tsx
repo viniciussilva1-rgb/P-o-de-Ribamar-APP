@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Clock3, LogIn, Mail, MapPin, Phone, Truck } from 'lucide-react';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import '../styles/HomeStyles.css';
 
@@ -11,6 +11,41 @@ interface Bread {
   image: string;
   price: string;
 }
+
+interface ProductDoc {
+  id: string;
+  name: string;
+  price: number;
+}
+
+interface HomeProductDoc {
+  id: string;
+  productId?: string;
+  name?: string;
+  description?: string;
+  imageUrl?: string;
+  price?: number;
+  active?: boolean;
+  sortOrder?: number;
+}
+
+interface HomeContent {
+  heroKicker: string;
+  heroTitle: string;
+  heroSubtitle: string;
+  heroDescription: string;
+  catalogTitle: string;
+  catalogSubtitle: string;
+}
+
+const defaultHomeContent: HomeContent = {
+  heroKicker: 'Padaria artesanal premium',
+  heroTitle: 'Pao quente, entrega profissional e experiencia premium a porta.',
+  heroSubtitle: 'Produzimos diariamente com fermentacao cuidada e entrega matinal em janelas previsiveis.',
+  heroDescription: 'A home foi desenhada para transmitir confianca: fotos reais, linguagem clara, foco em servico e disponibilidade por zona.',
+  catalogTitle: 'Selecao de Paes',
+  catalogSubtitle: 'Catalogo informativo com os produtos disponiveis e respetivo preco unitario.',
+};
 
 const fallbackBreads: Bread[] = [
   {
@@ -45,58 +80,123 @@ const fallbackBreads: Bread[] = [
 
 interface HomeProps {
   onLoginClick?: () => void;
+  isPreviewMode?: boolean;
 }
 
-const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
+const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
   const [formData, setFormData] = useState({ name: '', email: '', message: '' });
   const [address, setAddress] = useState('');
-  const [availabilityResult, setAvailabilityResult] = useState<string | null>(null);
-  const [homeProducts, setHomeProducts] = useState<Bread[]>([]);
+  const [availabilityResult, setAvailabilityResult] = useState<{ text: string; kind: 'success' | 'error' } | null>(null);
+  const [products, setProducts] = useState<ProductDoc[]>([]);
+  const [homeProductsConfig, setHomeProductsConfig] = useState<HomeProductDoc[]>([]);
+  const [homeContent, setHomeContent] = useState<HomeContent>(defaultHomeContent);
+
+  const formatPrice = (value: number) => `EUR ${value.toFixed(2).replace('.', ',')}`;
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'home_products'), (snapshot) => {
-      const parsed = snapshot.docs
-        .map((docSnap) => {
-          const data = docSnap.data() as {
-            name?: string;
-            description?: string;
-            imageUrl?: string;
-            price?: number;
-            active?: boolean;
-            sortOrder?: number;
-          };
+    const unsubscribeProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
+      const list = snapshot.docs.map((docSnap) => {
+        const data = docSnap.data() as Partial<ProductDoc>;
+        return {
+          id: String(data.id || docSnap.id),
+          name: String(data.name || 'Produto'),
+          price: Number(data.price) || 0,
+        };
+      });
 
-          if (data.active === false) {
-            return null;
-          }
-
-          return {
-            sortOrder: Number(data.sortOrder) || 9999,
-            item: {
-              id: docSnap.id,
-              name: data.name || 'Produto',
-              description: data.description || 'Produto disponivel no catalogo da padaria.',
-              image: data.imageUrl || 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1400&q=80',
-              price: `EUR ${(Number(data.price) || 0).toFixed(2).replace('.', ',')}`,
-            } as Bread,
-          };
-        })
-        .filter((entry): entry is { sortOrder: number; item: Bread } => entry !== null)
-        .sort((a, b) => a.sortOrder - b.sortOrder)
-        .map((entry) => entry.item);
-
-      setHomeProducts(parsed);
+      setProducts(list);
     });
 
-    return () => unsubscribe();
+    const unsubscribeHomeProducts = onSnapshot(collection(db, 'home_products'), (snapshot) => {
+      const list = snapshot.docs.map((docSnap) => {
+        const data = docSnap.data() as Partial<HomeProductDoc>;
+        return {
+          id: docSnap.id,
+          productId: data.productId,
+          name: data.name,
+          description: data.description,
+          imageUrl: data.imageUrl,
+          price: data.price,
+          active: data.active !== false,
+          sortOrder: Number(data.sortOrder) || 9999,
+        };
+      });
+
+      setHomeProductsConfig(list);
+    });
+
+    const unsubscribeHomeContent = onSnapshot(doc(db, 'home_content', 'main'), (docSnap) => {
+      if (!docSnap.exists()) {
+        setHomeContent(defaultHomeContent);
+        return;
+      }
+
+      const data = docSnap.data() as Partial<HomeContent>;
+      setHomeContent({
+        heroKicker: data.heroKicker || defaultHomeContent.heroKicker,
+        heroTitle: data.heroTitle || defaultHomeContent.heroTitle,
+        heroSubtitle: data.heroSubtitle || defaultHomeContent.heroSubtitle,
+        heroDescription: data.heroDescription || defaultHomeContent.heroDescription,
+        catalogTitle: data.catalogTitle || defaultHomeContent.catalogTitle,
+        catalogSubtitle: data.catalogSubtitle || defaultHomeContent.catalogSubtitle,
+      });
+    });
+
+    return () => {
+      unsubscribeProducts();
+      unsubscribeHomeProducts();
+      unsubscribeHomeContent();
+    };
   }, []);
 
   const breads = useMemo(() => {
-    if (homeProducts.length > 0) {
-      return homeProducts;
+    if (homeProductsConfig.length > 0) {
+      const normalizedProductsMap = new Map(products.map((p) => [p.id, p]));
+
+      const merged = homeProductsConfig
+        .filter((item) => item.active !== false)
+        .map((item) => {
+          const productById = item.productId ? normalizedProductsMap.get(item.productId) : undefined;
+          const productByName = !productById && item.name
+            ? products.find((p) => p.name.trim().toLowerCase() === item.name?.trim().toLowerCase())
+            : undefined;
+
+          const product = productById || productByName;
+          const name = product?.name || item.name || 'Produto';
+          const price = product ? product.price : (Number(item.price) || 0);
+
+          return {
+            id: item.id,
+            sortOrder: Number(item.sortOrder) || 9999,
+            card: {
+              id: item.id,
+              name,
+              description: item.description || 'Produto disponivel no catalogo da padaria.',
+              image: item.imageUrl || 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1400&q=80',
+              price: formatPrice(price),
+            } as Bread,
+          };
+        })
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((entry) => entry.card);
+
+      if (merged.length > 0) {
+        return merged;
+      }
     }
+
+    if (products.length > 0) {
+      return products.slice(0, 8).map((p) => ({
+        id: p.id,
+        name: p.name,
+        description: 'Produto disponivel no catalogo da padaria.',
+        image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1400&q=80',
+        price: formatPrice(p.price),
+      }));
+    }
+
     return fallbackBreads;
-  }, [homeProducts]);
+  }, [homeProductsConfig, products]);
 
   const handleContactSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,12 +234,12 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
         normalizedAddress.includes('torres vedras') ||
         normalizedAddress.includes('bombarral')
       ) {
-        setAvailabilityResult('Disponibilidade confirmada: entregamos nesta morada entre 04:00 e 09:00.');
+        setAvailabilityResult({ text: 'Disponibilidade confirmada: entregamos nesta morada entre 04:00 e 09:00.', kind: 'success' });
       } else {
-        setAvailabilityResult('De momento entregamos apenas em Lourinhã, Torres Vedras e Bombarral. Fale connosco para validar excecoes.');
+        setAvailabilityResult({ text: 'De momento entregamos apenas em Lourinhã, Torres Vedras e Bombarral. Fale connosco para validar excecoes.', kind: 'error' });
       }
     } else {
-      setAvailabilityResult('Informe a sua morada para verificar disponibilidade.');
+      setAvailabilityResult({ text: 'Informe a sua morada para verificar disponibilidade.', kind: 'error' });
     }
   };
 
@@ -162,10 +262,12 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
             <a href="#entrega">Entregas</a>
             <a href="#disponibilidade">Disponibilidade</a>
             <a href="#contato">Contacto</a>
-            <button className="login-button-nav" onClick={handleMakeOrderClick}>
-              <LogIn size={18} />
-              Login
-            </button>
+            {!isPreviewMode && (
+              <button className="login-button-nav" onClick={handleMakeOrderClick}>
+                <LogIn size={18} />
+                Login
+              </button>
+            )}
           </nav>
         </div>
       </header>
@@ -178,17 +280,19 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
         </div>
         <div className="hero-content">
           <div className="hero-text">
-            <p className="hero-kicker">Padaria artesanal premium</p>
-            <h1 className="hero-title">Pao quente, entrega profissional e experiencia premium a porta.</h1>
-            <p className="hero-subtitle">Produzimos diariamente com fermentacao cuidada e entrega matinal em janelas previsiveis.</p>
+            <p className="hero-kicker">{homeContent.heroKicker}</p>
+            <h1 className="hero-title">{homeContent.heroTitle}</h1>
+            <p className="hero-subtitle">{homeContent.heroSubtitle}</p>
             <p className="hero-description">
-              A home foi desenhada para transmitir confianca: fotos reais, linguagem clara, foco em servico e disponibilidade por zona.
+              {homeContent.heroDescription}
             </p>
             <div className="hero-buttons">
-              <button className="cta-button" onClick={handleMakeOrderClick}>
-                Entrar e Fazer Pedido
-                <ArrowRight size={18} />
-              </button>
+              {!isPreviewMode && (
+                <button className="cta-button" onClick={handleMakeOrderClick}>
+                  Entrar e Fazer Pedido
+                  <ArrowRight size={18} />
+                </button>
+              )}
               <a href="#catalogo" className="cta-link">Ver catalogo</a>
             </div>
           </div>
@@ -208,8 +312,8 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
 
       <section className="breads-section" id="catalogo">
         <div className="section-container">
-          <h2 className="section-title">Selecao de Paes</h2>
-          <p className="section-subtitle">Catalogo informativo com os produtos disponiveis e respetivo preco unitario.</p>
+          <h2 className="section-title">{homeContent.catalogTitle}</h2>
+          <p className="section-subtitle">{homeContent.catalogSubtitle}</p>
 
           <div className="breads-grid">
             {breads.map((bread) => (
@@ -296,8 +400,8 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
             </div>
 
             {availabilityResult && (
-              <div className={`availability-result ${availabilityResult.includes('✅') ? 'success' : 'error'}`}>
-                {availabilityResult}
+              <div className={`availability-result ${availabilityResult.kind}`}>
+                {availabilityResult.text}
               </div>
             )}
           </div>

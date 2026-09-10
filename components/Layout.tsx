@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, Truck, Wheat, Users, Package, ClipboardList, PackageCheck, BarChart3, Send, Wallet, Calculator, Tag, LayoutDashboard, TrendingUp } from 'lucide-react';
+import { LogOut, Truck, Wheat, Users, Package, ClipboardList, PackageCheck, BarChart3, Send, Wallet, Calculator, Tag, LayoutDashboard, TrendingUp, Monitor } from 'lucide-react';
 import { APP_NAME } from '../constants';
 
 interface LayoutProps {
@@ -115,6 +115,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
                 label="Fecho Semanal" 
                 active={activeTab === 'weekly-settlement'} 
                 onClick={() => setActiveTab('weekly-settlement')} 
+              />
+              <NavItem 
+                icon={<Monitor />} 
+                label="Home Publica" 
+                active={activeTab === 'home-preview'} 
+                onClick={() => setActiveTab('home-preview')} 
               />
             </>
           ) : (
@@ -261,6 +267,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
                 label="Fecho" 
                 active={activeTab === 'weekly-settlement'} 
                 onClick={() => setActiveTab('weekly-settlement')} 
+              />
+              <MobileNavItem 
+                icon={<Monitor size={20} />} 
+                label="Home" 
+                active={activeTab === 'home-preview'} 
+                onClick={() => setActiveTab('home-preview')} 
               />
             </>
           ) : (

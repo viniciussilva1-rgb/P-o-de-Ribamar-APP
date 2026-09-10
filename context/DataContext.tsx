@@ -216,13 +216,25 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setProductsSeeded(true);
         
         try {
-          const batch = writeBatch(db);
-          INITIAL_PRODUCTS.forEach(p => {
-            // ⚠️ IMPORTANTE: Usar merge: true para não sobrescrever preços já atualizados
-            batch.set(doc(db, 'products', p.id), p, { merge: true });
-          });
-          await batch.commit();
-          console.log(`[SEED] ✓ Seed concluído com sucesso. Produtos adicionados ao Firestore. (Tentativa: ${seedAttempts.current})`);
+          // Cria apenas os produtos que ainda não existem, sem sobrescrever preço já definido.
+          const missingProducts: Product[] = [];
+          for (const p of INITIAL_PRODUCTS) {
+            const productRef = doc(db, 'products', p.id);
+            const productDoc = await getDoc(productRef);
+            if (!productDoc.exists()) {
+              missingProducts.push(p as Product);
+            }
+          }
+
+          if (missingProducts.length > 0) {
+            const batch = writeBatch(db);
+            missingProducts.forEach((p) => {
+              batch.set(doc(db, 'products', p.id), p);
+            });
+            await batch.commit();
+          }
+
+          console.log(`[SEED] ✓ Seed concluído com sucesso. Produtos novos adicionados: ${missingProducts.length}. (Tentativa: ${seedAttempts.current})`);
           setProducts(INITIAL_PRODUCTS);
         } catch (err) {
           console.error(`[SEED] ✗ Erro ao fazer seed (Tentativa: ${seedAttempts.current}):`, err);
