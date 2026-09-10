@@ -308,10 +308,29 @@ body {
   padding: 86px 0;
 }
 
+.catalog-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.home-add-product-btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(127, 64, 25, 0.25);
+}
+
 .breads-grid {
   margin-top: 44px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 24px;
 }
 
@@ -332,7 +351,7 @@ body {
 }
 
 .bread-image-wrap {
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 16 / 10;
   height: auto;
   overflow: hidden;
   background: #f4ecdf;
@@ -351,21 +370,22 @@ body {
 }
 
 .bread-name {
-  margin: 18px 18px 10px;
+  margin: 14px 14px 8px;
   font-family: 'Playfair Display', Georgia, serif;
   color: #281e16;
-  font-size: 1.38rem;
+  font-size: 1.18rem;
 }
 
 .bread-description {
-  margin: 0 18px;
+  margin: 0 14px;
   color: var(--ink-soft);
-  line-height: 1.6;
-  min-height: 48px;
+  line-height: 1.45;
+  min-height: 40px;
+  font-size: 0.92rem;
 }
 
 .bread-footer {
-  margin: 16px 18px 20px;
+  margin: 12px 14px 14px;
   display: flex;
   align-items: baseline;
   justify-content: flex-start;
@@ -457,6 +477,7 @@ body {
 }
 
 .home-edit-modal-body input,
+.home-edit-modal-body select,
 .home-edit-modal-body textarea {
   border: 1px solid #d8cdc0;
   border-radius: 10px;
@@ -466,6 +487,7 @@ body {
 }
 
 .home-edit-modal-body input:focus,
+.home-edit-modal-body select:focus,
 .home-edit-modal-body textarea:focus {
   outline: none;
   border-color: var(--brand);
@@ -803,7 +825,31 @@ body {
   }
 
   .breads-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .bread-image-wrap {
+    aspect-ratio: 1 / 1;
+  }
+
+  .bread-name {
+    font-size: 1.03rem;
+  }
+
+  .bread-description {
+    font-size: 0.84rem;
+    min-height: 34px;
+  }
+
+  .unit-price,
+  .bread-footer strong {
+    font-size: 0.8rem;
+  }
+
+  .home-card-edit-btn {
+    padding: 5px 9px;
+    font-size: 0.74rem;
   }
 
   .input-group {

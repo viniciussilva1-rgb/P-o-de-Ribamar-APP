@@ -96,6 +96,9 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
   const [homeContent, setHomeContent] = useState<HomeContent>(defaultHomeContent);
   const [isCardEditOpen, setIsCardEditOpen] = useState(false);
   const [editingBread, setEditingBread] = useState<Bread | null>(null);
+  const [isCreatingCard, setIsCreatingCard] = useState(false);
+  const [editProductId, setEditProductId] = useState('');
+  const [editSortOrder, setEditSortOrder] = useState('0');
   const [editCardName, setEditCardName] = useState('');
   const [editCardDescription, setEditCardDescription] = useState('');
   const [editCardImageUrl, setEditCardImageUrl] = useState('');
@@ -142,7 +145,10 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
   };
 
   const openCardEditor = (bread: Bread) => {
+    setIsCreatingCard(false);
     setEditingBread(bread);
+    setEditProductId(bread.productId || '');
+    setEditSortOrder(String(bread.sortOrder || 9999));
     setEditCardName(bread.name);
     setEditCardDescription(bread.description);
     setEditCardImageUrl(bread.image);
@@ -150,8 +156,20 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
     setIsCardEditOpen(true);
   };
 
+  const openCreateCard = () => {
+    setIsCreatingCard(true);
+    setEditingBread(null);
+    setEditProductId('');
+    setEditSortOrder(String(homeProductsConfig.length + 1));
+    setEditCardName('');
+    setEditCardDescription('Produto disponivel no catalogo da padaria.');
+    setEditCardImageUrl('');
+    setEditCardImageFile(null);
+    setIsCardEditOpen(true);
+  };
+
   const handleSaveCardEdit = async () => {
-    if (!editingBread) return;
+    if (!editingBread && !isCreatingCard) return;
 
     setSavingCardEdit(true);
     try {
@@ -160,19 +178,31 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
         imageUrl = await compressImage(editCardImageFile);
       }
 
-      const existingConfig = homeProductsConfig.find((item) => item.id === editingBread.homeDocId)
-        || homeProductsConfig.find((item) => item.productId === editingBread.productId);
+      const existingConfig = editingBread
+        ? homeProductsConfig.find((item) => item.id === editingBread.homeDocId)
+          || homeProductsConfig.find((item) => item.productId === editingBread.productId)
+        : undefined;
 
-      const docId = existingConfig?.id || editingBread.homeDocId || `home-${editingBread.productId || Date.now()}`;
-      const resolvedProductId = editingBread.productId || existingConfig?.productId || editingBread.id;
+      const selectedProduct = products.find((p) => p.id === editProductId);
+      const resolvedProductId = editProductId || editingBread?.productId || existingConfig?.productId || editingBread?.id;
+
+      if (!resolvedProductId) {
+        alert('Selecione um produto para adicionar no catalogo.');
+        setSavingCardEdit(false);
+        return;
+      }
+
+      const fallbackImage = 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1400&q=80';
+      const docId = existingConfig?.id || editingBread?.homeDocId || `home-${Date.now()}`;
 
       const payload: Record<string, unknown> = {
         productId: resolvedProductId,
-        name: editCardName.trim(),
+        name: editCardName.trim() || selectedProduct?.name || editingBread?.name || 'Produto',
         description: editCardDescription.trim(),
-        imageUrl,
+        imageUrl: imageUrl || editingBread?.image || fallbackImage,
         active: true,
-        sortOrder: existingConfig?.sortOrder ?? editingBread.sortOrder ?? 9999,
+        sortOrder: parseInt(editSortOrder, 10) || existingConfig?.sortOrder || editingBread?.sortOrder || 9999,
+        priceSnapshot: selectedProduct?.price ?? 0,
         updatedAt: new Date().toISOString(),
       };
 
@@ -184,6 +214,8 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
 
       setIsCardEditOpen(false);
       setEditingBread(null);
+      setIsCreatingCard(false);
+      setEditProductId('');
       setEditCardImageFile(null);
     } catch (error) {
       console.error('Erro ao salvar edicao do card:', error);
@@ -420,7 +452,14 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
 
       <section className="breads-section" id="catalogo">
         <div className="section-container">
-          <h2 className="section-title">{homeContent.catalogTitle}</h2>
+          <div className="catalog-header-row">
+            <h2 className="section-title">{homeContent.catalogTitle}</h2>
+            {isPreviewMode && (
+              <button className="home-add-product-btn" type="button" onClick={openCreateCard}>
+                Adicionar novo
+              </button>
+            )}
+          </div>
           <p className="section-subtitle">{homeContent.catalogSubtitle}</p>
 
           <div className="breads-grid">
@@ -467,6 +506,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
                 onClick={() => {
                   setIsCardEditOpen(false);
                   setEditingBread(null);
+                  setIsCreatingCard(false);
                   setEditCardImageFile(null);
                 }}
               >
@@ -475,11 +515,39 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
             </div>
 
             <div className="home-edit-modal-body">
+              <label>Produto oficial</label>
+              <select
+                value={editProductId}
+                onChange={(e) => {
+                  const selectedId = e.target.value;
+                  setEditProductId(selectedId);
+                  const selected = products.find((p) => p.id === selectedId);
+                  if (selected && (!editCardName || isCreatingCard)) {
+                    setEditCardName(selected.name);
+                  }
+                }}
+                disabled={!isCreatingCard && !!editingBread?.productId}
+              >
+                <option value="">Selecione um produto</option>
+                {products.map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.name} - {formatPrice(product.price)}
+                  </option>
+                ))}
+              </select>
+
               <label>Nome exibido</label>
               <input
                 type="text"
                 value={editCardName}
                 onChange={(e) => setEditCardName(e.target.value)}
+              />
+
+              <label>Ordem de exibicao</label>
+              <input
+                type="number"
+                value={editSortOrder}
+                onChange={(e) => setEditSortOrder(e.target.value)}
               />
 
               <label>Descricao</label>
@@ -509,6 +577,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
                 onClick={() => {
                   setIsCardEditOpen(false);
                   setEditingBread(null);
+                  setIsCreatingCard(false);
                   setEditCardImageFile(null);
                 }}
               >
