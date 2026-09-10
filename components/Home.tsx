@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Clock3, LogIn, Mail, MapPin, Phone, Truck } from 'lucide-react';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebaseConfig';
 import '../styles/HomeStyles.css';
 
 interface Bread {
@@ -10,7 +12,7 @@ interface Bread {
   price: string;
 }
 
-const breads: Bread[] = [
+const fallbackBreads: Bread[] = [
   {
     id: '1',
     name: 'Bolinha',
@@ -49,6 +51,52 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
   const [formData, setFormData] = useState({ name: '', email: '', message: '' });
   const [address, setAddress] = useState('');
   const [availabilityResult, setAvailabilityResult] = useState<string | null>(null);
+  const [homeProducts, setHomeProducts] = useState<Bread[]>([]);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'home_products'), (snapshot) => {
+      const parsed = snapshot.docs
+        .map((docSnap) => {
+          const data = docSnap.data() as {
+            name?: string;
+            description?: string;
+            imageUrl?: string;
+            price?: number;
+            active?: boolean;
+            sortOrder?: number;
+          };
+
+          if (data.active === false) {
+            return null;
+          }
+
+          return {
+            sortOrder: Number(data.sortOrder) || 9999,
+            item: {
+              id: docSnap.id,
+              name: data.name || 'Produto',
+              description: data.description || 'Produto disponivel no catalogo da padaria.',
+              image: data.imageUrl || 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1400&q=80',
+              price: `EUR ${(Number(data.price) || 0).toFixed(2).replace('.', ',')}`,
+            } as Bread,
+          };
+        })
+        .filter((entry): entry is { sortOrder: number; item: Bread } => entry !== null)
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((entry) => entry.item);
+
+      setHomeProducts(parsed);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const breads = useMemo(() => {
+    if (homeProducts.length > 0) {
+      return homeProducts;
+    }
+    return fallbackBreads;
+  }, [homeProducts]);
 
   const handleContactSubmit = (e: React.FormEvent) => {
     e.preventDefault();

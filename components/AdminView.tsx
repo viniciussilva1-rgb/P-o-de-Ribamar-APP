@@ -1,8 +1,8 @@
 import { getAuth } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDoc, onSnapshot, setDoc } from "firebase/firestore";
 import { db, createDriverFunction, deleteDriverFunction, updateDriverFunction } from "../firebaseConfig";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { User, UserRole, Client, Product, Route, DeliverySchedule } from '../types';
@@ -1165,7 +1165,105 @@ export const ProductCatalog: React.FC = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [newProductName, setNewProductName] = useState('');
   const [newProductPrice, setNewProductPrice] = useState('');
+
+  const [homeProducts, setHomeProducts] = useState<Array<{
+    id: string;
+    name: string;
+    description: string;
+    imageUrl: string;
+    price: number;
+    sortOrder: number;
+    active: boolean;
+  }>>([]);
+  const [isHomeModalOpen, setIsHomeModalOpen] = useState(false);
+  const [editingHomeProductId, setEditingHomeProductId] = useState<string | null>(null);
+  const [homeName, setHomeName] = useState('');
+  const [homeDescription, setHomeDescription] = useState('');
+  const [homePrice, setHomePrice] = useState('');
+  const [homeSortOrder, setHomeSortOrder] = useState('0');
+  const [homeImageUrl, setHomeImageUrl] = useState('');
+  const [homeImageFile, setHomeImageFile] = useState<File | null>(null);
+  const [homeActive, setHomeActive] = useState(true);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'home_products'), (snapshot) => {
+      const list = snapshot.docs
+        .map((docSnap) => {
+          const data = docSnap.data() as Partial<{
+            name: string;
+            description: string;
+            imageUrl: string;
+            price: number;
+            sortOrder: number;
+            active: boolean;
+          }>;
+
+          return {
+            id: docSnap.id,
+            name: data.name || 'Produto',
+            description: data.description || '',
+            imageUrl: data.imageUrl || '',
+            price: Number(data.price) || 0,
+            sortOrder: Number(data.sortOrder) || 0,
+            active: data.active !== false,
+          };
+        })
+        .sort((a, b) => a.sortOrder - b.sortOrder);
+
+      setHomeProducts(list);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const fileToDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const compressImage = async (file: File): Promise<string> => {
+    const dataUrl = await fileToDataUrl(file);
+
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = reject;
+      image.src = dataUrl;
+    });
+
+    const maxWidth = 1200;
+    const ratio = img.width > maxWidth ? maxWidth / img.width : 1;
+    const width = Math.round(img.width * ratio);
+    const height = Math.round(img.height * ratio);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return dataUrl;
+    }
+
+    ctx.drawImage(img, 0, 0, width, height);
+    return canvas.toDataURL('image/jpeg', 0.82);
+  };
+
+  const resetHomeForm = () => {
+    setEditingHomeProductId(null);
+    setHomeName('');
+    setHomeDescription('');
+    setHomePrice('');
+    setHomeSortOrder('0');
+    setHomeImageUrl('');
+    setHomeImageFile(null);
+    setHomeActive(true);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1184,6 +1282,11 @@ export const ProductCatalog: React.FC = () => {
           id: `prod-${Date.now()}`,
           name: newProductName,
           price: parseFloat(newProductPrice) || 0,
+          quantity: 0,
+          targetQuantity: 0,
+          unit: 'unid',
+          category: 'Panificacao',
+          supportsEmpelo: true,
         };
         await addProduct(productData);
       }
@@ -1210,6 +1313,69 @@ export const ProductCatalog: React.FC = () => {
     if (window.confirm('Tem certeza que deseja excluir este produto?')) {
       await deleteProduct(productId);
     }
+  };
+
+  const openEditHomeProduct = (product: {
+    id: string;
+    name: string;
+    description: string;
+    imageUrl: string;
+    price: number;
+    sortOrder: number;
+    active: boolean;
+  }) => {
+    setEditingHomeProductId(product.id);
+    setHomeName(product.name);
+    setHomeDescription(product.description);
+    setHomePrice(String(product.price));
+    setHomeSortOrder(String(product.sortOrder));
+    setHomeImageUrl(product.imageUrl);
+    setHomeImageFile(null);
+    setHomeActive(product.active);
+    setIsHomeModalOpen(true);
+  };
+
+  const handleSaveHomeProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      let imageUrl = homeImageUrl.trim();
+
+      if (homeImageFile) {
+        imageUrl = await compressImage(homeImageFile);
+      }
+
+      const payload = {
+        name: homeName.trim(),
+        description: homeDescription.trim(),
+        imageUrl,
+        price: parseFloat(homePrice) || 0,
+        sortOrder: parseInt(homeSortOrder, 10) || 0,
+        active: homeActive,
+        updatedAt: new Date().toISOString(),
+      };
+
+      const id = editingHomeProductId || `home-${Date.now()}`;
+      const docPayload = editingHomeProductId
+        ? payload
+        : { ...payload, createdAt: new Date().toISOString() };
+
+      await setDoc(doc(db, 'home_products', id), docPayload, { merge: true });
+
+      setIsHomeModalOpen(false);
+      resetHomeForm();
+    } catch (err) {
+      console.error('Erro ao salvar produto da home:', err);
+      alert('Erro ao salvar produto da home. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteHomeProduct = async (id: string) => {
+    if (!window.confirm('Deseja excluir este item do catalogo da home?')) return;
+    await deleteDoc(doc(db, 'home_products', id));
   };
 
   return (
@@ -1257,6 +1423,63 @@ export const ProductCatalog: React.FC = () => {
         ))}
       </div>
 
+      <div className="rounded-xl p-5" style={{ backgroundColor: '#13161E', borderColor: 'rgba(255,255,255,0.1)', borderWidth: '1px' }}>
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h3 className="text-xl font-bold text-white">Catalogo da Home (Site Publico)</h3>
+            <p className="text-sm text-gray-300 mt-1">Aqui voce altera foto, preco e produtos exibidos na home.</p>
+          </div>
+          <button
+            onClick={() => {
+              resetHomeForm();
+              setIsHomeModalOpen(true);
+            }}
+            className="bg-amber-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-amber-700 transition-colors shadow"
+          >
+            <Plus size={18} />
+            <span>Novo Item Home</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {homeProducts.map((item) => (
+            <div key={item.id} className="rounded-lg p-3" style={{ backgroundColor: '#1A1E29', borderColor: 'rgba(255,255,255,0.1)', borderWidth: '1px' }}>
+              <div className="flex gap-3">
+                <img
+                  src={item.imageUrl || 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=700&q=80'}
+                  alt={item.name}
+                  className="w-24 h-24 rounded-md object-cover"
+                />
+                <div className="flex-1">
+                  <p className="font-semibold text-white">{item.name}</p>
+                  <p className="text-amber-400 font-bold">€ {item.price.toFixed(2)}</p>
+                  <p className="text-xs text-gray-300 mt-1">Ordem: {item.sortOrder} | {item.active ? 'Visivel' : 'Oculto'}</p>
+                  <p className="text-xs text-gray-400 mt-2 line-clamp-2">{item.description}</p>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 mt-3">
+                <button
+                  onClick={() => openEditHomeProduct(item)}
+                  className="px-3 py-1.5 rounded text-gray-200 hover:bg-white/10"
+                >
+                  Editar
+                </button>
+                <button
+                  onClick={() => handleDeleteHomeProduct(item.id)}
+                  className="px-3 py-1.5 rounded text-red-300 hover:bg-red-500/20"
+                >
+                  Excluir
+                </button>
+              </div>
+            </div>
+          ))}
+          {homeProducts.length === 0 && (
+            <div className="text-gray-300 text-sm">Ainda nao existe nenhum produto na colecao publica da home.</div>
+          )}
+        </div>
+      </div>
+
       {/* Modal de Adicionar/Editar Produto */}
       {isModalOpen && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
@@ -1301,6 +1524,106 @@ export const ProductCatalog: React.FC = () => {
                 onMouseLeave={(e) => !loading && (e.currentTarget.style.backgroundColor = '#D97706')}
               >
                 {loading ? 'Salvando...' : (editingProduct ? 'Salvar Alterações' : 'Criar Produto')}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isHomeModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 55 }}>
+          <div style={{ backgroundColor: '#1A1E29', borderRadius: '1rem', padding: '1.5rem', width: '100%', maxWidth: '40rem', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', borderColor: 'rgba(255,255,255,0.1)', borderWidth: '1px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#FFFFFF' }}>
+                {editingHomeProductId ? 'Editar Item da Home' : 'Novo Item da Home'}
+              </h3>
+              <button
+                onClick={() => {
+                  setIsHomeModalOpen(false);
+                  resetHomeForm();
+                }}
+                style={{ color: '#9CA3AF', cursor: 'pointer', background: 'none', border: 'none' }}
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveHomeProduct} style={{ display: 'grid', gap: '0.75rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#D1D5DB', marginBottom: '0.25rem' }}>Nome do Produto</label>
+                <input
+                  type="text"
+                  value={homeName}
+                  onChange={(e) => setHomeName(e.target.value)}
+                  style={{ width: '100%', padding: '0.75rem', borderRadius: '0.75rem', backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB', borderWidth: '1px', boxSizing: 'border-box', fontSize: '1rem' }}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#D1D5DB', marginBottom: '0.25rem' }}>Preco Unitario (€)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={homePrice}
+                    onChange={(e) => setHomePrice(e.target.value)}
+                    style={{ width: '100%', padding: '0.75rem', borderRadius: '0.75rem', backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB', borderWidth: '1px', boxSizing: 'border-box', fontSize: '1rem' }}
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#D1D5DB', marginBottom: '0.25rem' }}>Ordem de Exibicao</label>
+                  <input
+                    type="number"
+                    value={homeSortOrder}
+                    onChange={(e) => setHomeSortOrder(e.target.value)}
+                    style={{ width: '100%', padding: '0.75rem', borderRadius: '0.75rem', backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB', borderWidth: '1px', boxSizing: 'border-box', fontSize: '1rem' }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#D1D5DB', marginBottom: '0.25rem' }}>Descricao Curta</label>
+                <textarea
+                  value={homeDescription}
+                  onChange={(e) => setHomeDescription(e.target.value)}
+                  style={{ width: '100%', padding: '0.75rem', borderRadius: '0.75rem', backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB', borderWidth: '1px', boxSizing: 'border-box', fontSize: '1rem', minHeight: '84px' }}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', color: '#D1D5DB', marginBottom: '0.25rem' }}>Imagem do Produto (do seu PC)</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setHomeImageFile(file);
+                  }}
+                  style={{ width: '100%', padding: '0.5rem', borderRadius: '0.75rem', backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB', borderWidth: '1px', boxSizing: 'border-box', fontSize: '0.95rem' }}
+                />
+                <p style={{ marginTop: '0.5rem', color: '#9CA3AF', fontSize: '0.8rem' }}>
+                  Se nao selecionar ficheiro, a imagem atual sera mantida.
+                </p>
+              </div>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#D1D5DB', fontSize: '0.9rem' }}>
+                <input
+                  type="checkbox"
+                  checked={homeActive}
+                  onChange={(e) => setHomeActive(e.target.checked)}
+                />
+                Mostrar este produto na home publica
+              </label>
+
+              <button
+                type="submit"
+                disabled={loading}
+                style={{ width: '100%', backgroundColor: loading ? '#B45309' : '#D97706', color: '#FFFFFF', padding: '0.75rem', borderRadius: '0.75rem', fontWeight: '600', border: 'none', cursor: 'pointer', opacity: loading ? 0.5 : 1 }}
+              >
+                {loading ? 'Salvando...' : 'Salvar Item da Home'}
               </button>
             </form>
           </div>
