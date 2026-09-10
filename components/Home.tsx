@@ -236,8 +236,9 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
               <div className="info-item">
                 <Phone size={32} />
                 <div>
-                  <h3>Telefone</h3>
-                  <p>+351 910 000 000</p>
+                  <h3>Telefones</h3>
+                  <p>João Pai: 919672252</p>
+                  <p>Tiago Filho: 915390476</p>
                 </div>
               </div>
 
@@ -245,7 +246,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
                 <Mail size={32} />
                 <div>
                   <h3>Email</h3>
-                  <p>comercial@padariaribamar.pt</p>
+                  <p>tiagoalexandrejose@gmail.com</p>
                 </div>
               </div>
 
