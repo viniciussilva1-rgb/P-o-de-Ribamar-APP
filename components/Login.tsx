@@ -3,7 +3,11 @@ import { useAuth } from '../context/AuthContext';
 import { Wheat, Loader2, Wifi } from 'lucide-react';
 import { APP_NAME } from '../constants';
 
-export const Login: React.FC = () => {
+interface LoginProps {
+  onBackToHome?: () => void;
+}
+
+export const Login: React.FC<LoginProps> = ({ onBackToHome }) => {
   const { login } = useAuth();
   
   const [email, setEmail] = useState('');
@@ -130,6 +134,29 @@ export const Login: React.FC = () => {
             >
               {loading ? <Loader2 className="animate-spin" /> : 'Entrar'}
             </button>
+
+            {onBackToHome && (
+              <button
+                type="button"
+                onClick={onBackToHome}
+                className="w-full font-semibold py-3 rounded-lg transition-all"
+                style={{
+                  backgroundColor: 'transparent',
+                  color: '#A0A8C0',
+                  border: '1px solid rgba(255,255,255,0.16)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.28)';
+                  e.currentTarget.style.color = '#FFFFFF';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.16)';
+                  e.currentTarget.style.color = '#A0A8C0';
+                }}
+              >
+                Voltar ao inicio
+              </button>
+            )}
           </form>
 
           <div className="mt-6 text-center">

@@ -46,7 +46,7 @@ const AppContent: React.FC = () => {
   }
 
   if (viewMode === 'login' && !currentUser) {
-    return <Login />;
+    return <Login onBackToHome={() => setViewMode('home')} />;
   }
 
   if (!currentUser) {
