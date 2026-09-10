@@ -450,16 +450,24 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
     }
   };
 
+  const handleSectionNavigation = (sectionId: string) => (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    const section = document.getElementById(sectionId);
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   return (
     <div className="home-container">
       <header className="home-header">
         <div className="home-header-content">
           <div className="home-logo">Padaria Ribamar</div>
           <nav className="home-nav-buttons">
-            <a href="#catalogo">Catalogo</a>
-            <a href="#entrega">Entregas</a>
-            <a href="#disponibilidade">Disponibilidade</a>
-            <a href="#contato">Contacto</a>
+            <a href="#catalogo" onClick={handleSectionNavigation('catalogo')}>Catalogo</a>
+            <a href="#entrega" onClick={handleSectionNavigation('entrega')}>Entregas</a>
+            <a href="#disponibilidade" onClick={handleSectionNavigation('disponibilidade')}>Disponibilidade</a>
+            <a href="#contato" onClick={handleSectionNavigation('contato')}>Contacto</a>
             {!isPreviewMode && (
               <button className="login-button-nav" onClick={handleMakeOrderClick}>
                 <LogIn size={18} />
@@ -491,7 +499,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
                   <ArrowRight size={18} />
                 </button>
               )}
-              <a href="#catalogo" className="cta-link">Ver catalogo</a>
+              <a href="#catalogo" className="cta-link" onClick={handleSectionNavigation('catalogo')}>Ver catalogo</a>
             </div>
           </div>
 
