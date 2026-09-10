@@ -77,14 +77,18 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
   };
 
   const checkAvailability = () => {
-    // Aqui você pode conectar com seu backend para verificar disponibilidade
     if (address.trim()) {
       const normalizedAddress = address.toLowerCase();
 
-      if (normalizedAddress.includes('ribamar') || normalizedAddress.includes('lisboa') || normalizedAddress.includes('oeiras') || normalizedAddress.includes('cascais')) {
+      if (
+        normalizedAddress.includes('lourinha') ||
+        normalizedAddress.includes('lourinhã') ||
+        normalizedAddress.includes('torres vedras') ||
+        normalizedAddress.includes('bombarral')
+      ) {
         setAvailabilityResult('Disponibilidade confirmada: entregamos nesta morada entre 06:00 e 09:00.');
       } else {
-        setAvailabilityResult('Estamos a validar a sua zona. A nossa equipa confirma a disponibilidade em ate 15 minutos.');
+        setAvailabilityResult('De momento entregamos apenas em Lourinhã, Torres Vedras e Bombarral. Fale connosco para validar excecoes.');
       }
     } else {
       setAvailabilityResult('Informe a sua morada para verificar disponibilidade.');
@@ -220,7 +224,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
       <section className="availability-section" id="disponibilidade">
         <div className="section-container">
           <h2 className="section-title">Verifique a Disponibilidade da Sua Morada</h2>
-          <p className="section-subtitle">Introduza rua e localidade para validacao imediata.</p>
+          <p className="section-subtitle">Introduza rua e localidade para validacao imediata. Zonas de entrega: Lourinhã, Torres Vedras e Bombarral.</p>
 
           <div className="availability-form">
             <div className="input-group">
