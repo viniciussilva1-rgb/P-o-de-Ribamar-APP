@@ -45,6 +45,16 @@ interface HomeContent {
 
 const defaultHomeContent: HomeContent = {
   heroKicker: 'Padaria artesanal premium',
+  heroTitle: 'Pão quente, entrega profissional e experiência premium à porta.',
+  heroSubtitle: 'Produzimos diariamente com fermentação cuidada e entrega matinal em janelas previsíveis.',
+  heroDescription: 'A home foi desenhada para transmitir confiança: fotos reais, linguagem clara, foco em serviço e disponibilidade por zona.',
+  heroImageUrl: 'https://images.unsplash.com/photo-1608198093002-ad4e005484ec?auto=format&fit=crop&w=1400&q=80',
+  catalogTitle: 'Seleção de Pães',
+  catalogSubtitle: 'Catálogo informativo com os produtos disponíveis e respetivo preço unitário.',
+};
+
+const legacyHomeContent: HomeContent = {
+  heroKicker: 'Padaria artesanal premium',
   heroTitle: 'Pao quente, entrega profissional e experiencia premium a porta.',
   heroSubtitle: 'Produzimos diariamente com fermentacao cuidada e entrega matinal em janelas previsiveis.',
   heroDescription: 'A home foi desenhada para transmitir confianca: fotos reais, linguagem clara, foco em servico e disponibilidade por zona.',
@@ -110,6 +120,14 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
   const [heroImageUrlEdit, setHeroImageUrlEdit] = useState('');
   const [heroImageFileEdit, setHeroImageFileEdit] = useState<File | null>(null);
   const [savingHeroEdit, setSavingHeroEdit] = useState(false);
+
+  const resolveHomeText = (value: string | undefined, field: keyof HomeContent) => {
+    const trimmedValue = (value || '').trim();
+    if (!trimmedValue || trimmedValue === legacyHomeContent[field]) {
+      return defaultHomeContent[field];
+    }
+    return trimmedValue;
+  };
 
   const formatPrice = (value: number) => `EUR ${value.toFixed(2).replace('.', ',')}`;
 
@@ -178,7 +196,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
     setEditProductId('');
     setEditSortOrder(String(homeProductsConfig.length + 1));
     setEditCardName('');
-    setEditCardDescription('Produto disponivel no catalogo da padaria.');
+    setEditCardDescription('Produto disponível no catálogo da padaria.');
     setEditCardImageUrl('');
     setEditCardImageFile(null);
     setIsCardEditOpen(true);
@@ -214,11 +232,11 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
       console.error('Erro ao salvar imagem principal da home:', error);
       const errorCode = (error as { code?: string })?.code || '';
       if (errorCode.includes('permission-denied')) {
-        alert('Sem permissao para salvar no Firestore. Tente sair e entrar novamente no sistema.');
+        alert('Sem permissão para salvar no Firestore. Tente sair e entrar novamente no sistema.');
       } else if (errorCode.includes('resource-exhausted') || errorCode.includes('invalid-argument')) {
-        alert('A imagem esta muito grande. Use uma imagem menor para continuar.');
+        alert('A imagem está muito grande. Use uma imagem menor para continuar.');
       } else {
-        alert('Nao foi possivel salvar a imagem principal da home.');
+        alert('Não foi possível salvar a imagem principal da home.');
       }
     } finally {
       setSavingHeroEdit(false);
@@ -244,7 +262,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
       const resolvedProductId = editProductId || editingBread?.productId || existingConfig?.productId || editingBread?.id;
 
       if (!resolvedProductId) {
-        alert('Selecione um produto para adicionar no catalogo.');
+        alert('Selecione um produto para adicionar no catálogo.');
         setSavingCardEdit(false);
         return;
       }
@@ -275,8 +293,8 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
       setEditProductId('');
       setEditCardImageFile(null);
     } catch (error) {
-      console.error('Erro ao salvar edicao do card:', error);
-      alert('Nao foi possivel salvar a edicao deste produto.');
+      console.error('Erro ao salvar edição do card:', error);
+      alert('Não foi possível salvar a edição deste produto.');
     } finally {
       setSavingCardEdit(false);
     }
@@ -323,13 +341,13 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
 
       const data = docSnap.data() as Partial<HomeContent>;
       setHomeContent({
-        heroKicker: data.heroKicker || defaultHomeContent.heroKicker,
-        heroTitle: data.heroTitle || defaultHomeContent.heroTitle,
-        heroSubtitle: data.heroSubtitle || defaultHomeContent.heroSubtitle,
-        heroDescription: data.heroDescription || defaultHomeContent.heroDescription,
+        heroKicker: resolveHomeText(data.heroKicker, 'heroKicker'),
+        heroTitle: resolveHomeText(data.heroTitle, 'heroTitle'),
+        heroSubtitle: resolveHomeText(data.heroSubtitle, 'heroSubtitle'),
+        heroDescription: resolveHomeText(data.heroDescription, 'heroDescription'),
         heroImageUrl: data.heroImageUrl || defaultHomeContent.heroImageUrl,
-        catalogTitle: data.catalogTitle || defaultHomeContent.catalogTitle,
-        catalogSubtitle: data.catalogSubtitle || defaultHomeContent.catalogSubtitle,
+        catalogTitle: resolveHomeText(data.catalogTitle, 'catalogTitle'),
+        catalogSubtitle: resolveHomeText(data.catalogSubtitle, 'catalogSubtitle'),
       });
     });
 
@@ -367,7 +385,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
               productId: product?.id || item.productId,
               sortOrder: Number(item.sortOrder) || 9999,
               name,
-              description: item.description || 'Produto disponivel no catalogo da padaria.',
+              description: item.description || 'Produto disponível no catálogo da padaria.',
               image: item.imageUrl || 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1400&q=80',
               price: formatPrice(price),
             } as Bread,
@@ -387,7 +405,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
         productId: p.id,
         sortOrder: 9999,
         name: p.name,
-        description: 'Produto disponivel no catalogo da padaria.',
+        description: 'Produto disponível no catálogo da padaria.',
         image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1400&q=80',
         price: formatPrice(p.price),
       }));
@@ -418,7 +436,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
     window.open(whatsappTiago, '_blank', 'noopener,noreferrer');
     window.location.href = mailtoUrl;
 
-    alert('Pedido de contacto preparado: abrimos WhatsApp para João e Tiago e o seu app de email para envio.');
+    alert('Pedido de contacto preparado: abrimos WhatsApp para João e Tiago e a sua app de email para envio.');
     setFormData({ name: '', email: '', message: '' });
   };
 
@@ -434,7 +452,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
       ) {
         setAvailabilityResult({ text: 'Disponibilidade confirmada: entregamos nesta morada entre 04:00 e 09:00.', kind: 'success' });
       } else {
-        setAvailabilityResult({ text: 'De momento entregamos apenas em Lourinhã, Torres Vedras e Bombarral. Fale connosco para validar excecoes.', kind: 'error' });
+        setAvailabilityResult({ text: 'De momento entregamos apenas em Lourinhã, Torres Vedras e Bombarral. Fale connosco para validar exceções.', kind: 'error' });
       }
     } else {
       setAvailabilityResult({ text: 'Informe a sua morada para verificar disponibilidade.', kind: 'error' });
@@ -464,7 +482,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
         <div className="home-header-content">
           <div className="home-logo">Padaria Ribamar</div>
           <nav className="home-nav-buttons">
-            <a href="#catalogo" onClick={handleSectionNavigation('catalogo')}>Catalogo</a>
+            <a href="#catalogo" onClick={handleSectionNavigation('catalogo')}>Catálogo</a>
             <a href="#entrega" onClick={handleSectionNavigation('entrega')}>Entregas</a>
             <a href="#disponibilidade" onClick={handleSectionNavigation('disponibilidade')}>Disponibilidade</a>
             <a href="#contato" onClick={handleSectionNavigation('contato')}>Contacto</a>
@@ -499,7 +517,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
                   <ArrowRight size={18} />
                 </button>
               )}
-              <a href="#catalogo" className="cta-link" onClick={handleSectionNavigation('catalogo')}>Ver catalogo</a>
+              <a href="#catalogo" className="cta-link" onClick={handleSectionNavigation('catalogo')}>Ver catálogo</a>
             </div>
           </div>
 
@@ -511,13 +529,13 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
             )}
             <img
               src={homeContent.heroImageUrl}
-              alt="Pao artesanal recem assado"
+              alt="Pão artesanal recém assado"
               onError={(e) => {
                 e.currentTarget.src = defaultHomeContent.heroImageUrl;
               }}
             />
             <div className="hero-media-badge">
-              <span>Entrega diaria</span>
+              <span>Entrega diária</span>
               <strong>04:00 - 09:00</strong>
             </div>
           </div>
@@ -578,7 +596,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
                 onClick={handleSaveHeroImage}
                 disabled={savingHeroEdit}
               >
-                {savingHeroEdit ? 'Salvando...' : 'Salvar imagem'}
+                {savingHeroEdit ? 'A guardar...' : 'Guardar imagem'}
               </button>
             </div>
           </div>
@@ -613,7 +631,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
                 <h3 className="bread-name">{bread.name}</h3>
                 <p className="bread-description">{bread.description}</p>
                 <div className="bread-footer">
-                  <span className="unit-price">Preco unitario</span>
+                  <span className="unit-price">Preço unitário</span>
                   <strong>{bread.price}</strong>
                   {isPreviewMode && (
                     <button
@@ -678,14 +696,14 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
                 onChange={(e) => setEditCardName(e.target.value)}
               />
 
-              <label>Ordem de exibicao</label>
+              <label>Ordem de exibição</label>
               <input
                 type="number"
                 value={editSortOrder}
                 onChange={(e) => setEditSortOrder(e.target.value)}
               />
 
-              <label>Descricao</label>
+              <label>Descrição</label>
               <textarea
                 rows={4}
                 value={editCardDescription}
@@ -702,7 +720,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
                 }}
               />
 
-              <p className="home-edit-modal-tip">O preco continua sincronizado com o produto oficial do sistema.</p>
+              <p className="home-edit-modal-tip">O preço continua sincronizado com o produto oficial do sistema.</p>
             </div>
 
             <div className="home-edit-modal-actions">
@@ -724,7 +742,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
                 onClick={handleSaveCardEdit}
                 disabled={savingCardEdit}
               >
-                {savingCardEdit ? 'Salvando...' : 'Salvar alteracoes'}
+                {savingCardEdit ? 'A guardar...' : 'Guardar alterações'}
               </button>
             </div>
           </div>
@@ -733,15 +751,15 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
 
       <section className="features-section" id="entrega">
         <div className="section-container">
-          <h2 className="section-title">Entrega a Porta com Padrao Profissional</h2>
+          <h2 className="section-title">Entrega à Porta com Padrão Profissional</h2>
 
           <div className="features-grid">
             <div className="feature-card">
               <div className="feature-icon">
                 <Clock3 size={32} />
               </div>
-              <h3>Horario previsivel</h3>
-              <p>Janelas de entrega definidas para facilitar a sua rotina diaria sem atrasos.</p>
+              <h3>Horário previsível</h3>
+              <p>Janelas de entrega definidas para facilitar a sua rotina diária sem atrasos.</p>
             </div>
 
             <div className="feature-card">
@@ -749,7 +767,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
                 <Truck size={32} />
               </div>
               <h3>Entrega na sua porta</h3>
-              <p>Logistica dedicada para chegar fresco e no ponto ideal de consumo.</p>
+              <p>Logística dedicada para chegar fresco e no ponto ideal de consumo.</p>
             </div>
 
             <div className="feature-card">
@@ -757,15 +775,15 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
                 <MapPin size={32} />
               </div>
               <h3>Cobertura por zonas</h3>
-              <p>Atendimento por regiao para manter consistencia e qualidade de entrega.</p>
+              <p>Atendimento por região para manter consistência e qualidade de entrega.</p>
             </div>
 
             <div className="feature-card">
               <div className="feature-icon">
                 <Phone size={32} />
               </div>
-              <h3>Suporte rapido</h3>
-              <p>Contacto directo para ajustes de pedido, morada e periodicidade.</p>
+              <h3>Suporte rápido</h3>
+              <p>Contacto direto para ajustes de pedido, morada e periodicidade.</p>
             </div>
           </div>
         </div>
@@ -774,7 +792,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
       <section className="availability-section" id="disponibilidade">
         <div className="section-container">
           <h2 className="section-title">Verifique a Disponibilidade da Sua Morada</h2>
-          <p className="section-subtitle">Introduza rua e localidade para validacao imediata. Zonas de entrega: Lourinhã, Torres Vedras e Bombarral.</p>
+          <p className="section-subtitle">Introduza rua e localidade para validação imediata. Zonas de entrega: Lourinhã, Torres Vedras e Bombarral.</p>
 
           <div className="availability-form">
             <div className="input-group">
@@ -839,7 +857,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
               <div className="info-item">
                 <MapPin size={32} />
                 <div>
-                  <h3>Base de operacao</h3>
+                  <h3>Base de operação</h3>
                   <p>Ribamar, Lisboa, Portugal</p>
                 </div>
               </div>
@@ -887,7 +905,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
       <footer className="footer">
         <div className="section-container">
           <p>&copy; 2026 Padaria Ribamar. Todos os direitos reservados.</p>
-          <p>Panificacao artesanal com logistica de entrega dedicada.</p>
+          <p>Panificação artesanal com logística de entrega dedicada.</p>
         </div>
       </footer>
     </div>
