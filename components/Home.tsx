@@ -38,6 +38,7 @@ interface HomeContent {
   heroTitle: string;
   heroSubtitle: string;
   heroDescription: string;
+  heroImageUrl: string;
   catalogTitle: string;
   catalogSubtitle: string;
 }
@@ -47,6 +48,7 @@ const defaultHomeContent: HomeContent = {
   heroTitle: 'Pao quente, entrega profissional e experiencia premium a porta.',
   heroSubtitle: 'Produzimos diariamente com fermentacao cuidada e entrega matinal em janelas previsiveis.',
   heroDescription: 'A home foi desenhada para transmitir confianca: fotos reais, linguagem clara, foco em servico e disponibilidade por zona.',
+  heroImageUrl: 'https://images.unsplash.com/photo-1608198093002-ad4e005484ec?auto=format&fit=crop&w=1400&q=80',
   catalogTitle: 'Selecao de Paes',
   catalogSubtitle: 'Catalogo informativo com os produtos disponiveis e respetivo preco unitario.',
 };
@@ -104,6 +106,10 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
   const [editCardImageUrl, setEditCardImageUrl] = useState('');
   const [editCardImageFile, setEditCardImageFile] = useState<File | null>(null);
   const [savingCardEdit, setSavingCardEdit] = useState(false);
+  const [isHeroEditOpen, setIsHeroEditOpen] = useState(false);
+  const [heroImageUrlEdit, setHeroImageUrlEdit] = useState('');
+  const [heroImageFileEdit, setHeroImageFileEdit] = useState<File | null>(null);
+  const [savingHeroEdit, setSavingHeroEdit] = useState(false);
 
   const formatPrice = (value: number) => `EUR ${value.toFixed(2).replace('.', ',')}`;
 
@@ -166,6 +172,40 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
     setEditCardImageUrl('');
     setEditCardImageFile(null);
     setIsCardEditOpen(true);
+  };
+
+  const openHeroEditor = () => {
+    setHeroImageUrlEdit(homeContent.heroImageUrl || defaultHomeContent.heroImageUrl);
+    setHeroImageFileEdit(null);
+    setIsHeroEditOpen(true);
+  };
+
+  const handleSaveHeroImage = async () => {
+    setSavingHeroEdit(true);
+    try {
+      let nextUrl = heroImageUrlEdit.trim();
+
+      if (heroImageFileEdit) {
+        nextUrl = await compressImage(heroImageFileEdit);
+      }
+
+      if (!nextUrl) {
+        nextUrl = defaultHomeContent.heroImageUrl;
+      }
+
+      await setDoc(doc(db, 'home_content', 'main'), {
+        heroImageUrl: nextUrl,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+
+      setIsHeroEditOpen(false);
+      setHeroImageFileEdit(null);
+    } catch (error) {
+      console.error('Erro ao salvar imagem principal da home:', error);
+      alert('Nao foi possivel salvar a imagem principal da home.');
+    } finally {
+      setSavingHeroEdit(false);
+    }
   };
 
   const handleSaveCardEdit = async () => {
@@ -270,6 +310,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
         heroTitle: data.heroTitle || defaultHomeContent.heroTitle,
         heroSubtitle: data.heroSubtitle || defaultHomeContent.heroSubtitle,
         heroDescription: data.heroDescription || defaultHomeContent.heroDescription,
+        heroImageUrl: data.heroImageUrl || defaultHomeContent.heroImageUrl,
         catalogTitle: data.catalogTitle || defaultHomeContent.catalogTitle,
         catalogSubtitle: data.catalogSubtitle || defaultHomeContent.catalogSubtitle,
       });
@@ -438,9 +479,17 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
           </div>
 
           <div className="hero-media">
+            {isPreviewMode && (
+              <button className="hero-edit-btn" type="button" onClick={openHeroEditor}>
+                Editar imagem principal
+              </button>
+            )}
             <img
-              src="https://images.unsplash.com/photo-1608198093002-ad4e005484ec?auto=format&fit=crop&w=1400&q=80"
+              src={homeContent.heroImageUrl}
               alt="Pao artesanal recem assado"
+              onError={(e) => {
+                e.currentTarget.src = defaultHomeContent.heroImageUrl;
+              }}
             />
             <div className="hero-media-badge">
               <span>Entrega diaria</span>
@@ -449,6 +498,67 @@ const Home: React.FC<HomeProps> = ({ onLoginClick, isPreviewMode = false }) => {
           </div>
         </div>
       </section>
+
+      {isPreviewMode && isHeroEditOpen && (
+        <div className="home-edit-modal-backdrop">
+          <div className="home-edit-modal">
+            <div className="home-edit-modal-header">
+              <h3>Editar Imagem Principal da Home</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsHeroEditOpen(false);
+                  setHeroImageFileEdit(null);
+                }}
+              >
+                Fechar
+              </button>
+            </div>
+
+            <div className="home-edit-modal-body">
+              <label>URL da imagem (opcional)</label>
+              <input
+                type="text"
+                value={heroImageUrlEdit}
+                onChange={(e) => setHeroImageUrlEdit(e.target.value)}
+              />
+
+              <label>Ou escolher imagem do seu PC</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  setHeroImageFileEdit(file);
+                }}
+              />
+
+              <p className="home-edit-modal-tip">Se selecionar ficheiro, ele substitui a URL acima.</p>
+            </div>
+
+            <div className="home-edit-modal-actions">
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  setIsHeroEditOpen(false);
+                  setHeroImageFileEdit(null);
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="primary"
+                onClick={handleSaveHeroImage}
+                disabled={savingHeroEdit}
+              >
+                {savingHeroEdit ? 'Salvando...' : 'Salvar imagem'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <section className="breads-section" id="catalogo">
         <div className="section-container">
