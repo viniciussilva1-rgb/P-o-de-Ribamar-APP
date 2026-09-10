@@ -86,7 +86,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
         normalizedAddress.includes('torres vedras') ||
         normalizedAddress.includes('bombarral')
       ) {
-        setAvailabilityResult('Disponibilidade confirmada: entregamos nesta morada entre 06:00 e 09:00.');
+        setAvailabilityResult('Disponibilidade confirmada: entregamos nesta morada entre 04:00 e 09:00.');
       } else {
         setAvailabilityResult('De momento entregamos apenas em Lourinhã, Torres Vedras e Bombarral. Fale connosco para validar excecoes.');
       }
@@ -152,7 +152,7 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
             />
             <div className="hero-media-badge">
               <span>Entrega diaria</span>
-              <strong>06:00 - 09:00</strong>
+              <strong>04:00 - 09:00</strong>
             </div>
           </div>
         </div>
