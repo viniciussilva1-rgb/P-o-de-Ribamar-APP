@@ -52,9 +52,27 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
 
   const handleContactSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Aqui você pode conectar com Firebase ou um serviço de email
-    console.log('Mensagem de contato:', formData);
-    alert('Obrigado pela sua mensagem! Entraremos em contato em breve.');
+
+    const contactText = [
+      'Novo pedido de contacto - Padaria Ribamar',
+      '',
+      `Nome: ${formData.name}`,
+      `Email: ${formData.email}`,
+      `Mensagem: ${formData.message}`,
+    ].join('\n');
+
+    const encodedText = encodeURIComponent(contactText);
+    const encodedSubject = encodeURIComponent('Pedido de contacto - Padaria Ribamar');
+
+    const mailtoUrl = `mailto:tiagoalexandrejose@gmail.com?subject=${encodedSubject}&body=${encodedText}`;
+    const whatsappJoao = `https://wa.me/351919672252?text=${encodedText}`;
+    const whatsappTiago = `https://wa.me/351915390476?text=${encodedText}`;
+
+    window.open(whatsappJoao, '_blank', 'noopener,noreferrer');
+    window.open(whatsappTiago, '_blank', 'noopener,noreferrer');
+    window.location.href = mailtoUrl;
+
+    alert('Pedido de contacto preparado: abrimos WhatsApp para João e Tiago e o seu app de email para envio.');
     setFormData({ name: '', email: '', message: '' });
   };
 
