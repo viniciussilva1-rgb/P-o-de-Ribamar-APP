@@ -330,19 +330,23 @@ body {
 }
 
 .bread-image-wrap {
-  height: 220px;
+  height: 260px;
   overflow: hidden;
+  background: #f4ecdf;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .bread-image {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  transition: transform 0.65s ease;
+  object-fit: contain;
+  transition: transform 0.35s ease;
 }
 
 .bread-card:hover .bread-image {
-  transform: scale(1.06);
+  transform: scale(1.01);
 }
 
 .bread-name {
