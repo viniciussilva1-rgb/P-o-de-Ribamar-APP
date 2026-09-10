@@ -237,8 +237,18 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
                 <Phone size={32} />
                 <div>
                   <h3>Telefones</h3>
-                  <p>João Pai: 919672252</p>
-                  <p>Tiago Filho: 915390476</p>
+                  <p>
+                    João Pai:{' '}
+                    <a className="contact-link" href="https://wa.me/351919672252" target="_blank" rel="noreferrer">
+                      919672252
+                    </a>
+                  </p>
+                  <p>
+                    Tiago Filho:{' '}
+                    <a className="contact-link" href="https://wa.me/351915390476" target="_blank" rel="noreferrer">
+                      915390476
+                    </a>
+                  </p>
                 </div>
               </div>
 
@@ -246,7 +256,11 @@ const Home: React.FC<HomeProps> = ({ onLoginClick }) => {
                 <Mail size={32} />
                 <div>
                   <h3>Email</h3>
-                  <p>tiagoalexandrejose@gmail.com</p>
+                  <p>
+                    <a className="contact-link" href="mailto:tiagoalexandrejose@gmail.com">
+                      tiagoalexandrejose@gmail.com
+                    </a>
+                  </p>
                 </div>
               </div>
 
