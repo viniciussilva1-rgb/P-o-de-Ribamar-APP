@@ -2218,8 +2218,8 @@ const DriverDailyDeliveries: React.FC = () => {
                                   bgClass = 'bg-gray-100 text-gray-500';
                                   break;
                                 case 'future':
-                                  // Futuro: desabilitado
-                                  bgClass = 'bg-gray-100 text-gray-400';
+                                  // Futuro: selecionável para pagamento adiantado
+                                  bgClass = 'bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200';
                                   break;
                               }
                             }
@@ -2228,13 +2228,10 @@ const DriverDailyDeliveries: React.FC = () => {
                               <button
                                 key={day}
                                 onClick={() => {
-                                  if (!isFuture) {
-                                    // Atualização otimista: atualiza imediatamente
-                                    handleOptimisticDateSelect(dateStr);
-                                  }
+                                  // Atualização otimista: atualiza imediatamente
+                                  handleOptimisticDateSelect(dateStr);
                                 }}
-                                disabled={isFuture}
-                                className={`w-8 h-8 rounded-full text-sm font-medium transition-all ${bgClass} ${ringClass} ${isFuture ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                                className={`w-8 h-8 rounded-full text-sm font-medium transition-all ${bgClass} ${ringClass} cursor-pointer`}
                               >
                                 {day}
                               </button>
