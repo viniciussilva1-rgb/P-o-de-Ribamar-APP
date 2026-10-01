@@ -859,12 +859,28 @@ export const DriverView: React.FC = () => {
     return { total, daysCount, dailyValue };
   };
 
-  const handleConfirmPayment = () => {
-    if (editingClientId && calculatedTotal !== null) {
-        registerPayment(editingClientId, calculatedTotal, 'Dinheiro'); // Defaulting to Cash for now
-        setClientForm(prev => ({ ...prev, currentBalance: 0 }));
-        setCalculatedTotal(0);
-        alert("Pagamento registrado com sucesso! O histórico foi atualizado.");
+  const handleConfirmPayment = async () => {
+    if (!editingClientId) return;
+
+    const amount = calculatedTotal !== null && calculatedTotal > 0
+      ? calculatedTotal
+      : Number(clientForm.currentBalance) || 0;
+
+    if (amount <= 0) {
+      alert('Informe um valor válido para confirmar o recebimento.');
+      return;
+    }
+
+    const paidUntil = calcDateTo || formatDateLocal(new Date());
+
+    try {
+      await registerPayment(editingClientId, amount, 'Dinheiro', paidUntil);
+      setClientForm(prev => ({ ...prev, currentBalance: 0, lastPaymentDate: paidUntil }));
+      setCalculatedTotal(0);
+      alert(`Pagamento registrado com sucesso! Cliente pago até ${new Date(paidUntil).toLocaleDateString('pt-PT')}.`);
+    } catch (error) {
+      console.error('Erro ao registrar pagamento:', error);
+      alert('Não foi possível confirmar o recebimento. Tente novamente.');
     }
   };
 

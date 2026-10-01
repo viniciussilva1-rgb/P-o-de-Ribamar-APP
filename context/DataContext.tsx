@@ -31,7 +31,7 @@ interface DataContextType {
   calculateClientDebt: (client: Client) => { total: number, daysCount: number, details: string[] };
   getClientPaymentInfo: (clientId: string) => { lastPaymentDate: string | null; lastPaymentAmount: number | null; paidUntilDate: string | null; unpaidDates: string[]; paidDates: string[]; skippedDates: string[] };
   getClientConsumptionHistory: (clientId: string) => ClientConsumptionHistory;
-  registerPayment: (clientId: string, amount: number, method: string) => void;
+  registerPayment: (clientId: string, amount: number, method: string, paidUntil?: string) => Promise<void>;
   toggleSkippedDate: (clientId: string, date: string) => void;
   updateClientPrice: (clientId: string, productId: string, newPrice: number, userRole: UserRole) => void;
   updatePricesForRoute: (routeId: string, prices: Record<string, number>, userRole: UserRole) => Promise<{ success: number; failed: number }>;
@@ -1077,7 +1077,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   };
 
-  const registerPayment = async (clientId: string, amount: number, method: string) => {
+  const registerPayment = async (clientId: string, amount: number, method: string, paidUntil?: string) => {
     const todayStr = new Date().toISOString().split('T')[0];
     const client = clients.find(c => c.id === clientId);
     if (!client) return;
@@ -1093,7 +1093,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     await updateDoc(doc(db, 'clients', clientId), {
         currentBalance: 0,
-        lastPaymentDate: todayStr,
+        lastPaymentDate: paidUntil || todayStr,
         paymentHistory: updatedHistory
     });
   };
