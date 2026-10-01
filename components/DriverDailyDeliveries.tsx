@@ -22,6 +22,13 @@ const getDayKey = (date: string): 'dom' | 'seg' | 'ter' | 'qua' | 'qui' | 'sex' 
   return mapKeys[new Date(date).getDay()];
 };
 
+const formatDateLocal = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 // ========== TIPOS E FUNÇÕES DO CALENDÁRIO DE PAGAMENTOS ==========
 
 // Status possíveis de cada dia no calendário
@@ -173,7 +180,7 @@ const DriverDailyDeliveries: React.FC = () => {
     updateDynamicDeliveryItems
   } = useData();
   
-  const today = new Date().toISOString().split('T')[0];
+  const today = formatDateLocal(new Date());
   const [selectedDate, setSelectedDate] = useState(today);
   const [selectedRoute, setSelectedRoute] = useState<string>('all');
   const [deliveries, setDeliveries] = useState<ClientDelivery[]>([]);
@@ -197,12 +204,12 @@ const DriverDailyDeliveries: React.FC = () => {
   const [paymentClientName, setPaymentClientName] = useState<string>('');
   const [paymentAmount, setPaymentAmount] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<string>('Dinheiro');
-  const [paidUntilDate, setPaidUntilDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [paidUntilDate, setPaidUntilDate] = useState<string>(formatDateLocal(new Date()));
 
   // Atualizar a data automaticamente quando passa da meia-noite
   useEffect(() => {
     const updateDateIfNeeded = () => {
-      const currentToday = new Date().toISOString().split('T')[0];
+      const currentToday = formatDateLocal(new Date());
       if (currentToday !== selectedDate) {
         console.log(`[DATE] Data atualizada de ${selectedDate} para ${currentToday}`);
         setSelectedDate(currentToday);
@@ -574,7 +581,7 @@ const DriverDailyDeliveries: React.FC = () => {
       
       // Configurar estados para atualização otimista
       const confirmedPaidUntil = info.paidUntilDate || null;
-      const today = new Date().toISOString().split('T')[0];
+      const today = formatDateLocal(new Date());
       
       // Guardar a data anterior como referência para cálculos
       setServerPaidUntil(confirmedPaidUntil);
@@ -628,7 +635,7 @@ const DriverDailyDeliveries: React.FC = () => {
     endDate.setHours(0, 0, 0, 0);
 
     while (currentDate <= endDate) {
-      const dateStr = currentDate.toISOString().split('T')[0];
+      const dateStr = formatDateLocal(currentDate);
       const dayIndex = currentDate.getDay();
       const mapKeys = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
       const dayKey = mapKeys[dayIndex] as keyof DeliverySchedule;
@@ -708,7 +715,7 @@ const DriverDailyDeliveries: React.FC = () => {
       // Rollback: reverter para o estado anterior a tentativa
       // (nenhuma seleção foi confirmada)
       setOptimisticPaidUntil(null);
-      const today = new Date().toISOString().split('T')[0];
+      const today = formatDateLocal(new Date());
       setPaidUntilDate(today);
       
       // Recalcular valor para hoje (intervalo de previousPaidUntil até hoje)
@@ -738,7 +745,7 @@ const DriverDailyDeliveries: React.FC = () => {
     setProcessingId(deliveryId);
     try {
       // 1. Calcular valor do dia baseado na schedule
-      const today = new Date().toISOString().split('T')[0];
+      const today = formatDateLocal(new Date());
       const paymentInfo = getClientPaymentInfo(clientId);
       const dayAmount = calculatePaymentAmountForRange(clientId, paymentInfo.paidUntilDate, deliveryDate);
       
@@ -2136,7 +2143,7 @@ const DriverDailyDeliveries: React.FC = () => {
                           const month = calendarMonth.getMonth();
                           const firstDay = new Date(year, month, 1);
                           const lastDay = new Date(year, month + 1, 0);
-                          const todayStr = new Date().toISOString().split('T')[0];
+                          const todayStr = formatDateLocal(new Date());
                           
                           // Usar optimisticPaidUntil para atualização imediata
                           const effectivePaidThrough = optimisticPaidUntil || paidUntilDate || null;
@@ -2145,7 +2152,7 @@ const DriverDailyDeliveries: React.FC = () => {
                           const visibleDays: string[] = [];
                           for (let day = 1; day <= lastDay.getDate(); day++) {
                             const dateObj = new Date(year, month, day);
-                            visibleDays.push(dateObj.toISOString().split('T')[0]);
+                            visibleDays.push(formatDateLocal(dateObj));
                           }
                           
                           // Datas com entrega programada (paidDates + unpaidDates)
@@ -2173,7 +2180,7 @@ const DriverDailyDeliveries: React.FC = () => {
                           // Dias do mês
                           for (let day = 1; day <= lastDay.getDate(); day++) {
                             const dateObj = new Date(year, month, day);
-                            const dateStr = dateObj.toISOString().split('T')[0];
+                            const dateStr = formatDateLocal(dateObj);
                             const dayInfo = calendarStatuses.get(dateStr);
                             const status = dayInfo?.status || 'no_delivery';
                             const isSelected = paidUntilDate === dateStr;

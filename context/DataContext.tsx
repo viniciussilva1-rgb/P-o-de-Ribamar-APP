@@ -5,6 +5,13 @@ import { db } from '../firebaseConfig'; // Import database
 import { collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot, query, where, getDocs, writeBatch, getDoc } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 
+const formatDateLocal = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 interface DataContextType {
   users: User[];
   clients: Client[];
@@ -1078,7 +1085,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const registerPayment = async (clientId: string, amount: number, method: string, paidUntil?: string) => {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = formatDateLocal(new Date());
     const client = clients.find(c => c.id === clientId);
     if (!client) return;
 
@@ -2306,7 +2313,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Registrar Pagamento Recebido
   const registerDailyPayment = async (driverId: string, clientId: string, amount: number, method: string, paidUntil?: string): Promise<void> => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = formatDateLocal(new Date());
     const paymentId = `payment-${driverId}-${clientId}-${Date.now()}`;
     const now = new Date().toISOString();
     
@@ -2354,7 +2361,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Registrar Pagamento pelo Administrador (não entra no fecho de contas do entregador)
   const registerAdminPayment = async (adminId: string, adminName: string, clientId: string, amount: number, method: string, paidUntil?: string): Promise<void> => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = formatDateLocal(new Date());
     const paymentId = `payment-admin-${clientId}-${Date.now()}`;
     const now = new Date().toISOString();
     
@@ -2454,7 +2461,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Obter resumo de pagamentos de todos os clientes de um entregador
   const getClientPaymentSummaries = (driverId: string): ClientPaymentSummary[] => {
     const driverClients = clients.filter(c => c.driverId === driverId && c.status === 'ACTIVE');
-    const today = new Date().toISOString().split('T')[0];
+    const today = formatDateLocal(new Date());
     
     return driverClients.map(client => {
       const route = client.routeId ? routes.find(r => r.id === client.routeId) : null;

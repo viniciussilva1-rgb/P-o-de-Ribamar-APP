@@ -1880,7 +1880,7 @@ export const DriverView: React.FC = () => {
                                          // Dias do mês
                                          for (let day = 1; day <= lastDay.getDate(); day++) {
                                            const dateObj = new Date(year, month, day);
-                                           const dateStr = dateObj.toISOString().split('T')[0];
+                                           const dateStr = formatDateLocal(dateObj);
                                            const isFuture = dateObj > today;
                                            const isPaid = paymentInfo.paidDates.includes(dateStr);
                                            const isUnpaid = paymentInfo.unpaidDates.includes(dateStr);

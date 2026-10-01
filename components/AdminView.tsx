@@ -16,6 +16,13 @@ const normalizeText = (text: string): string => {
     .replace(/[\u0300-\u036f]/g, ''); // Remove diacríticos (acentos)
 };
 
+const formatDateLocal = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 // Helper component for isolated row state (Reused from DriverView logic)
 const AddScheduleItemRow: React.FC<{ products: Product[], onAdd: (productId: string, quantity: number) => void }> = ({ products, onAdd }) => {
   const [selectedProduct, setSelectedProduct] = useState('');
@@ -80,7 +87,7 @@ export const DriversOverview: React.FC = () => {
   const [paymentClientName, setPaymentClientName] = useState<string>('');
   const [paymentAmount, setPaymentAmount] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<string>('MBWay');
-  const [paidUntilDate, setPaidUntilDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [paidUntilDate, setPaidUntilDate] = useState<string>(formatDateLocal(new Date()));
   const [savingPayment, setSavingPayment] = useState(false);
   const [clientDebt, setClientDebt] = useState<number>(0);
   const [showCustomCalendar, setShowCustomCalendar] = useState(false);
@@ -201,7 +208,7 @@ export const DriversOverview: React.FC = () => {
     
     // Configurar estados iniciais
     const confirmedPaidUntil = info.paidUntilDate || null;
-    setPaidUntilDate(confirmedPaidUntil || new Date().toISOString().split('T')[0]);
+    setPaidUntilDate(confirmedPaidUntil || formatDateLocal(new Date()));
     
     // Valor inicial é a dívida total
     setPaymentAmount(debt.total > 0 ? debt.total.toFixed(2) : '');
@@ -1066,7 +1073,7 @@ export const DriversOverview: React.FC = () => {
                           const month = calendarMonth.getMonth();
                           const firstDay = new Date(year, month, 1);
                           const lastDay = new Date(year, month + 1, 0);
-                          const todayStr = new Date().toISOString().split('T')[0];
+                          const todayStr = formatDateLocal(new Date());
                           
                           const days = [];
                           
@@ -1078,7 +1085,7 @@ export const DriversOverview: React.FC = () => {
                           // Dias do mês - Admin pode selecionar datas futuras
                           for (let day = 1; day <= lastDay.getDate(); day++) {
                             const dateObj = new Date(year, month, day);
-                            const dateStr = dateObj.toISOString().split('T')[0];
+                            const dateStr = formatDateLocal(dateObj);
                             const isSelected = paidUntilDate === dateStr;
                             const isToday = dateStr === todayStr;
                             const isFuture = dateStr > todayStr;
@@ -1755,7 +1762,7 @@ export const ProductCatalog: React.FC = () => {
 
 export const ProductionManager: React.FC = () => {
   const { products, updateDailyProduction, getDailyRecord } = useData();
-  const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [currentDate, setCurrentDate] = useState(formatDateLocal(new Date()));
   const [empeloMode, setEmpeloMode] = useState<Record<string, boolean>>({});
 
   const toggleEmpelo = (productId: string) => {
@@ -1967,7 +1974,7 @@ export const ProductionAnalysis: React.FC = () => {
     deleteProductionAnalysis
   } = useData();
   
-  const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [currentDate, setCurrentDate] = useState(formatDateLocal(new Date()));
   const [activeView, setActiveView] = useState<'register' | 'history' | 'comparison' | 'suggestions'>('register');
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
