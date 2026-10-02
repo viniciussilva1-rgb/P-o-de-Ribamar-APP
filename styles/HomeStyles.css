@@ -827,6 +827,12 @@ body {
 }
 
 @media (max-width: 720px) {
+  .section-container,
+  .home-header-content,
+  .hero-content {
+    width: min(1160px, 94vw);
+  }
+
   .home-header-content {
     height: 68px;
   }
@@ -881,5 +887,34 @@ body {
 
   .features-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .home-nav-buttons {
+    gap: 10px;
+  }
+
+  .login-button-nav {
+    padding: 9px 12px;
+    font-size: 0.86rem;
+  }
+
+  .hero-content {
+    gap: 20px;
+  }
+
+  .hero-media {
+    min-height: 260px;
+  }
+
+  .breads-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .availability-form,
+  .contact-info,
+  .contact-form {
+    padding: 16px;
   }
 }

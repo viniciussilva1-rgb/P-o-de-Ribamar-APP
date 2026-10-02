@@ -10,11 +10,16 @@ interface LayoutProps {
   setActiveTab: (tab: string) => void;
 }
 
+const safeAreaSidePadding = {
+  paddingLeft: 'max(0.5rem, env(safe-area-inset-left))',
+  paddingRight: 'max(0.5rem, env(safe-area-inset-right))',
+};
+
 export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) => {
   const { currentUser, logout, isAdmin } = useAuth();
 
   return (
-    <div className="min-h-screen flex" style={{ backgroundColor: '#0D0F14' }}>
+    <div className="min-h-screen flex overflow-x-hidden" style={{ backgroundColor: '#0D0F14' }}>
       {/* Sidebar */}
       <aside 
         className="w-64 text-white flex-shrink-0 hidden md:flex flex-col shadow-2xl z-20" 
@@ -190,13 +195,17 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
 
       {/* Mobile Header & Content */}
       <div 
-        className="flex-1 flex flex-col h-screen overflow-hidden"
+        className="flex-1 min-w-0 flex flex-col h-screen overflow-hidden"
         style={{ backgroundColor: '#0D0F14' }}
       >
         {/* Mobile Header */}
         <header 
-          className="md:hidden text-white p-4 flex justify-between items-center shadow-md z-30"
-          style={{ backgroundColor: '#13161E', borderBottom: '1px solid rgba(255,255,255,0.07)' }}
+          className="md:hidden text-white py-4 flex justify-between items-center shadow-md z-30"
+          style={{
+            backgroundColor: '#13161E',
+            borderBottom: '1px solid rgba(255,255,255,0.07)',
+            ...safeAreaSidePadding,
+          }}
         >
           <div className="flex items-center space-x-2">
             <Wheat className="w-6 h-6" style={{ color: '#F5A623' }} />
@@ -209,8 +218,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
         
         {/* Mobile Tab Bar */}
         <div 
-          className="md:hidden text-white flex justify-around p-1 shadow-inner z-20 overflow-x-auto flex-shrink-0"
-          style={{ backgroundColor: '#13161E', borderBottom: '1px solid rgba(255,255,255,0.07)' }}
+          className="md:hidden text-white flex justify-start gap-1 py-1 shadow-inner z-20 overflow-x-auto flex-shrink-0 snap-x snap-mandatory"
+          style={{
+            backgroundColor: '#13161E',
+            borderBottom: '1px solid rgba(255,255,255,0.07)',
+            ...safeAreaSidePadding,
+          }}
         >
             {isAdmin ? (
             <>
@@ -312,8 +325,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
         </div>
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-auto p-4 md:p-8 scroll-smooth">
-          <div className="max-w-7xl mx-auto">
+        <main
+          className="flex-1 min-w-0 overflow-y-auto overflow-x-auto p-3 sm:p-4 md:p-8 scroll-smooth"
+          style={safeAreaSidePadding}
+        >
+          <div className="max-w-7xl mx-auto w-full min-w-0">
             {children}
           </div>
         </main>
@@ -354,7 +370,7 @@ const NavItem = ({ icon, label, active, onClick }: any) => (
 const MobileNavItem = ({ icon, label, active, onClick }: any) => (
     <button 
         onClick={onClick}
-        className="flex flex-col items-center px-2 py-1.5 rounded transition-colors min-w-[50px] flex-shrink-0"
+        className="flex flex-col items-center px-2 py-1.5 rounded transition-colors min-w-[62px] flex-shrink-0 snap-start"
         style={{
           backgroundColor: active ? 'rgba(245,166,35,0.12)' : 'transparent',
           color: active ? '#F5A623' : '#A0A8C0',
