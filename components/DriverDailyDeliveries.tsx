@@ -1605,8 +1605,8 @@ const DriverDailyDeliveries: React.FC = () => {
                   
                   return (
                     <div key={delivery.id} className={`p-4 ${isClientDynamic(delivery.clientId) ? 'border-l-4 border-purple-400' : ''}`}>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="flex-1 min-w-0 w-full">
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <User size={16} className="text-gray-400" />
                             <span className="font-medium text-gray-800">{delivery.clientName}</span>
@@ -1747,7 +1747,7 @@ const DriverDailyDeliveries: React.FC = () => {
                               border: '1px solid rgba(168,85,247,0.3)'
                             }}>
                               {/* Header */}
-                              <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
                                 <div className="flex items-center gap-2">
                                   <Sparkles size={16} style={{ color: '#D8B4FE' }} />
                                   <span style={{ fontSize: '0.875rem', fontWeight: '500', color: '#D8B4FE' }}>Adicionar Produtos:</span>
@@ -1775,12 +1775,12 @@ const DriverDailyDeliveries: React.FC = () => {
                               </div>
 
                               {/* Seletor de produto + quantidade */}
-                              <div className="flex flex-col sm:flex-row gap-2 mb-3">
+                              <div className="mb-3 w-full space-y-2">
                                 <select
                                   value={selectedProductToAdd}
                                   onChange={(e) => setSelectedProductToAdd(e.target.value)}
-                                  style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB' }}
-                                  className="w-full sm:flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-400"
+                                  style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB', maxWidth: '100%' }}
+                                  className="w-full min-w-0 sm:flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-400"
                                 >
                                   <option value="">Selecione um produto...</option>
                                   {products
@@ -1795,28 +1795,30 @@ const DriverDailyDeliveries: React.FC = () => {
                                       );
                                     })}
                                 </select>
-                                <input
-                                  type="number"
-                                  min="1"
-                                  value={quantityToAdd === 0 ? '' : quantityToAdd}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    if (val === '' || isNaN(Number(val))) {
-                                      setQuantityToAdd(0);
-                                    } else {
-                                      setQuantityToAdd(Number(val));
-                                    }
-                                  }}
-                                  style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB' }}
-                                  className="w-full sm:w-24 px-3 py-2 border rounded-lg text-sm text-center font-bold focus:ring-2 focus:ring-purple-400"
-                                />
-                                <button
-                                  onClick={() => handleAddDynamicProduct(delivery.clientId)}
-                                  disabled={!selectedProductToAdd}
-                                  className="w-full sm:w-auto px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                                >
-                                  <Plus size={18} />
-                                </button>
+                                <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 w-full">
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={quantityToAdd === 0 ? '' : quantityToAdd}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      if (val === '' || isNaN(Number(val))) {
+                                        setQuantityToAdd(0);
+                                      } else {
+                                        setQuantityToAdd(Number(val));
+                                      }
+                                    }}
+                                    style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB' }}
+                                    className="w-full min-w-0 px-3 py-2 border rounded-lg text-sm text-center font-bold focus:ring-2 focus:ring-purple-400"
+                                  />
+                                  <button
+                                    onClick={() => handleAddDynamicProduct(delivery.clientId)}
+                                    disabled={!selectedProductToAdd}
+                                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                                  >
+                                    <Plus size={18} />
+                                  </button>
+                                </div>
                               </div>
 
                               {/* Lista de produtos adicionados */}
@@ -1887,7 +1889,7 @@ const DriverDailyDeliveries: React.FC = () => {
                             </div>
                           )}
                           
-                          <div className="mt-2 flex items-center gap-4">
+                          <div className="mt-2 flex items-center gap-4 flex-wrap">
                             {/* Para clientes dinâmicos pendentes sem itens, não mostrar valor (já tem a mensagem roxa acima) */}
                             {!(isClientDynamic(delivery.clientId) && delivery.status === 'pending' && delivery.items.length === 0) && (
                               <span className="text-sm font-medium text-green-600">
@@ -1904,12 +1906,12 @@ const DriverDailyDeliveries: React.FC = () => {
                         
                         {/* Ações */}
                         {delivery.status === 'pending' && editingDynamicDelivery !== delivery.id && (
-                          <div className="flex flex-col gap-2 ml-4">
+                          <div className="w-full sm:w-auto flex flex-col gap-2 sm:ml-4">
                             {isClientDynamic(delivery.clientId) ? (
                               /* Botão especial para cliente dinâmico */
                               <button
                                 onClick={() => handleStartDynamicEdit(delivery)}
-                                className="flex items-center gap-1 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
+                                className="w-full sm:w-auto flex items-center justify-center gap-1 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
                               >
                                 <Edit3 size={14} />
                                 Registrar Entrega
@@ -1919,7 +1921,7 @@ const DriverDailyDeliveries: React.FC = () => {
                               <button
                                 onClick={() => handleMarkDelivered(delivery.id)}
                                 disabled={isProcessing}
-                                className="flex items-center gap-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm"
+                                className="w-full sm:w-auto flex items-center justify-center gap-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm"
                               >
                                 {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
                                 Entregue
@@ -1928,7 +1930,7 @@ const DriverDailyDeliveries: React.FC = () => {
                             <button
                               onClick={() => handleMarkNotDelivered(delivery.id)}
                               disabled={isProcessing}
-                              className="flex items-center gap-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm"
+                              className="w-full sm:w-auto flex items-center justify-center gap-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm"
                             >
                               {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
                               Não Entregue
@@ -1937,7 +1939,7 @@ const DriverDailyDeliveries: React.FC = () => {
                             {!isClientDynamic(delivery.clientId) && (
                               <button
                                 onClick={() => handleOpenExtraModal(delivery.id, delivery.clientName)}
-                                className="flex items-center gap-1 px-3 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 text-sm"
+                                className="w-full sm:w-auto flex items-center justify-center gap-1 px-3 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 text-sm"
                               >
                                 <ShoppingBag size={14} />
                                 + Extra
@@ -1947,7 +1949,7 @@ const DriverDailyDeliveries: React.FC = () => {
                             {!isClientDynamic(delivery.clientId) && delivery.items.some(item => !(item as any).isExtra && !(item as any).isSubstitute) && (
                               <button
                                 onClick={() => handleOpenSubstituteModal(delivery.id, delivery.clientName, delivery.items)}
-                                className="flex items-center gap-1 px-3 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 text-sm"
+                                className="w-full sm:w-auto flex items-center justify-center gap-1 px-3 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 text-sm"
                               >
                                 <ArrowLeftRight size={14} />
                                 Trocar
@@ -1956,7 +1958,7 @@ const DriverDailyDeliveries: React.FC = () => {
                             {/* Botão Receber Pagamento */}
                             <button
                               onClick={() => handleQuickDailyPayment(delivery.clientId, delivery.clientName, delivery.id, delivery.date, delivery.status)}
-                              className="flex items-center gap-1 px-3 py-2 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 text-sm"
+                              className="w-full sm:w-auto flex items-center justify-center gap-1 px-3 py-2 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 text-sm"
                             >
                               <Banknote size={14} />
                               Receber €
@@ -1965,7 +1967,7 @@ const DriverDailyDeliveries: React.FC = () => {
                         )}
                         
                         {delivery.status !== 'pending' && (
-                          <div className="ml-4 flex flex-col gap-2 items-end">
+                          <div className="w-full sm:w-auto sm:ml-4 flex flex-col gap-2 items-stretch sm:items-end">
                             {delivery.status === 'delivered' && (
                               <>
                                 {delivery.deliveredAt && (
