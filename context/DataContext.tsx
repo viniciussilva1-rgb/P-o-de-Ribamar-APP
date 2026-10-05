@@ -303,20 +303,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => unsubscribe();
   }, [authLoading, currentUser]);
 
-  // 7. Client Deliveries (Entrega do Dia) - Apenas últimos 7 dias
+  // 7. Client Deliveries (Entrega do Dia) - Coleção completa para cálculos de fecho corretos
   useEffect(() => {
     if (authLoading || !currentUser) return; // Aguarda autenticação estar completa e há usuário
 
-    const today = new Date();
-    const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const startDate = sevenDaysAgo.toISOString().split('T')[0];
-    
-    const q = query(
-      collection(db, 'client_deliveries'),
-      where('date', '>=', startDate)
-    );
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(collection(db, 'client_deliveries'), (snapshot) => {
       const deliveriesList = snapshot.docs.map(docSnap => ({
         ...docSnap.data(),
         id: docSnap.id
@@ -442,20 +433,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => unsubscribe();
   }, [authLoading, currentUser]);
 
-  // 11. Daily Payments Received (Pagamentos Recebidos) - Apenas últimos 7 dias
+  // 11. Daily Payments Received (Pagamentos Recebidos) - Coleção completa para fecho semanal
   useEffect(() => {
     if (authLoading || !currentUser) return; // Aguarda autenticação estar completa e há usuário
 
-    const today = new Date();
-    const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const startDate = sevenDaysAgo.toISOString().split('T')[0];
-    
-    const q = query(
-      collection(db, 'daily_payments_received'),
-      where('date', '>=', startDate)
-    );
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(collection(db, 'daily_payments_received'), (snapshot) => {
       const paymentsList = snapshot.docs.map(docSnap => ({
         ...docSnap.data(),
         id: docSnap.id
@@ -465,20 +447,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => unsubscribe();
   }, [authLoading, currentUser]);
 
-  // 12. Weekly Settlements (Fecho Semanal) - Apenas últimos 4 semanas
+  // 12. Weekly Settlements (Fecho Semanal) - Coleção completa para sempre achar o último fecho
   useEffect(() => {
     if (authLoading || !currentUser) return; // Aguarda autenticação estar completa e há usuário
 
-    const today = new Date();
-    const fourWeeksAgo = new Date(today.getTime() - 4 * 7 * 24 * 60 * 60 * 1000);
-    const startDate = fourWeeksAgo.toISOString().split('T')[0];
-    
-    const q = query(
-      collection(db, 'weekly_settlements'),
-      where('weekStartDate', '>=', startDate)
-    );
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(collection(db, 'weekly_settlements'), (snapshot) => {
       const settlementsList = snapshot.docs.map(docSnap => ({
         ...docSnap.data(),
         id: docSnap.id
@@ -2635,8 +2608,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return matchesDriver && notReceivedByAdmin && paymentTimestamp > lastSettlementTimestamp && p.date <= weekEndDate;
       }
       
-      // Se não há fecho anterior, considerar toda a semana atual (até a data selecionada)
-      const inDateRange = p.date >= weekStartDate && p.date <= weekEndDate;
+      // Se não há fecho anterior, considerar todo o histórico até a data do fecho
+      const inDateRange = p.date <= weekEndDate;
       return matchesDriver && notReceivedByAdmin && inDateRange;
     });
     
@@ -2651,8 +2624,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return matchesDriver && isDelivered && deliveryTimestamp > lastSettlementTimestamp && d.date <= weekEndDate;
       }
       
-      // Se não há fecho anterior, considerar toda a semana atual (até a data selecionada)
-      const inDateRange = d.date >= weekStartDate && d.date <= weekEndDate;
+      // Se não há fecho anterior, considerar todo o histórico até a data do fecho
+      const inDateRange = d.date <= weekEndDate;
       return matchesDriver && inDateRange && isDelivered;
     });
     
