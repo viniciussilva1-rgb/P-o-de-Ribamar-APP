@@ -339,8 +339,49 @@ const DriverDailyDeliveries: React.FC = () => {
 
   // Marcar como entregue
   const handleMarkDeliveredBase = useCallback(async (deliveryId: string) => {
+    const delivery = deliveries.find(d => d.id === deliveryId);
+    if (!delivery) return;
+
+    const client = clients.find(c => c.id === delivery.clientId);
+
     setProcessingId(deliveryId);
     try {
+      // Fluxo especial para clientes diários: confirmar se pagou no momento da entrega
+      if (client?.paymentFrequency === 'Diário' && currentUser?.id) {
+        const deliveryDateLabel = new Date(delivery.date).toLocaleDateString('pt-PT');
+        const wasPaidNow = window.confirm(
+          `${delivery.clientName} pagou a entrega de ${deliveryDateLabel}?\n\n` +
+          'OK = Pago agora (registra pagamento)\n' +
+          'Cancelar = Não pago agora (fica em conta)'
+        );
+
+        if (wasPaidNow) {
+          const paymentInfo = getClientPaymentInfo(delivery.clientId);
+          const amountFromSchedule = calculatePaymentAmountForRange(
+            delivery.clientId,
+            paymentInfo.paidUntilDate,
+            delivery.date
+          );
+          const fallbackAmount = delivery.totalValue || 0;
+          const finalAmount = amountFromSchedule > 0 ? amountFromSchedule : fallbackAmount;
+
+          if (finalAmount <= 0) {
+            setError('Não foi possível calcular o valor automaticamente. Use "Receber €" para informar manualmente.');
+            return;
+          }
+
+          await registerDailyPayment(currentUser.id, delivery.clientId, finalAmount, 'Dinheiro', delivery.date);
+          await updateDeliveryStatus(deliveryId, 'delivered');
+          setError(`✅ ${delivery.clientName} - Entrega marcada e pagamento de €${finalAmount.toFixed(2)} registado.`);
+        } else {
+          await updateDeliveryStatus(deliveryId, 'delivered');
+          setError(`ℹ️ ${delivery.clientName} - Entrega marcada sem pagamento. Valor ficou em conta.`);
+        }
+
+        setTimeout(() => setError(''), 5000);
+        return;
+      }
+
       await updateDeliveryStatus(deliveryId, 'delivered');
     } catch (err) {
       console.error('Erro ao marcar entrega:', err);
@@ -348,7 +389,14 @@ const DriverDailyDeliveries: React.FC = () => {
     } finally {
       setProcessingId(null);
     }
-  }, [updateDeliveryStatus]);
+  }, [
+    deliveries,
+    clients,
+    currentUser?.id,
+    getClientPaymentInfo,
+    registerDailyPayment,
+    updateDeliveryStatus
+  ]);
 
   const handleMarkDelivered = useDebounce(handleMarkDeliveredBase, 300);
 
@@ -551,6 +599,39 @@ const DriverDailyDeliveries: React.FC = () => {
       
       // Registrar consumo dinâmico (histórico para IA)
       await recordDynamicDelivery(delivery.clientId, currentUser.id, itemsWithQuantity);
+
+      // Fluxo de confirmação de pagamento para clientes diários dinâmicos
+      const client = clients.find(c => c.id === delivery.clientId);
+      if (client?.paymentFrequency === 'Diário') {
+        const deliveryDateLabel = new Date(delivery.date).toLocaleDateString('pt-PT');
+        const wasPaidNow = window.confirm(
+          `${delivery.clientName} pagou a entrega de ${deliveryDateLabel}?\n\n` +
+          'OK = Pago agora (registra pagamento)\n' +
+          'Cancelar = Não pago agora (fica em conta)'
+        );
+
+        if (wasPaidNow) {
+          const paymentInfo = getClientPaymentInfo(delivery.clientId);
+          const amountFromSchedule = calculatePaymentAmountForRange(
+            delivery.clientId,
+            paymentInfo.paidUntilDate,
+            delivery.date
+          );
+          const fallbackAmount = itemsWithQuantity.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+          const finalAmount = amountFromSchedule > 0 ? amountFromSchedule : fallbackAmount;
+
+          if (finalAmount > 0) {
+            await registerDailyPayment(currentUser.id, delivery.clientId, finalAmount, 'Dinheiro', delivery.date);
+            setError(`✅ ${delivery.clientName} - Entrega marcada e pagamento de €${finalAmount.toFixed(2)} registado.`);
+          } else {
+            setError('Entrega registrada, mas não foi possível calcular o valor do pagamento.');
+          }
+        } else {
+          setError(`ℹ️ ${delivery.clientName} - Entrega marcada sem pagamento. Valor ficou em conta.`);
+        }
+
+        setTimeout(() => setError(''), 5000);
+      }
       
       // NÃO chamar updateDeliveryStatus - já foi feito em updateDynamicDeliveryItems
       
@@ -730,8 +811,16 @@ const DriverDailyDeliveries: React.FC = () => {
 
   // Pagamento rápido para clientes com frequência DIÁRIA
   // Registra pagamento e marca entrega como entregue automaticamente
-  const handleQuickDailyPayment = async (clientId: string, clientName: string, deliveryId: string, deliveryDate: string) => {
+  const handleQuickDailyPayment = async (
+    clientId: string,
+    clientName: string,
+    deliveryId: string,
+    deliveryDate: string,
+    deliveryStatus?: DeliveryStatus
+  ) => {
     const client = clients.find(c => c.id === clientId);
+    const isAlreadyDelivered = deliveryStatus === 'delivered';
+    const delivery = deliveries.find(d => d.id === deliveryId);
     
     // Verificar se é cliente com pagamento diário
     if (!client || client.paymentFrequency !== 'Diário') {
@@ -744,26 +833,44 @@ const DriverDailyDeliveries: React.FC = () => {
 
     setProcessingId(deliveryId);
     try {
+      const deliveryDateLabel = new Date(deliveryDate).toLocaleDateString('pt-PT');
+      const wasPaidNow = window.confirm(
+        `${clientName} pagou a entrega de ${deliveryDateLabel}?\n\n` +
+        'OK = Pago agora (registra pagamento)\n' +
+        'Cancelar = Não pago agora (fica em conta)'
+      );
+
+      // Se não pagou, manter em conta e garantir entrega marcada
+      if (!wasPaidNow) {
+        if (!isAlreadyDelivered) {
+          await updateDeliveryStatus(deliveryId, 'delivered');
+        }
+        setError(`ℹ️ ${clientName} - Entrega marcada sem pagamento. Valor ficou em conta.`);
+        setTimeout(() => setError(''), 5000);
+        return;
+      }
+
       // 1. Calcular valor do dia baseado na schedule
-      const today = formatDateLocal(new Date());
       const paymentInfo = getClientPaymentInfo(clientId);
       const dayAmount = calculatePaymentAmountForRange(clientId, paymentInfo.paidUntilDate, deliveryDate);
-      
-      const finalAmount = dayAmount > 0 ? dayAmount : 0;
+      const fallbackAmount = delivery?.totalValue || 0;
+      const finalAmount = dayAmount > 0 ? dayAmount : fallbackAmount;
 
       if (finalAmount <= 0) {
-        setError('Não há valor a pagar neste dia para este cliente');
+        setError('Não foi possível calcular o valor automaticamente. Abra "Receber €" e informe manualmente.');
         return;
       }
 
       // 2. Registrar pagamento automaticamente com método "Dinheiro"
       await registerDailyPayment(currentUser.id, clientId, finalAmount, 'Dinheiro', deliveryDate);
 
-      // 3. Marcar entrega como entregue
-      await updateDeliveryStatus(deliveryId, 'delivered');
+      // 3. Marcar entrega como entregue (se ainda não estiver)
+      if (!isAlreadyDelivered) {
+        await updateDeliveryStatus(deliveryId, 'delivered');
+      }
 
       // 4. Mostrar feedback de sucesso
-      setError(`✅ ${clientName} - Pagamento de €${finalAmount.toFixed(2)} confirmado e entrega marcada!`);
+      setError(`✅ ${clientName} - Pagamento de €${finalAmount.toFixed(2)} registado${isAlreadyDelivered ? '!' : ' e entrega marcada!'}`);
       
       // Limpar mensagem após 5 segundos
       setTimeout(() => {
@@ -1668,12 +1775,12 @@ const DriverDailyDeliveries: React.FC = () => {
                               </div>
 
                               {/* Seletor de produto + quantidade */}
-                              <div className="flex gap-2 mb-3">
+                              <div className="flex flex-col sm:flex-row gap-2 mb-3">
                                 <select
                                   value={selectedProductToAdd}
                                   onChange={(e) => setSelectedProductToAdd(e.target.value)}
                                   style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB' }}
-                                  className="flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-400"
+                                  className="w-full sm:flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-400"
                                 >
                                   <option value="">Selecione um produto...</option>
                                   {products
@@ -1701,12 +1808,12 @@ const DriverDailyDeliveries: React.FC = () => {
                                     }
                                   }}
                                   style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB' }}
-                                  className="w-20 px-3 py-2 border rounded-lg text-sm text-center font-bold focus:ring-2 focus:ring-purple-400"
+                                  className="w-full sm:w-24 px-3 py-2 border rounded-lg text-sm text-center font-bold focus:ring-2 focus:ring-purple-400"
                                 />
                                 <button
                                   onClick={() => handleAddDynamicProduct(delivery.clientId)}
                                   disabled={!selectedProductToAdd}
-                                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  className="w-full sm:w-auto px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                                 >
                                   <Plus size={18} />
                                 </button>
@@ -1756,21 +1863,21 @@ const DriverDailyDeliveries: React.FC = () => {
                               )}
 
                               {/* Footer com total e botões */}
-                              <div className="flex items-center justify-between pt-3 border-t border-purple-200">
+                              <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between pt-3 border-t border-purple-200">
                                 <span className="text-sm text-purple-700">
                                   Total: <strong className="text-lg">€{dynamicDeliveryItems.reduce((sum, i) => sum + (i.price * i.quantity), 0).toFixed(2)}</strong>
                                 </span>
-                                <div className="flex gap-2">
+                                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                                   <button
                                     onClick={() => { setEditingDynamicDelivery(null); setDynamicDeliveryItems([]); setSelectedProductToAdd(''); }}
-                                    className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm"
+                                    className="w-full sm:w-auto px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm"
                                   >
                                     Cancelar
                                   </button>
                                   <button
                                     onClick={() => handleConfirmDynamicDelivery(delivery.id)}
                                     disabled={isProcessing || dynamicDeliveryItems.length === 0}
-                                    className="flex items-center gap-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
+                                    className="w-full sm:w-auto flex items-center justify-center gap-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium whitespace-nowrap"
                                   >
                                     {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
                                     Confirmar Entrega
@@ -1848,7 +1955,7 @@ const DriverDailyDeliveries: React.FC = () => {
                             )}
                             {/* Botão Receber Pagamento */}
                             <button
-                              onClick={() => handleQuickDailyPayment(delivery.clientId, delivery.clientName, delivery.id, delivery.date)}
+                              onClick={() => handleQuickDailyPayment(delivery.clientId, delivery.clientName, delivery.id, delivery.date, delivery.status)}
                               className="flex items-center gap-1 px-3 py-2 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 text-sm"
                             >
                               <Banknote size={14} />
@@ -1890,7 +1997,7 @@ const DriverDailyDeliveries: React.FC = () => {
                                 <div className="flex flex-wrap gap-1 justify-end">
                                   {/* Botão Receber Pagamento */}
                                   <button
-                                    onClick={() => handleQuickDailyPayment(delivery.clientId, delivery.clientName, delivery.id, delivery.date)}
+                                    onClick={() => handleQuickDailyPayment(delivery.clientId, delivery.clientName, delivery.id, delivery.date, delivery.status)}
                                     className="flex items-center gap-1 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 text-xs"
                                   >
                                     <Banknote size={12} />
