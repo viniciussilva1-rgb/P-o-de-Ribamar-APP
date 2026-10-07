@@ -23,7 +23,8 @@ const DriverDashboard: React.FC = () => {
   const { 
     getClientsByDriver, 
     getRoutesByDriver,
-    getClientPaymentSummaries
+    getClientPaymentSummaries,
+    isCoreDataReady
   } = useData();
 
   const [expandedRoutes, setExpandedRoutes] = useState<Set<string>>(new Set());
@@ -191,6 +192,29 @@ const DriverDashboard: React.FC = () => {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(value);
   };
+
+  if (!isCoreDataReady) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-amber-400" />
+          <p className="text-sm font-medium text-amber-200">A carregar clientes e pagamentos...</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, idx) => (
+            <div key={idx} className="h-20 rounded-xl border border-white/10 bg-white/5 animate-pulse" />
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, idx) => (
+            <div key={idx} className="h-24 rounded-xl border border-white/10 bg-white/5 animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const getStatusBadge = (status: string, daysOverdue: number) => {
     if (status === 'paid') {

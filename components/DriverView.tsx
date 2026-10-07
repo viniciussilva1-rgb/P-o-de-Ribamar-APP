@@ -278,7 +278,8 @@ export const DriverView: React.FC = () => {
     getClientPaymentInfo,
     registerPayment,
     toggleSkippedDate,
-    updateClientsOrder
+    updateClientsOrder,
+    isCoreDataReady
   } = useData();
   
   // Modals
@@ -342,6 +343,19 @@ export const DriverView: React.FC = () => {
 
   // Sem usuário logado, não renderiza nada (App cuida de mostrar Login)
   if (!currentUser) return null;
+
+  if (!isCoreDataReady) {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <p className="text-sm font-medium text-amber-200">A carregar lista de clientes...</p>
+        </div>
+        <div className="h-20 rounded-xl border border-white/10 bg-white/5 animate-pulse" />
+        <div className="h-20 rounded-xl border border-white/10 bg-white/5 animate-pulse" />
+        <div className="h-20 rounded-xl border border-white/10 bg-white/5 animate-pulse" />
+      </div>
+    );
+  }
 
   // Leitura dos dados do contexto (já vindos do Firestore via onSnapshot)
   const myClients = getClientsByDriver(currentUser.id);

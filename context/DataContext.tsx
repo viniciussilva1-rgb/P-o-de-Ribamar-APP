@@ -17,6 +17,7 @@ interface DataContextType {
   clients: Client[];
   products: Product[];
   routes: Route[];
+  isCoreDataReady: boolean;
   productionData: ProductionData;
   dailyLoads: DailyLoad[];
   addUser: (user: User) => void;
@@ -130,6 +131,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [clients, setClients] = useState<Client[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [routes, setRoutes] = useState<Route[]>([]);
+  const [usersLoaded, setUsersLoaded] = useState(false);
+  const [clientsLoaded, setClientsLoaded] = useState(false);
+  const [productsLoaded, setProductsLoaded] = useState(false);
+  const [routesLoaded, setRoutesLoaded] = useState(false);
   const [productionData, setProductionData] = useState<ProductionData>({});
   const [dailyLoads, setDailyLoads] = useState<DailyLoad[]>([]);
   const [clientDeliveries, setClientDeliveries] = useState<ClientDelivery[]>([]);
@@ -152,6 +157,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Aguarda autenticação estar completa e verifica se há usuário autenticado
   const { loading: authLoading, currentUser } = useAuth();
+  const isCoreDataReady = !authLoading && !!currentUser && usersLoaded && clientsLoaded && productsLoaded && routesLoaded;
+
+  useEffect(() => {
+    if (authLoading || !currentUser) {
+      setUsersLoaded(false);
+      setClientsLoaded(false);
+      setProductsLoaded(false);
+      setRoutesLoaded(false);
+    }
+  }, [authLoading, currentUser]);
 
   // Carrega listeners não críticos com pequeno atraso para priorizar login e lista de clientes.
   useEffect(() => {
@@ -202,6 +217,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
          setDoc(doc(db, 'users', 'admin-1'), admin);
       }
       setUsers(usersList);
+      setUsersLoaded(true);
     });
     return () => unsubscribe();
   }, [authLoading, currentUser]);
@@ -213,6 +229,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const unsubscribe = onSnapshot(collection(db, 'clients'), (snapshot) => {
       const list = snapshot.docs.map(doc => doc.data() as Client);
       setClients(list);
+      setClientsLoaded(true);
     });
     return () => unsubscribe();
   }, [authLoading, currentUser]);
@@ -231,6 +248,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (list.length > 0) {
         console.log('[PRODUCTS] ✓ Carregando produtos do Firestore');
         setProducts(list);
+        setProductsLoaded(true);
         return;
       }
       
@@ -261,11 +279,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
           console.log(`[SEED] ✓ Seed concluído com sucesso. Produtos novos adicionados: ${missingProducts.length}. (Tentativa: ${seedAttempts.current})`);
           setProducts(INITIAL_PRODUCTS);
+          setProductsLoaded(true);
         } catch (err) {
           console.error(`[SEED] ✗ Erro ao fazer seed (Tentativa: ${seedAttempts.current}):`, err);
+          setProductsLoaded(true);
           // NÃO resetar productsSeeded para evitar tentativas infinitas de seed
           // setProductsSeeded(false);
         }
+      } else {
+        // Mesmo sem seed, marca como carregado para evitar tela presa em loading.
+        setProductsLoaded(true);
       }
     });
     
@@ -279,6 +302,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const unsubscribe = onSnapshot(collection(db, 'routes'), (snapshot) => {
       const list = snapshot.docs.map(doc => doc.data() as Route);
       setRoutes(list);
+      setRoutesLoaded(true);
     });
     return () => unsubscribe();
   }, [authLoading, currentUser]);
@@ -3122,7 +3146,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   return (
     <DataContext.Provider value={{ 
-      users, clients, products, productionData, routes, dailyLoads, clientDeliveries, dynamicConsumptionRecords,
+      users, clients, products, productionData, routes, isCoreDataReady, dailyLoads, clientDeliveries, dynamicConsumptionRecords,
       dailyCashFunds, dailyDriverClosures, dailyPaymentsReceived, weeklySettlements, productionAnalysis,
       addUser, addClient, updateClient, updateClientsOrder, updateProduct, addProduct, deleteProduct, addRoute, deleteRoute,
       getRoutesByDriver, getClientsByDriver, getAllClients, getDrivers,
