@@ -143,13 +143,31 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   
   // Estados de Análise de Produção
   const [productionAnalysis, setProductionAnalysis] = useState<DailyProductionAnalysis[]>([]);
+  const [extendedSyncReady, setExtendedSyncReady] = useState(false);
   
   // Flag para garantir que o seed de produtos só acontece uma vez
   const [productsSeeded, setProductsSeeded] = useState(false);
   const seedAttempts = useRef(0);
+  const hasFixedGenericProductNames = useRef(false);
 
   // Aguarda autenticação estar completa e verifica se há usuário autenticado
   const { loading: authLoading, currentUser } = useAuth();
+
+  // Carrega listeners não críticos com pequeno atraso para priorizar login e lista de clientes.
+  useEffect(() => {
+    if (authLoading || !currentUser) {
+      setExtendedSyncReady(false);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setExtendedSyncReady(true);
+    }, 1200);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [authLoading, currentUser]);
 
   // --- FIREBASE LISTENERS (Realtime Sync) ---
 
@@ -282,7 +300,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // 6. Daily Loads (Carga do Dia) - Apenas últimos 7 dias
   useEffect(() => {
-    if (authLoading || !currentUser) return; // Aguarda autenticação estar completa e há usuário
+    if (authLoading || !currentUser || !extendedSyncReady) return; // Aguarda autenticação estar completa e há usuário
 
     const today = new Date();
     const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -301,11 +319,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setDailyLoads(loadsList);
     });
     return () => unsubscribe();
-  }, [authLoading, currentUser]);
+  }, [authLoading, currentUser, extendedSyncReady]);
 
   // 7. Client Deliveries (Entrega do Dia) - Coleção completa para cálculos de fecho corretos
   useEffect(() => {
-    if (authLoading || !currentUser) return; // Aguarda autenticação estar completa e há usuário
+    if (authLoading || !currentUser || !extendedSyncReady) return; // Aguarda autenticação estar completa e há usuário
 
     const unsubscribe = onSnapshot(collection(db, 'client_deliveries'), (snapshot) => {
       const deliveriesList = snapshot.docs.map(docSnap => ({
@@ -315,11 +333,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setClientDeliveries(deliveriesList);
     });
     return () => unsubscribe();
-  }, [authLoading, currentUser]);
+  }, [authLoading, currentUser, extendedSyncReady]);
 
   // 7.1 Corrigir nomes de produtos genéricos nas entregas existentes
   useEffect(() => {
-    if (authLoading || !currentUser || products.length === 0 || clientDeliveries.length === 0) return;
+    if (authLoading || !currentUser || products.length === 0 || clientDeliveries.length === 0 || hasFixedGenericProductNames.current) return;
     
     const fixProductNames = async () => {
       const deliveriesToFix = clientDeliveries.filter(d => 
@@ -328,7 +346,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         )
       );
       
-      if (deliveriesToFix.length === 0) return;
+      if (deliveriesToFix.length === 0) {
+        hasFixedGenericProductNames.current = true;
+        return;
+      }
       
       console.log(`[Fix] Corrigindo nomes de produtos em ${deliveriesToFix.length} entregas...`);
       
@@ -359,14 +380,17 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           }
         }
       }
+
+      // Evita nova varredura completa em toda atualização de entrega.
+      hasFixedGenericProductNames.current = true;
     };
     
     fixProductNames();
-  }, [products, clientDeliveries.length]); // Executar quando produtos carregarem
+  }, [products, clientDeliveries, authLoading, currentUser]);
 
   // 8. Dynamic Consumption Records (Histórico de Escolha Dinâmica) - Apenas últimos 7 dias
   useEffect(() => {
-    if (authLoading || !currentUser) return; // Aguarda autenticação estar completa e há usuário
+    if (authLoading || !currentUser || !extendedSyncReady) return; // Aguarda autenticação estar completa e há usuário
 
     const today = new Date();
     const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -385,11 +409,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setDynamicConsumptionRecords(recordsList);
     });
     return () => unsubscribe();
-  }, [authLoading, currentUser]);
+  }, [authLoading, currentUser, extendedSyncReady]);
 
   // 9. Daily Cash Funds (Fundo de Caixa Diário) - Apenas últimos 7 dias
   useEffect(() => {
-    if (authLoading || !currentUser) return; // Aguarda autenticação estar completa e há usuário
+    if (authLoading || !currentUser || !extendedSyncReady) return; // Aguarda autenticação estar completa e há usuário
 
     const today = new Date();
     const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -408,11 +432,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setDailyCashFunds(fundsList);
     });
     return () => unsubscribe();
-  }, [authLoading, currentUser]);
+  }, [authLoading, currentUser, extendedSyncReady]);
 
   // 10. Daily Driver Closures (Fecho Diário do Entregador) - Apenas últimos 7 dias
   useEffect(() => {
-    if (authLoading || !currentUser) return; // Aguarda autenticação estar completa e há usuário
+    if (authLoading || !currentUser || !extendedSyncReady) return; // Aguarda autenticação estar completa e há usuário
 
     const today = new Date();
     const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -431,11 +455,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setDailyDriverClosures(closuresList);
     });
     return () => unsubscribe();
-  }, [authLoading, currentUser]);
+  }, [authLoading, currentUser, extendedSyncReady]);
 
   // 11. Daily Payments Received (Pagamentos Recebidos) - Coleção completa para fecho semanal
   useEffect(() => {
-    if (authLoading || !currentUser) return; // Aguarda autenticação estar completa e há usuário
+    if (authLoading || !currentUser || !extendedSyncReady) return; // Aguarda autenticação estar completa e há usuário
 
     const unsubscribe = onSnapshot(collection(db, 'daily_payments_received'), (snapshot) => {
       const paymentsList = snapshot.docs.map(docSnap => ({
@@ -445,11 +469,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setDailyPaymentsReceived(paymentsList);
     });
     return () => unsubscribe();
-  }, [authLoading, currentUser]);
+  }, [authLoading, currentUser, extendedSyncReady]);
 
   // 12. Weekly Settlements (Fecho Semanal) - Coleção completa para sempre achar o último fecho
   useEffect(() => {
-    if (authLoading || !currentUser) return; // Aguarda autenticação estar completa e há usuário
+    if (authLoading || !currentUser || !extendedSyncReady) return; // Aguarda autenticação estar completa e há usuário
 
     const unsubscribe = onSnapshot(collection(db, 'weekly_settlements'), (snapshot) => {
       const settlementsList = snapshot.docs.map(docSnap => ({
@@ -459,11 +483,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setWeeklySettlements(settlementsList);
     });
     return () => unsubscribe();
-  }, [authLoading, currentUser]);
+  }, [authLoading, currentUser, extendedSyncReady]);
 
   // 13. Production Analysis (Análise de Produção) - Apenas últimos 30 dias
   useEffect(() => {
-    if (authLoading || !currentUser) return; // Aguarda autenticação estar completa e há usuário
+    if (authLoading || !currentUser || !extendedSyncReady) return; // Aguarda autenticação estar completa e há usuário
 
     const today = new Date();
     const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -484,7 +508,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setProductionAnalysis(analysisList);
     });
     return () => unsubscribe();
-  }, [authLoading, currentUser]);
+  }, [authLoading, currentUser, extendedSyncReady]);
 
   // --- ACTIONS (Write to Firebase) ---
 

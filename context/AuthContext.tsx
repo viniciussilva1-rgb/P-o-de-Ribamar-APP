@@ -61,8 +61,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setLoading(false);
     });
 
-    // Seed do usuário administrador (apenas em ambiente de desenvolvimento)
-    // Usa variáveis de ambiente VITE_ADMIN_EMAIL e VITE_ADMIN_PASS quando disponíveis.
+    // Seed opcional de usuário administrador (desativado por padrão).
+    // Para evitar travamentos na entrada, só executa se VITE_ENABLE_ADMIN_SEED=true.
     const seedAdmin = async () => {
       try {
         const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL as string) || 'viniciussiuva1@gmail.com';
@@ -97,8 +97,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     };
 
-    // Executa o seed apenas em desenvolvimento
-    if (import.meta.env.DEV) seedAdmin();
+    // Executa o seed somente quando explicitamente habilitado
+    if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_ADMIN_SEED === 'true') {
+      seedAdmin();
+    }
 
     return () => unsubscribe();
   }, []);
