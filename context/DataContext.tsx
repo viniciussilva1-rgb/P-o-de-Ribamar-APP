@@ -12,6 +12,14 @@ const formatDateLocal = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
+interface CoreDataCache {
+  users: User[];
+  clients: Client[];
+  products: Product[];
+  routes: Route[];
+  savedAt: string;
+}
+
 interface DataContextType {
   users: User[];
   clients: Client[];
@@ -159,6 +167,63 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const { loading: authLoading, currentUser } = useAuth();
   const isCoreDataReady = !authLoading && !!currentUser && usersLoaded && clientsLoaded && productsLoaded && routesLoaded;
 
+  const getCoreCacheKey = (userId: string, role: UserRole) => `pdr_core_cache_${userId}_${role}`;
+
+  const readCoreCache = (userId: string, role: UserRole): CoreDataCache | null => {
+    try {
+      const raw = localStorage.getItem(getCoreCacheKey(userId, role));
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as CoreDataCache;
+      if (!parsed || !Array.isArray(parsed.clients) || !Array.isArray(parsed.routes) || !Array.isArray(parsed.products) || !Array.isArray(parsed.users)) {
+        return null;
+      }
+      return parsed;
+    } catch {
+      return null;
+    }
+  };
+
+  const writeCoreCache = (userId: string, role: UserRole, data: Omit<CoreDataCache, 'savedAt'>) => {
+    try {
+      const payload: CoreDataCache = {
+        ...data,
+        savedAt: new Date().toISOString()
+      };
+      localStorage.setItem(getCoreCacheKey(userId, role), JSON.stringify(payload));
+    } catch {
+      // Ignora falhas de storage (quota, privado, etc.)
+    }
+  };
+
+  useEffect(() => {
+    if (authLoading || !currentUser) return;
+
+    const cached = readCoreCache(currentUser.id, currentUser.role);
+    if (!cached) return;
+
+    setUsers(cached.users);
+    setClients(cached.clients);
+    setProducts(cached.products);
+    setRoutes(cached.routes);
+
+    setUsersLoaded(true);
+    setClientsLoaded(true);
+    setProductsLoaded(true);
+    setRoutesLoaded(true);
+  }, [authLoading, currentUser]);
+
+  useEffect(() => {
+    if (authLoading || !currentUser) return;
+    if (!usersLoaded || !clientsLoaded || !productsLoaded || !routesLoaded) return;
+
+    writeCoreCache(currentUser.id, currentUser.role, {
+      users,
+      clients,
+      products,
+      routes
+    });
+  }, [authLoading, currentUser, usersLoaded, clientsLoaded, productsLoaded, routesLoaded, users, clients, products, routes]);
+
   useEffect(() => {
     if (authLoading || !currentUser) {
       setUsersLoaded(false);
@@ -190,7 +255,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     if (authLoading || !currentUser) return; // Aguarda autenticação estar completa e há usuário
 
-    const unsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
+    const usersSource = currentUser.role === UserRole.ADMIN
+      ? collection(db, 'users')
+      : query(collection(db, 'users'), where('id', '==', currentUser.id));
+
+    const unsubscribe = onSnapshot(usersSource, (snapshot) => {
       const usersList = snapshot.docs.map(snap => {
         const data = snap.data() as Partial<User>;
         // Garante que o id sempre exista e seja o id do documento caso não esteja salvo no campo
@@ -226,7 +295,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     if (authLoading || !currentUser) return; // Aguarda autenticação estar completa e há usuário
 
-    const unsubscribe = onSnapshot(collection(db, 'clients'), (snapshot) => {
+    const clientsSource = currentUser.role === UserRole.ADMIN
+      ? collection(db, 'clients')
+      : query(collection(db, 'clients'), where('driverId', '==', currentUser.id));
+
+    const unsubscribe = onSnapshot(clientsSource, (snapshot) => {
       const list = snapshot.docs.map(doc => doc.data() as Client);
       setClients(list);
       setClientsLoaded(true);
@@ -299,7 +372,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     if (authLoading || !currentUser) return; // Aguarda autenticação estar completa e há usuário
 
-    const unsubscribe = onSnapshot(collection(db, 'routes'), (snapshot) => {
+    const routesSource = currentUser.role === UserRole.ADMIN
+      ? collection(db, 'routes')
+      : query(collection(db, 'routes'), where('driverId', '==', currentUser.id));
+
+    const unsubscribe = onSnapshot(routesSource, (snapshot) => {
       const list = snapshot.docs.map(doc => doc.data() as Route);
       setRoutes(list);
       setRoutesLoaded(true);
