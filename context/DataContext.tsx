@@ -195,6 +195,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const shouldMarkCollectionLoaded = (docsCount: number, fromCache: boolean): boolean => {
+    // Considera pronto quando veio do servidor (fromCache=false) ou quando já existem docs úteis.
+    return !fromCache || docsCount > 0;
+  };
+
   useEffect(() => {
     if (authLoading || !currentUser) return;
 
@@ -259,7 +264,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       ? collection(db, 'users')
       : query(collection(db, 'users'), where('id', '==', currentUser.id));
 
-    const unsubscribe = onSnapshot(usersSource, (snapshot) => {
+    const unsubscribe = onSnapshot(usersSource, { includeMetadataChanges: true }, (snapshot) => {
       const usersList = snapshot.docs.map(snap => {
         const data = snap.data() as Partial<User>;
         // Garante que o id sempre exista e seja o id do documento caso não esteja salvo no campo
@@ -286,7 +291,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
          setDoc(doc(db, 'users', 'admin-1'), admin);
       }
       setUsers(usersList);
-      setUsersLoaded(true);
+      if (shouldMarkCollectionLoaded(usersList.length, snapshot.metadata.fromCache)) {
+        setUsersLoaded(true);
+      }
     });
     return () => unsubscribe();
   }, [authLoading, currentUser]);
@@ -299,10 +306,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       ? collection(db, 'clients')
       : query(collection(db, 'clients'), where('driverId', '==', currentUser.id));
 
-    const unsubscribe = onSnapshot(clientsSource, (snapshot) => {
+    const unsubscribe = onSnapshot(clientsSource, { includeMetadataChanges: true }, (snapshot) => {
       const list = snapshot.docs.map(doc => doc.data() as Client);
       setClients(list);
-      setClientsLoaded(true);
+      if (shouldMarkCollectionLoaded(list.length, snapshot.metadata.fromCache)) {
+        setClientsLoaded(true);
+      }
     });
     return () => unsubscribe();
   }, [authLoading, currentUser]);
@@ -312,7 +321,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (authLoading || !currentUser) return; // Aguarda autenticação estar completa e há usuário
 
     // Setup listener para produtos (escuta Firestore em tempo real)
-    const unsubscribe = onSnapshot(collection(db, 'products'), async (snapshot) => {
+    const unsubscribe = onSnapshot(collection(db, 'products'), { includeMetadataChanges: true }, async (snapshot) => {
       const list = snapshot.docs.map(doc => doc.data() as Product);
       
       console.log(`[PRODUCTS] Recebido snapshot com ${list.length} produtos`);
@@ -321,7 +330,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (list.length > 0) {
         console.log('[PRODUCTS] ✓ Carregando produtos do Firestore');
         setProducts(list);
-        setProductsLoaded(true);
+        if (shouldMarkCollectionLoaded(list.length, snapshot.metadata.fromCache)) {
+          setProductsLoaded(true);
+        }
         return;
       }
       
@@ -352,16 +363,22 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
           console.log(`[SEED] ✓ Seed concluído com sucesso. Produtos novos adicionados: ${missingProducts.length}. (Tentativa: ${seedAttempts.current})`);
           setProducts(INITIAL_PRODUCTS);
-          setProductsLoaded(true);
+          if (shouldMarkCollectionLoaded(INITIAL_PRODUCTS.length, snapshot.metadata.fromCache)) {
+            setProductsLoaded(true);
+          }
         } catch (err) {
           console.error(`[SEED] ✗ Erro ao fazer seed (Tentativa: ${seedAttempts.current}):`, err);
-          setProductsLoaded(true);
+          if (!snapshot.metadata.fromCache) {
+            setProductsLoaded(true);
+          }
           // NÃO resetar productsSeeded para evitar tentativas infinitas de seed
           // setProductsSeeded(false);
         }
       } else {
         // Mesmo sem seed, marca como carregado para evitar tela presa em loading.
-        setProductsLoaded(true);
+        if (!snapshot.metadata.fromCache) {
+          setProductsLoaded(true);
+        }
       }
     });
     
@@ -376,10 +393,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       ? collection(db, 'routes')
       : query(collection(db, 'routes'), where('driverId', '==', currentUser.id));
 
-    const unsubscribe = onSnapshot(routesSource, (snapshot) => {
+    const unsubscribe = onSnapshot(routesSource, { includeMetadataChanges: true }, (snapshot) => {
       const list = snapshot.docs.map(doc => doc.data() as Route);
       setRoutes(list);
-      setRoutesLoaded(true);
+      if (shouldMarkCollectionLoaded(list.length, snapshot.metadata.fromCache)) {
+        setRoutesLoaded(true);
+      }
     });
     return () => unsubscribe();
   }, [authLoading, currentUser]);
