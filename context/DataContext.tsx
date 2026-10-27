@@ -418,20 +418,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => unsubscribe();
   }, [authLoading, currentUser]);
 
-  // 6. Daily Loads (Carga do Dia) - Apenas últimos 7 dias
+  // 6. Daily Loads (Carga do Dia) - Histórico completo
   useEffect(() => {
     if (authLoading || !currentUser || !extendedSyncReady) return; // Aguarda autenticação estar completa e há usuário
 
-    const today = new Date();
-    const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const startDate = sevenDaysAgo.toISOString().split('T')[0];
-    
-    const q = query(
-      collection(db, 'daily_loads'),
-      where('date', '>=', startDate)
-    );
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(collection(db, 'daily_loads'), (snapshot) => {
       const loadsList = snapshot.docs.map(docSnap => ({
         ...docSnap.data(),
         id: docSnap.id
