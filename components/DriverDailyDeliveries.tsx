@@ -35,7 +35,7 @@ const formatDateLocal = (date: Date): string => {
 export type CalendarDayStatus = 
   | 'paid'         // Verde: dia pago (data <= paidThrough)
   | 'to_pay'       // Laranja: a pagar (data > paidThrough e <= hoje)
-  | 'no_bread'     // Vermelho: cliente não quis pão (marcado pelo entregador)
+  | 'no_bread'     // Vermelho: dia sem entrega confirmada (não entregue/pulado)
   | 'no_delivery'  // Cinza: sem entrega (feriado, sem rota, etc.)
   | 'future';      // Futuro: data > hoje
 
@@ -53,7 +53,7 @@ export interface CalendarDayInfo {
  * @param paidThrough Data até onde está pago (YYYY-MM-DD) ou null
  * @param todayStr Data de hoje (YYYY-MM-DD)
  * @param deliveryDates Datas com entrega programada
- * @param noBreadDates Datas marcadas como "cliente não quis pão"
+ * @param noBreadDates Datas sem entrega confirmada (não entregue/pulado)
  * @returns Map de data -> CalendarDayInfo
  */
 export const computeCalendarStatuses = (
@@ -92,7 +92,7 @@ export const computeCalendarStatuses = (
       // Futuro: sem marcação de cobrança
       status = 'future';
     } else if (isNoBread) {
-      // Vermelho: cliente não quis pão (prioridade sobre pago/a pagar)
+      // Vermelho: dia sem entrega confirmada (prioridade sobre pago/a pagar)
       status = 'no_bread';
     } else if (!hasDelivery) {
       // Cinza: sem entrega (feriado, sem rota)
@@ -2255,7 +2255,7 @@ const DriverDailyDeliveries: React.FC = () => {
                           const todayStr = formatDateLocal(new Date());
                           
                           // Usar optimisticPaidUntil para atualização imediata
-                          const effectivePaidThrough = optimisticPaidUntil || paidUntilDate || null;
+                          const effectivePaidThrough = optimisticPaidUntil || serverPaidUntil || null;
                           
                           // Gerar array de datas visíveis
                           const visibleDays: string[] = [];
@@ -2318,7 +2318,7 @@ const DriverDailyDeliveries: React.FC = () => {
                                   bgClass = 'bg-orange-50 hover:bg-orange-100 text-orange-700';
                                   break;
                                 case 'no_bread':
-                                  // Vermelho: não quis pão
+                                  // Vermelho: não entregue / pulado
                                   ringClass = 'ring-2 ring-red-500 ring-inset';
                                   bgClass = 'bg-red-50 hover:bg-red-100 text-red-700';
                                   break;
@@ -2363,7 +2363,7 @@ const DriverDailyDeliveries: React.FC = () => {
                         </div>
                         <div className="flex items-center gap-1">
                           <div className="w-4 h-4 rounded-full ring-2 ring-red-500 ring-inset bg-red-50"></div>
-                          <span style={{ color: '#A0A8C0' }}>Não quis pão</span>
+                          <span style={{ color: '#A0A8C0' }}>Não entregue</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <div className="w-4 h-4 rounded-full bg-gray-100"></div>

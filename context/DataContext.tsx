@@ -788,12 +788,28 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return vacationPeriods.some(period => dateStr >= period.startDate && dateStr <= period.endDate);
   };
 
+  const getLatestPaidUntilDate = (clientId: string, fallbackDate: string | null): string | null => {
+    let latestPaidUntil = fallbackDate;
+
+    dailyPaymentsReceived
+      .filter(payment => payment.clientId === clientId && Boolean(payment.paidUntil))
+      .forEach(payment => {
+        const paidUntil = payment.paidUntil as string;
+        if (!latestPaidUntil || paidUntil > latestPaidUntil) {
+          latestPaidUntil = paidUntil;
+        }
+      });
+
+    return latestPaidUntil;
+  };
+
   const calculateClientDebt = (client: Client) => {
     let total = 0;
     let daysCount = 0;
     const details: string[] = [];
 
-    const startDateStr = client.lastPaymentDate || client.createdAt.split('T')[0];
+    const referencePaidUntilDate = getLatestPaidUntilDate(client.id, client.lastPaymentDate || null);
+    const startDateStr = referencePaidUntilDate || client.createdAt.split('T')[0];
     const startDate = new Date(startDateStr);
     const today = new Date();
     
@@ -808,7 +824,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (d.status === 'not_delivered') return false; // Não entregue não conta
         
         // Apenas entregas após lastPaymentDate
-        if (client.lastPaymentDate && d.date <= client.lastPaymentDate) return false;
+        if (referencePaidUntilDate && d.date <= referencePaidUntilDate) return false;
         
         return true;
       });
@@ -838,7 +854,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         currentDate.setTime(safetyLimit.getTime());
     }
     
-    if (client.lastPaymentDate) {
+    if (referencePaidUntilDate) {
         currentDate.setDate(currentDate.getDate() + 1);
     }
 
@@ -912,8 +928,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       ? paymentHistory[paymentHistory.length - 1] 
       : null;
 
-    // Data até quando está pago: usar o mais recente entre daily_payments e client.lastPaymentDate
-    const paidUntilDate = lastDailyPayment?.paidUntil || client.lastPaymentDate || null;
+    // Data até quando está pago: usar a data mais avançada já registada
+    const paidUntilDate = getLatestPaidUntilDate(clientId, client.lastPaymentDate || null);
 
     // Calcular datas pagas e não pagas (últimos 60 dias)
     const paidDates: string[] = [];
@@ -1090,8 +1106,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     const lastDailyPayment = clientPaymentsFromDaily[0];
     
-    // paidUntilDate: usar o mais recente entre daily_payments e client.lastPaymentDate
-    const paidUntilDate = lastDailyPayment?.paidUntil || client.lastPaymentDate || null;
+    // paidUntilDate: usar a data mais avançada já registada
+    const paidUntilDate = getLatestPaidUntilDate(clientId, client.lastPaymentDate || null);
     
     const paymentHistory = (client.paymentHistory || []).map(p => ({
       date: p.date,
