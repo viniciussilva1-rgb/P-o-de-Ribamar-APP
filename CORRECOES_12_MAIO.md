@@ -73,6 +73,20 @@ document.addEventListener('visibilitychange', handleVisibilityChange);
 
 ---
 
+### 5️⃣ Data de "Entregas do Dia" voltando sozinha para hoje ✅
+
+**Problema**: Ao selecionar uma data anterior no calendário de "Entregas do Dia", após algum tempo a tela voltava automaticamente para a data de hoje.
+
+**Causa**: Existia uma rotina automática (intervalo + `visibilitychange`) que redefinia `selectedDate` para a data atual.
+
+**Solução Implementada**:
+- Remover a rotina de auto-reset da data em "Entregas do Dia".
+- Agora a data só muda quando o usuário altera explicitamente no calendário.
+
+**Status**: ✅ Corrigido
+
+---
+
 ## Como Verificar se Tudo Funciona
 
 ### ✅ Test 1: Verificar Data
