@@ -29,8 +29,11 @@ const formatDateLocal = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
-const isValidISODate = (value: string): boolean => {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+const normalizeDateInput = (value: string): string | null => {
+  const match = value.trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (!match) return null;
+  const [, year, month, day] = match;
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 };
 
 // ========== TIPOS E FUNÇÕES DO CALENDÁRIO DE PAGAMENTOS ==========
@@ -256,8 +259,9 @@ const DriverDailyDeliveries: React.FC = () => {
   const [calendarMonth, setCalendarMonth] = useState(new Date());
 
   const handleSelectedDateChange = (value: string) => {
-    if (!isValidISODate(value)) return;
-    setSelectedDate(value);
+    const normalizedDate = normalizeDateInput(value);
+    if (!normalizedDate) return;
+    setSelectedDate(normalizedDate);
   };
 
   const handleSelectedDateInput = (event: React.FormEvent<HTMLInputElement>) => {
@@ -267,14 +271,17 @@ const DriverDailyDeliveries: React.FC = () => {
   useEffect(() => {
     if (!currentUser?.id) return;
     const savedDate = localStorage.getItem(`driver-daily-deliveries:selected-date:${currentUser.id}`);
-    if (savedDate && isValidISODate(savedDate)) {
-      setSelectedDate(savedDate);
+    const normalizedDate = savedDate ? normalizeDateInput(savedDate) : null;
+    if (normalizedDate) {
+      setSelectedDate(normalizedDate);
     }
   }, [currentUser?.id]);
 
   useEffect(() => {
-    if (!currentUser?.id || !isValidISODate(selectedDate)) return;
-    localStorage.setItem(`driver-daily-deliveries:selected-date:${currentUser.id}`, selectedDate);
+    if (!currentUser?.id) return;
+    const normalizedDate = normalizeDateInput(selectedDate);
+    if (!normalizedDate) return;
+    localStorage.setItem(`driver-daily-deliveries:selected-date:${currentUser.id}`, normalizedDate);
   }, [currentUser?.id, selectedDate]);
 
   // Estados para atualização otimista do calendário

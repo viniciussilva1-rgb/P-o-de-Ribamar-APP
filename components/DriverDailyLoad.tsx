@@ -9,8 +9,18 @@ import {
   Sparkles, Info, Zap, Brain
 } from 'lucide-react';
 
-const isValidISODate = (value: string): boolean => {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+const formatDateLocal = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const normalizeDateInput = (value: string): string | null => {
+  const match = value.trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (!match) return null;
+  const [, year, month, day] = match;
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 };
 
 const DriverDailyLoad: React.FC = () => {
@@ -28,7 +38,7 @@ const DriverDailyLoad: React.FC = () => {
     clients
   } = useData();
   
-  const today = new Date().toISOString().split('T')[0];
+  const today = formatDateLocal(new Date());
   const [selectedDate, setSelectedDate] = useState(today);
   const [currentLoad, setCurrentLoad] = useState<DailyLoad | undefined>(undefined);
   const [isEditingCompleted, setIsEditingCompleted] = useState(false);
@@ -46,8 +56,9 @@ const DriverDailyLoad: React.FC = () => {
   const [success, setSuccess] = useState('');
 
   const handleSelectedDateChange = (value: string) => {
-    if (!isValidISODate(value)) return;
-    setSelectedDate(value);
+    const normalizedDate = normalizeDateInput(value);
+    if (!normalizedDate) return;
+    setSelectedDate(normalizedDate);
   };
 
   const handleSelectedDateInput = (event: React.FormEvent<HTMLInputElement>) => {

@@ -126,6 +126,19 @@ document.addEventListener('visibilitychange', handleVisibilityChange);
 
 ---
 
+### 9️⃣ Compatibilidade de seleção de data e consistência local ✅
+
+**Problema**: Em alguns navegadores, a seleção no calendário nativo não aplicava o novo dia de forma consistente.
+
+**Solução Implementada**:
+- Normalizar datas selecionadas para `YYYY-MM-DD` aceitando variações de entrada.
+- Manter atualização por `onChange` e `onInput` com normalização.
+- Padronizar "hoje" da tela de carga com data local (evitando diferenças por UTC em borda de dia).
+
+**Status**: ✅ Corrigido
+
+---
+
 ## Como Verificar se Tudo Funciona
 
 ### ✅ Test 1: Verificar Data
