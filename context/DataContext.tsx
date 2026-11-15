@@ -700,10 +700,19 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Atualizar ordem de múltiplos clientes de uma vez
   const updateClientsOrder = async (clientsOrder: { id: string; sortOrder: number }[]): Promise<void> => {
-    const promises = clientsOrder.map(({ id, sortOrder }) => 
-      updateDoc(doc(db, 'clients', id), { sortOrder })
-    );
-    await Promise.all(promises);
+    if (clientsOrder.length === 0) return;
+
+    const BATCH_LIMIT = 500;
+    for (let i = 0; i < clientsOrder.length; i += BATCH_LIMIT) {
+      const chunk = clientsOrder.slice(i, i + BATCH_LIMIT);
+      const batch = writeBatch(db);
+
+      chunk.forEach(({ id, sortOrder }) => {
+        batch.update(doc(db, 'clients', id), { sortOrder });
+      });
+
+      await batch.commit();
+    }
   };
 
   // Helper para obter a chave do dia

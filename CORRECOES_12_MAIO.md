@@ -56,6 +56,23 @@ document.addEventListener('visibilitychange', handleVisibilityChange);
 
 ---
 
+### 4️⃣ Lentidão ao salvar ordem das rotas ("Meus Clientes") ✅
+
+**Problema**: Ao reordenar clientes e clicar em **Salvar Ordem**, a tela ficava lenta/travando e demorava para concluir.
+
+**Causa**:
+- O salvamento atualizava todos os clientes, mesmo quando poucos tinham mudado de posição.
+- O cálculo da lista em tela fazia buscas repetidas (`find`/`findIndex`) em cada card, aumentando o custo de renderização durante o salvamento.
+
+**Solução Implementada**:
+- Salvar apenas clientes com `sortOrder` realmente alterado.
+- Persistir ordem com `writeBatch` (incluindo chunk de segurança de 500 operações), reduzindo overhead de múltiplos writes soltos.
+- Otimizar render com `useMemo` para listas filtradas, mapa de nome da rota e mapa de posição por cliente.
+
+**Status**: ✅ Corrigido
+
+---
+
 ## Como Verificar se Tudo Funciona
 
 ### ✅ Test 1: Verificar Data
@@ -145,6 +162,8 @@ Se houver problemas, abra **F12 (Console)** e procure por:
 - `context/DataContext.tsx` - Guards e seed de produtos
 - `components/AdminView.tsx` - Atualização de preços
 - `components/DriverDailyDeliveries.tsx` - Data e botão Atualizar
+- `components/DriverView.tsx` - Otimização da reordenação/salvamento de ordem
+- `context/DataContext.tsx` - Escrita em lote para update de ordem dos clientes
 - `DEBUG_PRECOS.md` - Guia de debug para preços
 
 Tudo foi commitado no Git. Verifique com `git log` para ver histórico completo.

@@ -378,17 +378,33 @@ export const DriverView: React.FC = () => {
   }, [myClients, isReorderMode]);
 
   // Clientes filtrados (por rota) - usado tanto no modo normal quanto no modo de ordenação
-  const clientsFilteredByRoute = localClientOrder.filter(c => {
-    return selectedRouteFilter === 'all' || c.routeId === selectedRouteFilter;
-  });
+  const clientsFilteredByRoute = React.useMemo(() => {
+    return localClientOrder.filter(c => selectedRouteFilter === 'all' || c.routeId === selectedRouteFilter);
+  }, [localClientOrder, selectedRouteFilter]);
 
   // Clientes filtrados por busca também no modo de ordenação
-  const filteredClients = clientsFilteredByRoute.filter(c => {
-    if (!searchTerm) return true;
-    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          c.address.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
+  const filteredClients = React.useMemo(() => {
+    return clientsFilteredByRoute.filter(c => {
+      if (!searchTerm) return true;
+      const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            c.address.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesSearch;
+    });
+  }, [clientsFilteredByRoute, searchTerm]);
+
+  const routeNameById = React.useMemo(() => {
+    return myRoutes.reduce<Record<string, string>>((acc, route) => {
+      acc[route.id] = route.name;
+      return acc;
+    }, {});
+  }, [myRoutes]);
+
+  const positionByClientId = React.useMemo(() => {
+    return clientsFilteredByRoute.reduce<Record<string, number>>((acc, client, index) => {
+      acc[client.id] = index + 1;
+      return acc;
+    }, {});
+  }, [clientsFilteredByRoute]);
 
   // Funções de mover com botões - movem dentro da lista filtrada visível
   // Função para mover cliente para uma posição específica
@@ -524,12 +540,19 @@ export const DriverView: React.FC = () => {
   const handleSaveOrder = async () => {
     setSavingOrder(true);
     try {
-      // Criar lista de atualizações com a nova ordem
-      const updates = localClientOrder.map((client, index) => ({
+      // Atualiza somente clientes que realmente mudaram de posição
+      const updates = localClientOrder
+      .map((client, index) => ({
         id: client.id,
-        sortOrder: index
-      }));
-      await updateClientsOrder(updates);
+        sortOrder: index,
+        currentSortOrder: client.sortOrder
+      }))
+      .filter(client => client.currentSortOrder !== client.sortOrder)
+      .map(({ id, sortOrder }) => ({ id, sortOrder }));
+
+      if (updates.length > 0) {
+        await updateClientsOrder(updates);
+      }
       // Sucesso - sai do modo de reordenação automaticamente
       setIsReorderMode(false);
     } catch (error) {
@@ -1179,13 +1202,13 @@ export const DriverView: React.FC = () => {
       <div className={`grid gap-4 ${isReorderMode ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
         {filteredClients.length > 0 ? (
           filteredClients.map((client) => {
-            const routeName = myRoutes.find(r => r.id === client.routeId)?.name || 'Sem Rota';
+            const routeName = client.routeId ? routeNameById[client.routeId] || 'Sem Rota' : 'Sem Rota';
             
             // Auto Calculate Debt for display in card (Optional performance hit, but better UX)
             // Ideally we store this, but for now lets calc on fly or use stored
             const displayBalance = client.currentBalance;
             // Posição real na lista filtrada por rota (sem busca) - essa é a posição de entrega
-            const realPosition = clientsFilteredByRoute.findIndex(c => c.id === client.id) + 1;
+            const realPosition = positionByClientId[client.id] ?? 1;
             const totalInRoute = clientsFilteredByRoute.length;
 
             return (
