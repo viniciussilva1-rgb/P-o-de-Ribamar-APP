@@ -156,6 +156,19 @@ document.addEventListener('visibilitychange', handleVisibilityChange);
 
 ---
 
+### 1️⃣1️⃣ Tela preta após refresh (Carga do Dia) ✅
+
+**Problema**: Após atualizar a página, a aplicação ficava preta.
+
+**Causa**: Referência a `routes` sem leitura do contexto em `DriverDailyLoad`, gerando erro de runtime.
+
+**Solução Implementada**:
+- Incluir `routes` no destructuring do `useData()` em `DriverDailyLoad`.
+
+**Status**: ✅ Corrigido
+
+---
+
 ## Como Verificar se Tudo Funciona
 
 ### ✅ Test 1: Verificar Data

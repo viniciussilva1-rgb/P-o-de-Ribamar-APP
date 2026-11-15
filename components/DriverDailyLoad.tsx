@@ -27,6 +27,7 @@ const DriverDailyLoad: React.FC = () => {
   const { currentUser } = useAuth();
   const { 
     products, 
+    routes,
     createDailyLoad, 
     completeDailyLoad, 
     updateDailyLoad,
