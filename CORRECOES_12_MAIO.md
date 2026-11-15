@@ -184,6 +184,20 @@ document.addEventListener('visibilitychange', handleVisibilityChange);
 
 ---
 
+### 1️⃣3️⃣ Lentidão ao abrir/selecionar calendário (Entregas/Carga) ✅
+
+**Problema**: O date picker estava lento para abrir e para confirmar a seleção de dia.
+
+**Causa**: Tratamento duplicado da mudança de data (`onChange` + `onInput`) gerando eventos extras e recomputações desnecessárias.
+
+**Solução Implementada**:
+- Manter apenas `onChange` para os campos de data nas telas de Entregas e Carga.
+- Preservar normalização de data no `onChange`.
+
+**Status**: ✅ Corrigido
+
+---
+
 ## Como Verificar se Tudo Funciona
 
 ### ✅ Test 1: Verificar Data

@@ -264,10 +264,6 @@ const DriverDailyDeliveries: React.FC = () => {
     setSelectedDate(normalizedDate);
   };
 
-  const handleSelectedDateInput = (event: React.FormEvent<HTMLInputElement>) => {
-    handleSelectedDateChange(event.currentTarget.value);
-  };
-
   useEffect(() => {
     if (!currentUser?.id) return;
     const savedDate = localStorage.getItem(`driver-daily-deliveries:selected-date:${currentUser.id}`);
@@ -1242,7 +1238,6 @@ const DriverDailyDeliveries: React.FC = () => {
               type="date"
               value={selectedDate}
               onChange={(e) => handleSelectedDateChange(e.target.value)}
-              onInput={handleSelectedDateInput}
               style={{ backgroundColor: '#FFFFFF', color: '#000000', border: 'none', borderRadius: '0.25rem', padding: '0.25rem 0.5rem' }}
               className="focus:ring-2 focus:ring-orange-500 text-sm font-medium"
             />
