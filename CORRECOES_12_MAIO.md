@@ -114,6 +114,18 @@ document.addEventListener('visibilitychange', handleVisibilityChange);
 
 ---
 
+### 8️⃣ Calendário sem permitir troca de data em Entregas/Carga ✅
+
+**Problema**: Em "Entregas do Dia" e "Carga do Dia", o calendário abria mas em alguns cenários não aplicava a nova data selecionada.
+
+**Solução Implementada**:
+- Centralizar validação da data (`YYYY-MM-DD`) antes de atualizar estado.
+- Tratar mudança de data tanto em `onChange` quanto em `onInput` para compatibilidade com comportamento do date picker nativo em diferentes navegadores.
+
+**Status**: ✅ Corrigido
+
+---
+
 ## Como Verificar se Tudo Funciona
 
 ### ✅ Test 1: Verificar Data

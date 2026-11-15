@@ -255,6 +255,15 @@ const DriverDailyDeliveries: React.FC = () => {
   const [showCustomCalendar, setShowCustomCalendar] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
 
+  const handleSelectedDateChange = (value: string) => {
+    if (!isValidISODate(value)) return;
+    setSelectedDate(value);
+  };
+
+  const handleSelectedDateInput = (event: React.FormEvent<HTMLInputElement>) => {
+    handleSelectedDateChange(event.currentTarget.value);
+  };
+
   useEffect(() => {
     if (!currentUser?.id) return;
     const savedDate = localStorage.getItem(`driver-daily-deliveries:selected-date:${currentUser.id}`);
@@ -1225,7 +1234,8 @@ const DriverDailyDeliveries: React.FC = () => {
             <input
               type="date"
               value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              onChange={(e) => handleSelectedDateChange(e.target.value)}
+              onInput={handleSelectedDateInput}
               style={{ backgroundColor: '#FFFFFF', color: '#000000', border: 'none', borderRadius: '0.25rem', padding: '0.25rem 0.5rem' }}
               className="focus:ring-2 focus:ring-orange-500 text-sm font-medium"
             />

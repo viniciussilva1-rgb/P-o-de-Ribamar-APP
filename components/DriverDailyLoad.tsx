@@ -9,6 +9,10 @@ import {
   Sparkles, Info, Zap, Brain
 } from 'lucide-react';
 
+const isValidISODate = (value: string): boolean => {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+};
+
 const DriverDailyLoad: React.FC = () => {
   const { currentUser } = useAuth();
   const { 
@@ -40,6 +44,15 @@ const DriverDailyLoad: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const handleSelectedDateChange = (value: string) => {
+    if (!isValidISODate(value)) return;
+    setSelectedDate(value);
+  };
+
+  const handleSelectedDateInput = (event: React.FormEvent<HTMLInputElement>) => {
+    handleSelectedDateChange(event.currentTarget.value);
+  };
 
   // Carregar carga existente do dia
   useEffect(() => {
@@ -334,7 +347,8 @@ const DriverDailyLoad: React.FC = () => {
             <input
               type="date"
               value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              onChange={(e) => handleSelectedDateChange(e.target.value)}
+              onInput={handleSelectedDateInput}
               style={{ backgroundColor: '#FFFFFF', color: '#000000', borderColor: '#D1D5DB' }}
               className="px-3 py-2 border rounded-lg text-sm"
             />
@@ -888,7 +902,8 @@ const DriverDailyLoad: React.FC = () => {
           <input
             type="date"
             value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
+            onChange={(e) => handleSelectedDateChange(e.target.value)}
+            onInput={handleSelectedDateInput}
             className="px-3 py-2 rounded-lg text-sm"
             style={{ 
               backgroundColor: '#13161E', 
