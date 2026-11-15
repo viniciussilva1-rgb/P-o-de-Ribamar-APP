@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { LoadItem, ReturnItem, DailyLoad, DynamicLoadSummary } from '../types';
@@ -57,11 +57,18 @@ const DriverDailyLoad: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const myRoutes = routes.filter(r => r.driverId === currentUser?.id);
-  const routeNameById = myRoutes.reduce<Record<string, string>>((acc, route) => {
-    acc[route.id] = route.name;
-    return acc;
-  }, {});
+  const myRoutes = useMemo(
+    () => routes.filter(route => route.driverId === currentUser?.id),
+    [routes, currentUser?.id]
+  );
+  const routeNameById = useMemo(
+    () => myRoutes.reduce<Record<string, string>>((acc, route) => {
+      acc[route.id] = route.name;
+      return acc;
+    }, {}),
+    [myRoutes]
+  );
+  const hydratedRouteForUserRef = useRef<string | null>(null);
 
   const handleSelectedDateChange = (value: string) => {
     const normalizedDate = normalizeDateInput(value);
@@ -75,19 +82,17 @@ const DriverDailyLoad: React.FC = () => {
 
   useEffect(() => {
     if (!currentUser?.id) return;
+    if (hydratedRouteForUserRef.current === currentUser.id) return;
+
     const savedRoute = localStorage.getItem(`driver-daily-load:selected-route:${currentUser.id}`);
+    hydratedRouteForUserRef.current = currentUser.id;
+
     if (!savedRoute) return;
 
-    if (savedRoute === 'all') {
-      setSelectedRoute('all');
-      return;
-    }
-
-    const hasRoute = myRoutes.some(route => route.id === savedRoute);
-    if (hasRoute) {
+    if (savedRoute !== selectedRoute) {
       setSelectedRoute(savedRoute);
     }
-  }, [currentUser?.id, myRoutes]);
+  }, [currentUser?.id, selectedRoute]);
 
   useEffect(() => {
     if (!currentUser?.id) return;

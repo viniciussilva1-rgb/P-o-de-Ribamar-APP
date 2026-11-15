@@ -169,6 +169,21 @@ document.addEventListener('visibilitychange', handleVisibilityChange);
 
 ---
 
+### 1️⃣2️⃣ Tremor/oscilações ao selecionar rota na Carga do Dia ✅
+
+**Problema**: Ao escolher uma rota específica, a tela oscilava (tremia) e não fixava a rota corretamente.
+
+**Causa**: Loop de sincronização do `selectedRoute` com `localStorage` em renders sucessivos.
+
+**Solução Implementada**:
+- Hidratar rota salva apenas uma vez por usuário autenticado.
+- Memoizar lista de rotas e mapa de nomes (`useMemo`) para estabilidade de render.
+- Evitar reset de rota durante interação do usuário.
+
+**Status**: ✅ Corrigido
+
+---
+
 ## Como Verificar se Tudo Funciona
 
 ### ✅ Test 1: Verificar Data
