@@ -53,10 +53,10 @@ interface DataContextType {
   updatePricesForRoute: (routeId: string, prices: Record<string, number>, userRole: UserRole) => Promise<{ success: number; failed: number }>;
   
   // Funções de Carga do Dia
-  createDailyLoad: (driverId: string, date: string, loadItems: LoadItem[], observations?: string) => Promise<DailyLoad>;
+  createDailyLoad: (driverId: string, date: string, loadItems: LoadItem[], observations?: string, routeScope?: string) => Promise<DailyLoad>;
   updateDailyLoad: (loadId: string, updates: Partial<DailyLoad>) => Promise<void>;
   completeDailyLoad: (loadId: string, returnItems: ReturnItem[], observations?: string) => Promise<void>;
-  getDailyLoadByDriver: (driverId: string, date: string) => DailyLoad | undefined;
+  getDailyLoadByDriver: (driverId: string, date: string, routeScope?: string) => DailyLoad | undefined;
   getDailyLoadsByDate: (date: string) => DailyLoad[];
   getDailyLoadReport: (date: string) => DailyLoadReport;
   getProductionSuggestions: (daysToAnalyze?: number) => ProductionSuggestion[];
@@ -1314,8 +1314,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // ========== FUNÇÕES DE CARGA DO DIA ==========
 
-  const createDailyLoad = async (driverId: string, date: string, loadItems: LoadItem[], observations?: string): Promise<DailyLoad> => {
-    const loadId = `load-${driverId}-${date}`;
+  const createDailyLoad = async (driverId: string, date: string, loadItems: LoadItem[], observations?: string, routeScope: string = 'all'): Promise<DailyLoad> => {
+    const normalizedRouteScope = routeScope === 'all' ? 'all' : routeScope;
+    const loadId = normalizedRouteScope === 'all'
+      ? `load-${driverId}-${date}`
+      : `load-${driverId}-${date}-${normalizedRouteScope}`;
     const now = new Date().toISOString();
     
     const totalLoaded = loadItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -1324,6 +1327,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       id: loadId,
       driverId,
       date,
+      routeScope: normalizedRouteScope,
       status: 'in_route',
       loadItems,
       loadStartTime: now,
@@ -1389,8 +1393,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const getDailyLoadByDriver = (driverId: string, date: string): DailyLoad | undefined => {
-    return dailyLoads.find(l => l.driverId === driverId && l.date === date);
+  const getDailyLoadByDriver = (driverId: string, date: string, routeScope: string = 'all'): DailyLoad | undefined => {
+    return dailyLoads.find(load => {
+      if (load.driverId !== driverId || load.date !== date) return false;
+      const loadRouteScope = load.routeScope || 'all';
+      return loadRouteScope === routeScope;
+    });
   };
 
   const getDailyLoadsByDate = (date: string): DailyLoad[] => {

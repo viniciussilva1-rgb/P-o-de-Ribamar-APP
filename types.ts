@@ -154,6 +154,7 @@ export interface DailyLoad {
   id: string;
   driverId: string;
   date: string; // YYYY-MM-DD
+  routeScope?: string; // 'all' ou ID da rota
   status: DailyLoadStatus;
   
   // Carga inicial
@@ -739,4 +740,3 @@ export interface ProductionAnalysisSuggestion {
   confidence: 'low' | 'medium' | 'high';
   reasoning: string;
 }
-

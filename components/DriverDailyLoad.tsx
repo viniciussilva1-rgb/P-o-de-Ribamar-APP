@@ -40,6 +40,7 @@ const DriverDailyLoad: React.FC = () => {
   
   const today = formatDateLocal(new Date());
   const [selectedDate, setSelectedDate] = useState(today);
+  const [selectedRoute, setSelectedRoute] = useState<string>('all');
   const [currentLoad, setCurrentLoad] = useState<DailyLoad | undefined>(undefined);
   const [isEditingCompleted, setIsEditingCompleted] = useState(false);
   
@@ -55,6 +56,12 @@ const DriverDailyLoad: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  const myRoutes = routes.filter(r => r.driverId === currentUser?.id);
+  const routeNameById = myRoutes.reduce<Record<string, string>>((acc, route) => {
+    acc[route.id] = route.name;
+    return acc;
+  }, {});
+
   const handleSelectedDateChange = (value: string) => {
     const normalizedDate = normalizeDateInput(value);
     if (!normalizedDate) return;
@@ -65,10 +72,31 @@ const DriverDailyLoad: React.FC = () => {
     handleSelectedDateChange(event.currentTarget.value);
   };
 
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    const savedRoute = localStorage.getItem(`driver-daily-load:selected-route:${currentUser.id}`);
+    if (!savedRoute) return;
+
+    if (savedRoute === 'all') {
+      setSelectedRoute('all');
+      return;
+    }
+
+    const hasRoute = myRoutes.some(route => route.id === savedRoute);
+    if (hasRoute) {
+      setSelectedRoute(savedRoute);
+    }
+  }, [currentUser?.id, myRoutes]);
+
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    localStorage.setItem(`driver-daily-load:selected-route:${currentUser.id}`, selectedRoute);
+  }, [currentUser?.id, selectedRoute]);
+
   // Carregar carga existente do dia
   useEffect(() => {
     if (currentUser?.id) {
-      const existingLoad = getDailyLoadByDriver(currentUser.id, selectedDate);
+      const existingLoad = getDailyLoadByDriver(currentUser.id, selectedDate, selectedRoute);
       setCurrentLoad(existingLoad);
       
       if (existingLoad) {
@@ -93,7 +121,7 @@ const DriverDailyLoad: React.FC = () => {
         setReturnItems([]);
       }
     }
-  }, [currentUser?.id, selectedDate, dailyLoads, products]);
+  }, [currentUser?.id, selectedDate, selectedRoute, dailyLoads, products]);
 
   const updateLoadQuantity = (productId: string, delta: number) => {
     setLoadItems(prev => prev.map(item => {
@@ -152,7 +180,7 @@ const DriverDailyLoad: React.FC = () => {
     setSuccess('');
 
     try {
-      await createDailyLoad(currentUser.id, selectedDate, itemsWithQuantity, loadObservations || undefined);
+      await createDailyLoad(currentUser.id, selectedDate, itemsWithQuantity, loadObservations || undefined, selectedRoute);
       setSuccess('Carga registrada com sucesso! Boa rota!');
     } catch (err) {
       console.error('Erro ao criar carga:', err);
@@ -228,9 +256,11 @@ const DriverDailyLoad: React.FC = () => {
     return days[date.getDay()];
   };
 
-  // Obter clientes agendados para o dia (excluindo dinâmicos)
-  const scheduledClients = currentUser?.id 
-    ? getScheduledClientsForDay(currentUser.id, selectedDate).filter(c => !c.isDynamicChoice)
+  // Obter clientes agendados para o dia (excluindo dinâmicos) com filtro de rota opcional
+  const scheduledClients = currentUser?.id
+    ? getScheduledClientsForDay(currentUser.id, selectedDate)
+        .filter(client => !client.isDynamicChoice)
+        .filter(client => selectedRoute === 'all' || client.routeId === selectedRoute)
     : [];
 
   // Calcular carga necessária baseada nos clientes agendados
@@ -292,10 +322,51 @@ const DriverDailyLoad: React.FC = () => {
   // Estado e dados para clientes dinâmicos
   const [showDynamicInfo, setShowDynamicInfo] = useState(true);
   const [showScheduledInfo, setShowScheduledInfo] = useState(true);
-  const dynamicClients = currentUser?.id ? getDynamicClientsForDriver(currentUser.id) : [];
-  const dynamicSummary: DynamicLoadSummary | null = currentUser?.id && dynamicClients.length > 0 
-    ? getDynamicLoadSummary(currentUser.id, selectedDate) 
-    : null;
+  const dynamicClients = currentUser?.id
+    ? getDynamicClientsForDriver(currentUser.id)
+        .filter(client => selectedRoute === 'all' || client.routeId === selectedRoute)
+    : [];
+
+  const dynamicSummary: DynamicLoadSummary | null = React.useMemo(() => {
+    if (!currentUser?.id || dynamicClients.length === 0) return null;
+
+    const fullSummary = getDynamicLoadSummary(currentUser.id, selectedDate);
+    if (selectedRoute === 'all') return fullSummary;
+
+    const filteredPredictions = fullSummary.predictions.filter(
+      prediction => prediction.routeId === selectedRoute
+    );
+
+    const productTotals = new Map<string, { minTotal: number; avgTotal: number; maxTotal: number; recommendedTotal: number }>();
+    filteredPredictions.forEach(prediction => {
+      prediction.predictedItems.forEach(item => {
+        const existing = productTotals.get(item.productId) || { minTotal: 0, avgTotal: 0, maxTotal: 0, recommendedTotal: 0 };
+        productTotals.set(item.productId, {
+          minTotal: existing.minTotal + item.minQuantity,
+          avgTotal: existing.avgTotal + item.avgQuantity,
+          maxTotal: existing.maxTotal + item.maxQuantity,
+          recommendedTotal: existing.recommendedTotal + item.recommendedQuantity
+        });
+      });
+    });
+
+    const recommendedLoad = Array.from(productTotals.entries()).map(([productId, totals]) => ({
+      productId,
+      productName: products.find(p => p.id === productId)?.name || 'Produto',
+      minTotal: totals.minTotal,
+      avgTotal: parseFloat(totals.avgTotal.toFixed(1)),
+      maxTotal: totals.maxTotal,
+      recommendedTotal: totals.recommendedTotal
+    }));
+
+    return {
+      ...fullSummary,
+      dynamicClientsCount: dynamicClients.length,
+      predictions: filteredPredictions,
+      recommendedLoad,
+      totalRecommendedValue: filteredPredictions.reduce((sum, prediction) => sum + prediction.predictedTotalValue, 0)
+    };
+  }, [currentUser?.id, dynamicClients, getDynamicLoadSummary, products, selectedDate, selectedRoute]);
 
   // Função para aplicar carga recomendada dos clientes dinâmicos
   const applyDynamicRecommendation = () => {
@@ -338,6 +409,45 @@ const DriverDailyLoad: React.FC = () => {
     }
   };
 
+  const renderRouteSelector = () => {
+    if (myRoutes.length === 0) return null;
+
+    return (
+      <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4">
+        <div className="flex flex-col md:flex-row md:items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-amber-800">Rota da carga:</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setSelectedRoute('all')}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                selectedRoute === 'all'
+                  ? 'bg-amber-600 text-white shadow-md'
+                  : 'bg-white text-amber-700 border border-amber-300 hover:bg-amber-100'
+              }`}
+            >
+              Todas as Rotas
+            </button>
+            {myRoutes.map(route => (
+              <button
+                key={route.id}
+                onClick={() => setSelectedRoute(route.id)}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  selectedRoute === route.id
+                    ? 'bg-amber-600 text-white shadow-md'
+                    : 'bg-white text-amber-700 border border-amber-300 hover:bg-amber-100'
+                }`}
+              >
+                {route.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Renderizar baseado no estado atual
   if (!currentLoad) {
     // Formulário para criar nova carga
@@ -365,6 +475,7 @@ const DriverDailyLoad: React.FC = () => {
             />
           </div>
         </div>
+        {renderRouteSelector()}
 
         {error && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
@@ -387,6 +498,11 @@ const DriverDailyLoad: React.FC = () => {
               <h3 className="font-semibold text-amber-800 flex items-center gap-2">
                 <ClipboardList size={18} className="text-amber-600" />
                 Carga Necessária - Clientes Agendados
+                {selectedRoute !== 'all' && (
+                  <span className="text-sm font-normal text-amber-700">
+                    ({routeNameById[selectedRoute] || 'Rota'})
+                  </span>
+                )}
               </h3>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-amber-600 bg-amber-100 px-2 py-1 rounded-full">
@@ -406,7 +522,7 @@ const DriverDailyLoad: React.FC = () => {
               <div className="mb-3 p-2 bg-amber-100/50 rounded-lg">
                 <p className="text-xs text-amber-700 flex items-center gap-1">
                   <Info size={14} />
-                  Calculado automaticamente baseado nos pedidos programados dos seus clientes para hoje
+                  Calculado automaticamente baseado nos pedidos programados dos seus clientes para {selectedRoute === 'all' ? 'hoje' : 'a rota selecionada'}
                 </p>
               </div>
 
@@ -434,7 +550,7 @@ const DriverDailyLoad: React.FC = () => {
                   <details className="mb-4">
                     <summary className="cursor-pointer text-sm text-amber-600 hover:text-amber-800 flex items-center gap-1">
                       <Info size={14} />
-                      Ver clientes para hoje ({getDayKey(selectedDate).toUpperCase()})
+                      Ver clientes {selectedRoute === 'all' ? 'de hoje' : `da rota ${routeNameById[selectedRoute] || 'selecionada'}`} ({getDayKey(selectedDate).toUpperCase()})
                     </summary>
                     <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
                       {scheduledClients.map(client => {
@@ -495,6 +611,7 @@ const DriverDailyLoad: React.FC = () => {
             <ClipboardList size={16} />
             <span className="text-sm font-medium">
               Ver carga necessária: {scheduledClients.length} cliente{scheduledClients.length !== 1 ? 's' : ''} agendado{scheduledClients.length !== 1 ? 's' : ''} ({totalScheduledItems} itens)
+              {selectedRoute !== 'all' && ` • ${routeNameById[selectedRoute] || 'Rota'}`}
             </span>
           </button>
         )}
@@ -747,12 +864,18 @@ const DriverDailyLoad: React.FC = () => {
               <p className="text-sm text-gray-500">
                 Iniciada às {currentLoad.loadStartTime ? new Date(currentLoad.loadStartTime).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
               </p>
+              <p className="text-xs text-gray-500">
+                {currentLoad.routeScope && currentLoad.routeScope !== 'all'
+                  ? `Escopo: ${routeNameById[currentLoad.routeScope] || 'Rota selecionada'}`
+                  : 'Escopo: Todas as rotas'}
+              </p>
             </div>
           </div>
           <div className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
             Em Rota
           </div>
         </div>
+        {renderRouteSelector()}
 
         {error && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
@@ -906,6 +1029,11 @@ const DriverDailyLoad: React.FC = () => {
             <p style={{ fontSize: '0.875rem', color: '#A0A8C0' }}>
               {selectedDate === today ? 'Hoje' : new Date(selectedDate).toLocaleDateString('pt-PT')}
             </p>
+            <p style={{ fontSize: '0.75rem', color: '#A0A8C0' }}>
+              {currentLoad.routeScope && currentLoad.routeScope !== 'all'
+                ? `Escopo: ${routeNameById[currentLoad.routeScope] || 'Rota selecionada'}`
+                : 'Escopo: Todas as rotas'}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -925,6 +1053,7 @@ const DriverDailyLoad: React.FC = () => {
           />
         </div>
       </div>
+      {renderRouteSelector()}
 
       {/* Métricas */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

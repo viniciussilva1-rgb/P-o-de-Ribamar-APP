@@ -139,6 +139,23 @@ document.addEventListener('visibilitychange', handleVisibilityChange);
 
 ---
 
+### 🔟 Carga do Dia com escopo por rota (ou todas) ✅
+
+**Objetivo**: Permitir que entregadores da mesma conta registrem carga separadamente por rota, sem perder a opção de registrar tudo junto.
+
+**Solução Implementada**:
+- Adicionado seletor de rota na tela de **Carga do Dia** com opção **Todas as Rotas**.
+- A seção **Carga Necessária - Clientes Agendados** passa a respeitar a rota selecionada.
+- A recomendação de clientes dinâmicos (IA) também respeita a rota selecionada.
+- O registo da carga passa a guardar `routeScope` no documento e usa ID separado por rota:
+  - Todas as rotas: `load-{driverId}-{date}` (compatível com histórico existente)
+  - Rota específica: `load-{driverId}-{date}-{routeId}`
+- A rota selecionada fica persistida localmente por entregador.
+
+**Status**: ✅ Corrigido
+
+---
+
 ## Como Verificar se Tudo Funciona
 
 ### ✅ Test 1: Verificar Data
