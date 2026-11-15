@@ -87,6 +87,20 @@ document.addEventListener('visibilitychange', handleVisibilityChange);
 
 ---
 
+### 6️⃣ Resumo de produtos respeitando filtro de rota ✅
+
+**Problema**: Em "Entregas do Dia", o bloco **Produtos a Entregar Hoje** mostrava totais gerais mesmo quando uma rota específica estava selecionada.
+
+**Solução Implementada**:
+- Recalcular totais de produtos com base na rota ativa.
+- "Todas as Rotas" mantém total geral.
+- "Rota 1" e "Rota 2" passam a mostrar apenas os produtos da rota selecionada.
+- Persistir a data selecionada por entregador para evitar reset inesperado ao recarregar/remontar tela.
+
+**Status**: ✅ Corrigido
+
+---
+
 ## Como Verificar se Tudo Funciona
 
 ### ✅ Test 1: Verificar Data

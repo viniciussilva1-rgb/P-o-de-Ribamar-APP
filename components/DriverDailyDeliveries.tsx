@@ -29,6 +29,10 @@ const formatDateLocal = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
+const isValidISODate = (value: string): boolean => {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+};
+
 // ========== TIPOS E FUNÇÕES DO CALENDÁRIO DE PAGAMENTOS ==========
 
 // Status possíveis de cada dia no calendário
@@ -163,7 +167,6 @@ const DriverDailyDeliveries: React.FC = () => {
     revertSubstituteInDelivery,
     adjustQuantityInDelivery,
     getDeliveriesByDriver,
-    getDriverDailySummary,
     getScheduledClientsForDay,
     clientDeliveries,
     getDynamicClientsForDriver,
@@ -251,6 +254,19 @@ const DriverDailyDeliveries: React.FC = () => {
   } | null>(null);
   const [showCustomCalendar, setShowCustomCalendar] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
+
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    const savedDate = localStorage.getItem(`driver-daily-deliveries:selected-date:${currentUser.id}`);
+    if (savedDate && isValidISODate(savedDate)) {
+      setSelectedDate(savedDate);
+    }
+  }, [currentUser?.id]);
+
+  useEffect(() => {
+    if (!currentUser?.id || !isValidISODate(selectedDate)) return;
+    localStorage.setItem(`driver-daily-deliveries:selected-date:${currentUser.id}`, selectedDate);
+  }, [currentUser?.id, selectedDate]);
 
   // Estados para atualização otimista do calendário
   const [optimisticPaidUntil, setOptimisticPaidUntil] = useState<string | null>(null);
@@ -1139,8 +1155,35 @@ const DriverDailyDeliveries: React.FC = () => {
       }, {} as Record<string, ClientDelivery[]>)
     : { [selectedRoute]: sortDeliveries(filteredDeliveries) };
 
-  // Resumo do dia
-  const summary = currentUser?.id ? getDriverDailySummary(currentUser.id, selectedDate) : null;
+  const productTotalsForSelectedRoute = React.useMemo(() => {
+    const deliveriesByRoute = selectedRoute === 'all'
+      ? deliveries
+      : deliveries.filter(delivery => delivery.routeId === selectedRoute);
+
+    const productMap = new Map<string, { quantity: number; value: number }>();
+    deliveriesByRoute.forEach(delivery => {
+      delivery.items.forEach(item => {
+        const existing = productMap.get(item.productId) || { quantity: 0, value: 0 };
+        const product = products.find(p => p.id === item.productId);
+        const client = clients.find(c => c.id === delivery.clientId);
+        const price = client?.customPrices?.[item.productId] ?? product?.price ?? 0;
+
+        productMap.set(item.productId, {
+          quantity: existing.quantity + item.quantity,
+          value: existing.value + (price * item.quantity)
+        });
+      });
+    });
+
+    return Array.from(productMap.entries())
+      .map(([productId, data]) => ({
+        productId,
+        productName: products.find(p => p.id === productId)?.name || 'Produto',
+        quantity: data.quantity,
+        value: data.value
+      }))
+      .sort((a, b) => b.quantity - a.quantity);
+  }, [deliveries, selectedRoute, products, clients]);
 
   // Clientes programados (para verificar se há entregas a gerar)
   const scheduledClients = currentUser?.id ? getScheduledClientsForDay(currentUser.id, selectedDate) : [];
@@ -1344,16 +1387,21 @@ const DriverDailyDeliveries: React.FC = () => {
       )}
 
       {/* Resumo de Produtos */}
-      {summary && summary.productTotals.length > 0 && (
+      {productTotalsForSelectedRoute.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-3 border-b border-gray-200">
             <h3 className="font-semibold text-gray-800 flex items-center gap-2">
               <Package size={18} />
               Produtos a Entregar Hoje
+              {selectedRoute !== 'all' && (
+                <span className="text-sm font-normal text-amber-700">
+                  ({getRouteName(selectedRoute)})
+                </span>
+              )}
             </h3>
           </div>
           <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-            {summary.productTotals.map(pt => (
+            {productTotalsForSelectedRoute.map(pt => (
               <div key={pt.productId} className="bg-gray-50 rounded-lg p-3">
                 <span className="text-sm text-gray-600">{pt.productName}</span>
                 <p className="text-lg font-bold text-gray-800">{pt.quantity} un.</p>
