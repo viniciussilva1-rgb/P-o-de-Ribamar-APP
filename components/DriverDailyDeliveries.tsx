@@ -1338,7 +1338,7 @@ const DriverDailyDeliveries: React.FC = () => {
       )}
 
       {/* Resumo do Dia - filtrado por rota se selecionada */}
-      {summary && filteredDeliveries.length > 0 && (
+      {filteredDeliveries.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div style={{ backgroundColor: '#13161E', borderRadius: '0.75rem', padding: '1rem', border: '1px solid rgba(255,255,255,0.07)', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>

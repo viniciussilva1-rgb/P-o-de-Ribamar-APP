@@ -101,6 +101,19 @@ document.addEventListener('visibilitychange', handleVisibilityChange);
 
 ---
 
+### 7️⃣ Tela preta ao abrir "Entregas do Dia" ✅
+
+**Problema**: Ao clicar em "Entregas do Dia", a página ficava preta.
+
+**Causa**: Referência a variável removida (`summary`) no bloco de renderização, causando erro de runtime no React.
+
+**Solução Implementada**:
+- Remover a dependência de `summary` no bloco de resumo e usar apenas os dados já filtrados em tela.
+
+**Status**: ✅ Corrigido
+
+---
+
 ## Como Verificar se Tudo Funciona
 
 ### ✅ Test 1: Verificar Data
